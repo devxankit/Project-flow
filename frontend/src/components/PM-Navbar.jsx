@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button } from './magicui/button';
+import { Button, buttonVariants } from './magicui/button';
 import { Dock, DockIcon } from './magicui/dock';
 import { 
   Home, 
@@ -12,6 +12,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 
 const PMNavbar = ({ currentPage = 'Dashboard' }) => {
   const [isMobile, setIsMobile] = useState(false);
@@ -152,23 +153,26 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
 
   // Mobile Bottom Dock
   const MobileBottomDock = () => (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-4">
-      <Dock className="bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg">
+    <div className="md:hidden dock-container p-4 safe-area-pb">
+      <Dock 
+        className="bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg"
+        direction="bottom"
+      >
         {navigationItems.map((item) => (
-          <DockIcon
-            key={item.key}
-            onClick={() => handleNavigation(item.href)}
-            className={`transition-colors ${
-              location.pathname === item.href
-                ? 'bg-primary/20 text-primary'
-                : 'hover:bg-gray-100'
-            }`}
-          >
-            <item.icon className={`h-5 w-5 ${
-              location.pathname === item.href
-                ? 'text-primary'
-                : 'text-gray-600'
-            }`} />
+          <DockIcon key={item.key}>
+            <button
+              onClick={() => handleNavigation(item.href)}
+              aria-label={item.name}
+              className={cn(
+                buttonVariants({ variant: "ghost", size: "icon" }),
+                "size-12 rounded-full",
+                location.pathname === item.href
+                  ? 'bg-primary/20 text-primary hover:bg-primary/30'
+                  : ''
+              )}
+            >
+              <item.icon className="size-4" />
+            </button>
           </DockIcon>
         ))}
       </Dock>

@@ -100,20 +100,21 @@ const ActivityPage = () => {
     <div className="min-h-screen bg-gray-50">
       <PMNavbar />
       
-      <main className="pt-8 pb-20 md:pb-8">
+      <main className="pt-8 pb-24 md:pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Activity</h1>
-              <p className="mt-2 text-gray-600">Track all project activities and updates</p>
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Activity</h1>
+              <p className="mt-2 text-sm sm:text-base text-gray-600">Track all project activities and updates</p>
             </div>
-            <div className="mt-4 sm:mt-0 flex space-x-3">
-              <Button variant="outline" className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Calendar className="h-4 w-4" />
-                <span>Date Range</span>
+                <span className="hidden xs:inline">Date Range</span>
+                <span className="xs:hidden">Date</span>
               </Button>
-              <Button variant="outline" className="flex items-center space-x-2">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
               </Button>
@@ -121,26 +122,29 @@ const ActivityPage = () => {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
-            {[
-              { key: 'all', label: 'All Activity' },
-              { key: 'task_completed', label: 'Completed' },
-              { key: 'project_created', label: 'Projects' },
-              { key: 'comment_added', label: 'Comments' },
-              { key: 'task_assigned', label: 'Assignments' }
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filter === key
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-fit">
+              {[
+                { key: 'all', label: 'All Activity', shortLabel: 'All' },
+                { key: 'task_completed', label: 'Completed', shortLabel: 'Done' },
+                { key: 'project_created', label: 'Projects', shortLabel: 'Projects' },
+                { key: 'comment_added', label: 'Comments', shortLabel: 'Comments' },
+                { key: 'task_assigned', label: 'Assignments', shortLabel: 'Tasks' }
+              ].map(({ key, label, shortLabel }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                    filter === key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{shortLabel}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Activity Feed */}
@@ -150,22 +154,22 @@ const ActivityPage = () => {
             </div>
             <div className="divide-y divide-gray-200">
               {filteredActivities.map((activity, index) => (
-                <div key={activity.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start space-x-4">
+                <div key={activity.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-start space-x-3 sm:space-x-4">
                     <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-lg">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm sm:text-lg">
                         {activity.icon}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
                         <h3 className="text-sm font-medium text-gray-900">{activity.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium w-fit mt-1 sm:mt-0 ${getActivityTypeColor(activity.type)}`}>
                           {activity.type.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2">{activity.description}</p>
-                      <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <p className="text-sm text-gray-600 mb-2 break-words">{activity.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <User className="h-3 w-3" />
                           <span>{activity.user}</span>
