@@ -1,11 +1,26 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 import Home from './pages/Home';
+import PMDashboard from './pages/PM-dashboard';
+import Projects from './pages/Projects';
+import Tasks from './pages/Tasks';
+import ActivityPage from './pages/Activity';
+
 function App() {
   return (
-  <>
-  <Home/>
-  </>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/pm-dashboard" element={<PMDashboard />} />
+          <Route path="/dashboard" element={<PMDashboard />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/tasks" element={<Tasks />} />
+          <Route path="/activity" element={<ActivityPage />} />
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

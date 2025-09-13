@@ -21,7 +21,7 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">PM</span>
               </div>
               <span className="ml-2 text-xl font-bold text-gray-900">TaskFlow</span>
@@ -69,7 +69,7 @@ const Navbar = () => {
             <Button variant="ghost" className="text-gray-700 hover:text-gray-900">
               Sign In
             </Button>
-            <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+            <Button className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white">
               Get Started
             </Button>
           </div>
@@ -127,7 +127,7 @@ const Navbar = () => {
                 <Button variant="ghost" className="w-full justify-start">
                   Sign In
                 </Button>
-                <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white">
+                <Button className="w-full bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white">
                   Get Started
                 </Button>
               </div>
