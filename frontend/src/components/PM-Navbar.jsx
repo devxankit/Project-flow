@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Button, buttonVariants } from './magicui/button';
-import { Dock, DockIcon } from './magicui/dock';
 import { 
   Home, 
   FolderKanban, 
   CheckSquare, 
   Activity, 
   BarChart3, 
-  User,
-  Menu,
-  X
+  User
 } from 'lucide-react';
-import { cn } from '../lib/utils';
 
 const PMNavbar = ({ currentPage = 'Dashboard' }) => {
   const [isMobile, setIsMobile] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -41,15 +35,17 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
 
   const handleNavigation = (href) => {
     navigate(href);
-    setIsMenuOpen(false);
   };
 
-  // Get current page from location
+  // Get current page from location with smooth transitions
   const getCurrentPage = () => {
     const path = location.pathname;
     const item = navigationItems.find(item => item.href === path);
     return item ? item.name : 'Dashboard';
   };
+
+  // Memoize current page to prevent unnecessary re-renders
+  const currentPageName = React.useMemo(() => getCurrentPage(), [location.pathname]);
 
   // Desktop Navbar
   const DesktopNavbar = () => (
@@ -108,74 +104,52 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
       <div className="flex justify-between items-center h-14 px-4">
         {/* Current Page Title */}
         <div className="flex items-center">
-          <h1 className="text-lg font-semibold text-gray-900">{getCurrentPage()}</h1>
+          <h1 className="text-lg font-semibold text-gray-900 page-title">
+            {currentPageName}
+          </h1>
         </div>
 
         {/* Profile */}
-        <div className="flex items-center space-x-3">
-          <button className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+        <div className="flex items-center">
+          <button className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200">
             <User className="h-4 w-4 text-white" />
           </button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="text-gray-700 hover:text-gray-900"
-          >
-            {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
         </div>
       </div>
-
-      {/* Mobile Menu Dropdown */}
-      {isMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-100 shadow-lg z-40">
-          <div className="px-4 py-2 space-y-1">
-            {navigationItems.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => handleNavigation(item.href)}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  location.pathname === item.href
-                    ? 'text-primary bg-primary/10'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 
-  // Mobile Bottom Dock
-  const MobileBottomDock = () => (
-    <div className="md:hidden dock-container p-4 safe-area-pb">
-      <Dock 
-        className="bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg"
-        direction="bottom"
-      >
+  // Mobile Bottom Navbar
+  const MobileBottomNavbar = () => (
+    <div className="md:hidden mobile-bottom-navbar bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg safe-area-pb">
+      <div className="flex items-center justify-around h-16">
         {navigationItems.map((item) => (
-          <DockIcon key={item.key}>
-            <button
-              onClick={() => handleNavigation(item.href)}
-              aria-label={item.name}
-              className={cn(
-                buttonVariants({ variant: "ghost", size: "icon" }),
-                "size-12 rounded-full",
-                location.pathname === item.href
-                  ? 'bg-primary/20 text-primary hover:bg-primary/30'
-                  : ''
-              )}
-            >
-              <item.icon className="size-4" />
-            </button>
-          </DockIcon>
+          <button
+            key={item.key}
+            onClick={() => handleNavigation(item.href)}
+            className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 ${
+              location.pathname === item.href
+                ? 'text-primary'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className={`p-2 rounded-lg transition-all duration-200 ${
+              location.pathname === item.href
+                ? 'bg-primary/10 scale-110'
+                : 'hover:bg-gray-100'
+            }`}>
+              <item.icon className="h-5 w-5" />
+            </div>
+            <span className={`text-xs font-medium mt-1 transition-colors ${
+              location.pathname === item.href
+                ? 'text-primary'
+                : 'text-gray-500'
+            }`}>
+              {item.name}
+            </span>
+          </button>
         ))}
-      </Dock>
+      </div>
     </div>
   );
 
@@ -184,7 +158,7 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
       {isMobile ? (
         <>
           <MobileTopBar />
-          <MobileBottomDock />
+          <MobileBottomNavbar />
         </>
       ) : (
         <DesktopNavbar />

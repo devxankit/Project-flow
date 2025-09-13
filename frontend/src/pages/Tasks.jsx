@@ -77,41 +77,51 @@ const Tasks = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
-              <p className="mt-2 text-gray-600">Track and manage all your tasks</p>
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Tasks</h1>
+              <p className="mt-2 text-sm sm:text-base text-gray-600">Track and manage all your tasks</p>
             </div>
-            <div className="mt-4 sm:mt-0 flex space-x-3">
-              <Button variant="outline" className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Search className="h-4 w-4" />
-                <span>Search</span>
+                <span className="hidden xs:inline">Search</span>
+                <span className="xs:hidden">Search</span>
               </Button>
-              <Button variant="outline" className="flex items-center space-x-2">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
               </Button>
-              <Button className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white flex items-center space-x-2">
+              <Button className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white flex items-center justify-center space-x-2 text-sm">
                 <Plus className="h-4 w-4" />
-                <span>New Task</span>
+                <span className="hidden xs:inline">New Task</span>
+                <span className="xs:hidden">New</span>
               </Button>
             </div>
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
-            {['all', 'pending', 'in progress', 'completed'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-                  filter === status
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+          <div className="mb-6">
+            <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-fit">
+              {[
+                { key: 'all', label: 'All Tasks', shortLabel: 'All' },
+                { key: 'pending', label: 'Pending', shortLabel: 'Pending' },
+                { key: 'in progress', label: 'In Progress', shortLabel: 'Active' },
+                { key: 'completed', label: 'Completed', shortLabel: 'Done' }
+              ].map(({ key, label, shortLabel }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                    filter === key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{shortLabel}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Tasks List */}
@@ -123,27 +133,31 @@ const Tasks = () => {
             </div>
             <div className="divide-y divide-gray-200">
               {filteredTasks.map((task) => (
-                <div key={task.id} className="p-6 hover:bg-gray-50 transition-colors">
+                <div key={task.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <CheckSquare className="h-5 w-5 text-gray-400" />
-                        <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                          {task.status}
-                        </span>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                          {task.priority}
-                        </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 mb-2">
+                        <div className="flex items-center space-x-2 mb-2 sm:mb-0">
+                          <CheckSquare className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 flex-shrink-0" />
+                          <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{task.title}</h3>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                            {task.status}
+                          </span>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                            {task.priority}
+                          </span>
+                        </div>
                       </div>
-                      <p className="text-gray-600 mb-3">{task.description}</p>
-                      <div className="flex items-center space-x-6 text-sm text-gray-500">
+                      <p className="text-sm text-gray-600 mb-3 break-words">{task.description}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-6 space-y-2 sm:space-y-0 text-xs sm:text-sm text-gray-500">
                         <div className="flex items-center space-x-1">
-                          <User className="h-4 w-4" />
+                          <User className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>{task.assignee}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <Calendar className="h-4 w-4" />
+                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
                         </div>
                         <span className="text-primary font-medium">{task.project}</span>

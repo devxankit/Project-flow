@@ -51,48 +51,50 @@ const Projects = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
-              <p className="mt-2 text-gray-600">Manage and track all your projects</p>
+            <div className="mb-4 sm:mb-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Projects</h1>
+              <p className="mt-2 text-sm sm:text-base text-gray-600">Manage and track all your projects</p>
             </div>
-            <div className="mt-4 sm:mt-0 flex space-x-3">
-              <Button variant="outline" className="flex items-center space-x-2">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Search className="h-4 w-4" />
-                <span>Search</span>
+                <span className="hidden xs:inline">Search</span>
+                <span className="xs:hidden">Search</span>
               </Button>
-              <Button variant="outline" className="flex items-center space-x-2">
+              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
                 <Filter className="h-4 w-4" />
                 <span>Filter</span>
               </Button>
-              <Button className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white flex items-center space-x-2">
+              <Button className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-hover hover:to-primary text-white flex items-center justify-center space-x-2 text-sm">
                 <Plus className="h-4 w-4" />
-                <span>New Project</span>
+                <span className="hidden xs:inline">New Project</span>
+                <span className="xs:hidden">New</span>
               </Button>
             </div>
           </div>
 
           {/* Projects Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {projects.map((project) => (
-              <div key={project.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div key={project.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <FolderKanban className="h-5 w-5 text-primary" />
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="p-2 bg-primary/10 rounded-lg flex-shrink-0">
+                      <FolderKanban className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{project.name}</h3>
-                      <p className="text-sm text-gray-600">{project.description}</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{project.name}</h3>
+                      <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">{project.description}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-2 ${getStatusColor(project.status)}`}>
                     {project.status}
                   </span>
                 </div>
 
                 <div className="space-y-3">
                   <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-1">
                       <span>Progress</span>
                       <span>{project.progress}%</span>
                     </div>
@@ -104,7 +106,7 @@ const Projects = () => {
                     </div>
                   </div>
 
-                  <div className="flex justify-between text-sm text-gray-600">
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0 text-xs sm:text-sm text-gray-600">
                     <span>Team: {project.team} members</span>
                     <span>Due: {new Date(project.dueDate).toLocaleDateString()}</span>
                   </div>
