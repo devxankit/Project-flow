@@ -96,9 +96,9 @@ const Tasks = () => {
             </div>
           </div>
 
-          {/* Responsive Filter Tabs */}
-          <div className="mb-6 md:mb-8">
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:flex-wrap">
+          {/* Mobile Filter Tabs - Tiles Layout */}
+          <div className="md:hidden mb-6">
+            <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'all', label: 'All', count: tasks.length },
                 { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status === 'Pending').length },
@@ -108,7 +108,34 @@ const Tasks = () => {
                 <button
                   key={key}
                   onClick={() => setFilter(key)}
-                  className={`px-4 py-2 rounded-full md:rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  className={`p-4 rounded-2xl shadow-sm border transition-all ${
+                    filter === key
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'bg-white text-gray-600 border-gray-200 active:scale-95'
+                  }`}
+                >
+                  <div className="flex flex-col items-center space-y-1">
+                    <span className="text-lg font-bold">{count}</span>
+                    <span className="text-sm font-medium">{label}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Desktop Filter Tabs - Website Layout */}
+          <div className="hidden md:block mb-8">
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { key: 'all', label: 'All', count: tasks.length },
+                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status === 'Pending').length },
+                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status === 'In Progress').length },
+                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status === 'Completed').length }
+              ].map(({ key, label, count }) => (
+                <button
+                  key={key}
+                  onClick={() => setFilter(key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     filter === key
                       ? 'bg-primary text-white shadow-sm'
                       : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
