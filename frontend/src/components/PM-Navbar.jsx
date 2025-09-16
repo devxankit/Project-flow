@@ -122,20 +122,20 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
   // Mobile Bottom Navbar
   const MobileBottomNavbar = () => (
     <div className="md:hidden mobile-bottom-navbar bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg safe-area-pb">
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-around h-16 px-2">
         {navigationItems.map((item) => (
           <button
             key={item.key}
             onClick={() => handleNavigation(item.href)}
-            className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 ${
+            className={`flex flex-col items-center justify-center flex-1 h-full transition-all duration-200 active:scale-95 ${
               location.pathname === item.href
                 ? 'text-primary'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            <div className={`p-2 rounded-lg transition-all duration-200 ${
+            <div className={`p-2 rounded-xl transition-all duration-200 ${
               location.pathname === item.href
-                ? 'bg-primary/10 scale-110'
+                ? 'bg-primary/10 scale-110 shadow-sm'
                 : 'hover:bg-gray-100'
             }`}>
               <item.icon className="h-5 w-5" />

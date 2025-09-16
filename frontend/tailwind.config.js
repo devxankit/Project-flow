@@ -60,7 +60,8 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", ...fontFamily.sans],
+        sans: ["Poppins", "ui-sans-serif", "system-ui", "sans-serif"],
+        poppins: ["Poppins", "ui-sans-serif", "system-ui", "sans-serif"],
       },
       keyframes: {
         "accordion-down": {

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
-import { Activity, Filter, Calendar, User, Clock } from 'lucide-react';
-import { Button } from '../components/magicui/button';
+import { Activity, Filter, Calendar, User, Clock, CheckCircle, Plus, MessageSquare, UserPlus, BarChart3, FolderPlus } from 'lucide-react';
 
 const ActivityPage = () => {
   const [filter, setFilter] = useState('all');
@@ -15,7 +14,8 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T10:30:00Z',
       user: 'John Doe',
       project: 'Website Redesign',
-      icon: '✅'
+      icon: CheckCircle,
+      color: 'text-green-600'
     },
     {
       id: 2,
@@ -25,7 +25,8 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T09:15:00Z',
       user: 'Jane Smith',
       project: 'Mobile App Development',
-      icon: '📁'
+      icon: FolderPlus,
+      color: 'text-blue-600'
     },
     {
       id: 3,
@@ -35,7 +36,8 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T08:45:00Z',
       user: 'Mike Johnson',
       project: 'Database Migration',
-      icon: '💬'
+      icon: MessageSquare,
+      color: 'text-purple-600'
     },
     {
       id: 4,
@@ -45,7 +47,8 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T16:20:00Z',
       user: 'Sarah Wilson',
       project: 'Website Redesign',
-      icon: '👤'
+      icon: UserPlus,
+      color: 'text-yellow-600'
     },
     {
       id: 5,
@@ -55,7 +58,8 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T14:10:00Z',
       user: 'John Doe',
       project: 'Website Redesign',
-      icon: '📊'
+      icon: BarChart3,
+      color: 'text-indigo-600'
     },
     {
       id: 6,
@@ -65,19 +69,20 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T11:30:00Z',
       user: 'Jane Smith',
       project: 'Mobile App Development',
-      icon: '➕'
+      icon: Plus,
+      color: 'text-orange-600'
     }
   ];
 
   const getActivityTypeColor = (type) => {
     switch (type) {
-      case 'task_completed': return 'bg-green-100 text-green-800';
-      case 'project_created': return 'bg-blue-100 text-blue-800';
-      case 'comment_added': return 'bg-purple-100 text-purple-800';
-      case 'task_assigned': return 'bg-yellow-100 text-yellow-800';
-      case 'project_updated': return 'bg-indigo-100 text-indigo-800';
-      case 'task_created': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'task_completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'project_created': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'comment_added': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'task_assigned': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'project_updated': return 'bg-primary/10 text-primary border-primary/20';
+      case 'task_created': return 'bg-orange-100 text-orange-800 border-orange-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
@@ -87,7 +92,7 @@ const ActivityPage = () => {
     const diffInHours = Math.floor((now - date) / (1000 * 60 * 60));
     
     if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 24) return `${diffInHours}h ago`;
     if (diffInHours < 48) return 'Yesterday';
     return date.toLocaleDateString();
   };
@@ -97,95 +102,110 @@ const ActivityPage = () => {
     : activities.filter(activity => activity.type === filter);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <PMNavbar />
       
-      <main className="pt-8 pb-24 md:pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
-            <div className="mb-4 sm:mb-0">
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Activity</h1>
-              <p className="mt-2 text-sm sm:text-base text-gray-600">Track all project activities and updates</p>
+      <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+        <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+          {/* Responsive Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8">
+            <div className="mb-4 md:mb-0">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">Activity</h1>
+              <p className="text-sm md:text-base text-gray-600 mt-1">{filteredActivities.length} recent updates</p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden xs:inline">Date Range</span>
-                <span className="xs:hidden">Date</span>
-              </Button>
-              <Button variant="outline" className="flex items-center justify-center space-x-2 text-sm">
-                <Filter className="h-4 w-4" />
-                <span>Filter</span>
-              </Button>
+            <div className="flex items-center space-x-3">
+              <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+                <Calendar className="h-4 w-4 text-gray-600" />
+                <span className="text-sm font-medium text-gray-700">Date Range</span>
+              </button>
+              <button className="p-3 md:px-4 md:py-2 bg-white border border-gray-200 rounded-full md:rounded-lg shadow-sm hover:shadow-md transition-shadow flex items-center space-x-2">
+                <Filter className="h-5 w-5 text-gray-600" />
+                <span className="hidden md:block text-sm font-medium text-gray-700">Filter</span>
+              </button>
             </div>
           </div>
 
-          {/* Filter Tabs */}
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-1 bg-gray-100 p-1 rounded-lg w-full sm:w-fit">
+          {/* Responsive Filter Tabs */}
+          <div className="mb-6 md:mb-8">
+            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 md:flex-wrap">
               {[
-                { key: 'all', label: 'All Activity', shortLabel: 'All' },
-                { key: 'task_completed', label: 'Completed', shortLabel: 'Done' },
-                { key: 'project_created', label: 'Projects', shortLabel: 'Projects' },
-                { key: 'comment_added', label: 'Comments', shortLabel: 'Comments' },
-                { key: 'task_assigned', label: 'Assignments', shortLabel: 'Tasks' }
-              ].map(({ key, label, shortLabel }) => (
+                { key: 'all', label: 'All', count: activities.length },
+                { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
+                { key: 'project_created', label: 'Projects', count: activities.filter(a => a.type === 'project_created').length },
+                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length },
+                { key: 'task_assigned', label: 'Tasks', count: activities.filter(a => a.type === 'task_assigned').length }
+              ].map(({ key, label, count }) => (
                 <button
                   key={key}
                   onClick={() => setFilter(key)}
-                  className={`px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                  className={`px-4 py-2 rounded-full md:rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     filter === key
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{shortLabel}</span>
+                  {label} ({count})
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Activity Feed */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {filteredActivities.map((activity, index) => (
-                <div key={activity.id} className="p-4 sm:p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start space-x-3 sm:space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center text-sm sm:text-lg">
-                        {activity.icon}
-                      </div>
+          {/* Responsive Activity Feed */}
+          <div className="space-y-3 md:space-y-4">
+            {filteredActivities.map((activity, index) => {
+              const IconComponent = activity.icon;
+              return (
+                <div key={activity.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-98 md:hover:shadow-md transition-all">
+                  <div className="flex items-start space-x-3 md:space-x-4">
+                    <div className={`p-2 md:p-3 rounded-xl md:rounded-lg bg-gray-50 ${activity.color}`}>
+                      <IconComponent className="h-4 w-4 md:h-5 md:w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-2 mb-1">
-                        <h3 className="text-sm font-medium text-gray-900">{activity.title}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium w-fit mt-1 sm:mt-0 ${getActivityTypeColor(activity.type)}`}>
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-1 md:mb-2">
+                        <h3 className="text-sm md:text-base font-semibold text-gray-900">{activity.title}</h3>
+                        <span className="text-xs md:text-sm text-gray-500">{formatTimestamp(activity.timestamp)}</span>
+                      </div>
+                      <p className="text-sm md:text-base text-gray-600 mb-2 md:mb-3">{activity.description}</p>
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+                        <div className="flex items-center space-x-2 md:space-x-3">
+                          <div className="w-5 h-5 md:w-6 md:h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
+                          </div>
+                          <span className="text-xs md:text-sm text-gray-600">{activity.user}</span>
+                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs md:text-sm font-medium border ${getActivityTypeColor(activity.type)} w-fit`}>
                           {activity.type.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-2 break-words">{activity.description}</p>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-1 sm:space-y-0 text-xs text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <User className="h-3 w-3" />
-                          <span>{activity.user}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="h-3 w-3" />
-                          <span>{formatTimestamp(activity.timestamp)}</span>
-                        </div>
-                        <span className="text-primary font-medium">{activity.project}</span>
+                      <div className="mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-100">
+                        <span className="text-xs md:text-sm text-primary font-medium">{activity.project}</span>
                       </div>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
+
+          {/* Empty State */}
+          {filteredActivities.length === 0 && (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Activity className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No activity found</h3>
+              <p className="text-gray-600 mb-4">Try adjusting your filter to see more activities</p>
+            </div>
+          )}
+
+          {/* Load More Button - Mobile App Style */}
+          {filteredActivities.length > 0 && (
+            <div className="mt-6 text-center">
+              <button className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors">
+                Load More Activity
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -8,6 +8,12 @@ export const theme = {
     primaryDark: '#06c4a8', // Darker variant for gradients
   },
   
+  // Font configuration
+  fonts: {
+    primary: 'Poppins',
+    fallback: 'ui-sans-serif, system-ui, sans-serif',
+  },
+  
   // Convert hex to HSL for CSS variables
   getHSL: (hex) => {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
