@@ -6,6 +6,7 @@ import { Button } from './magicui/button';
 import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
+import { MultiSelect } from './magicui/multi-select';
 import { DatePicker } from './magicui/date-picker';
 
 const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
@@ -13,7 +14,7 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
     title: '',
     description: '',
     dueDate: '',
-    assignee: '',
+    assignees: [],
     status: 'Not Started',
     project: projectId || '',
     priority: 'Medium',
@@ -25,11 +26,12 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
 
   // Mock data for dropdowns
   const teamMembers = [
-    { value: 'john-doe', label: 'John Doe' },
-    { value: 'jane-smith', label: 'Jane Smith' },
-    { value: 'mike-johnson', label: 'Mike Johnson' },
-    { value: 'sarah-wilson', label: 'Sarah Wilson' },
-    { value: 'alex-brown', label: 'Alex Brown' }
+    { value: 1, label: 'John Doe', subtitle: 'Project Manager', avatar: 'JD' },
+    { value: 2, label: 'Jane Smith', subtitle: 'Frontend Developer', avatar: 'JS' },
+    { value: 3, label: 'Mike Johnson', subtitle: 'Backend Developer', avatar: 'MJ' },
+    { value: 4, label: 'Sarah Wilson', subtitle: 'UI/UX Designer', avatar: 'SW' },
+    { value: 5, label: 'Alex Brown', subtitle: 'QA Engineer', avatar: 'AB' },
+    { value: 6, label: 'Lisa Wang', subtitle: 'DevOps Engineer', avatar: 'LW' }
   ];
 
   const projects = [
@@ -109,8 +111,8 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
       newErrors.dueDate = 'Due date is required';
     }
 
-    if (!formData.assignee) {
-      newErrors.assignee = 'Assignee is required';
+    if (formData.assignees.length === 0) {
+      newErrors.assignees = 'At least one team member must be assigned';
     }
 
     if (!formData.project) {
@@ -148,7 +150,7 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
       title: '',
       description: '',
       dueDate: '',
-      assignee: '',
+      assignees: [],
       status: 'Not Started',
       project: projectId || '',
       priority: 'Medium',
@@ -263,7 +265,7 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
               </AnimatePresence>
             </motion.div>
 
-            {/* Assignee */}
+            {/* Assignees */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -271,17 +273,18 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
               className="space-y-2"
             >
               <label className="text-sm font-semibold text-gray-700 flex items-center">
-                Assignee <span className="text-red-500 ml-1">*</span>
+                Assigned Team <span className="text-red-500 ml-1">*</span>
               </label>
-              <Combobox
+              <MultiSelect
                 options={teamMembers}
-                value={formData.assignee}
-                onChange={(value) => handleInputChange('assignee', value)}
-                placeholder="Select team member"
-                error={!!errors.assignee}
+                value={formData.assignees}
+                onChange={(value) => handleInputChange('assignees', value)}
+                placeholder="Select team members"
+                error={!!errors.assignees}
+                maxDisplay={2}
               />
               <AnimatePresence>
-                {errors.assignee && (
+                {errors.assignees && (
                   <motion.p 
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
@@ -289,7 +292,7 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
                     className="text-sm text-red-500 flex items-center"
                   >
                     <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.assignee}
+                    {errors.assignees}
                   </motion.p>
                 )}
               </AnimatePresence>
