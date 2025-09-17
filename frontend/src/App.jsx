@@ -1,19 +1,20 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
-import Home from './pages/Home';
 import PMDashboard from './pages/PM-dashboard';
 import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
 import Tasks from './pages/Tasks';
 import ActivityPage from './pages/Activity';
+import Auth from './pages/Auth';
 
 function App() {
   return (
     <Router>
       <div className="App">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<PMDashboard />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/pm-dashboard" element={<PMDashboard />} />
           <Route path="/dashboard" element={<PMDashboard />} />
           <Route path="/projects" element={<Projects />} />
