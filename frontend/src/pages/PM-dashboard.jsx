@@ -58,7 +58,10 @@ const PMDashboard = () => {
 
           {/* Quick Stats - Responsive Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
-            <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all">
+            <button 
+              onClick={() => navigate('/projects')}
+              className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
+            >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
                   <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
@@ -67,9 +70,12 @@ const PMDashboard = () => {
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">12</p>
               <p className="text-xs md:text-sm text-gray-600">Projects</p>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all">
+            <button 
+              onClick={() => navigate('/tasks')}
+              className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
+            >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-green-100 rounded-xl md:rounded-lg">
                   <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
@@ -78,9 +84,12 @@ const PMDashboard = () => {
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">48</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all">
+            <button 
+              onClick={() => navigate('/employee-management')}
+              className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
+            >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-blue-100 rounded-xl md:rounded-lg">
                   <Users className="h-5 w-5 md:h-6 md:w-6 text-blue-600" />
@@ -89,9 +98,12 @@ const PMDashboard = () => {
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">24</p>
               <p className="text-xs md:text-sm text-gray-600">Members</p>
-            </div>
+            </button>
 
-            <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all">
+            <button 
+              onClick={() => navigate('/projects')}
+              className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
+            >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-purple-100 rounded-xl md:rounded-lg">
                   <Calendar className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
@@ -100,7 +112,7 @@ const PMDashboard = () => {
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">8</p>
               <p className="text-xs md:text-sm text-gray-600">Deadlines</p>
-            </div>
+            </button>
           </div>
 
           {/* Desktop Layout - Two Column Grid */}
