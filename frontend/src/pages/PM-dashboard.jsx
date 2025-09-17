@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import ProjectForm from '../components/ProjectForm';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Bell, Users, Calendar } from 'lucide-react';
+import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar } from 'lucide-react';
 
 const PMDashboard = () => {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
+  const navigate = useNavigate();
+  
+  // Mock user data - in a real app, this would come from authentication context
+  const currentUser = {
+    firstName: 'John',
+    lastName: 'Doe',
+    email: 'john.doe@example.com'
+  };
 
   // Handle task form submission
   const handleTaskSubmit = (taskData) => {
@@ -33,15 +42,13 @@ const PMDashboard = () => {
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
           {/* Welcome Section - Responsive */}
           <div className="mb-6 md:mb-8">
-            <div className="flex items-center justify-between mb-4 md:mb-6">
+            <div className="mb-4 md:mb-6">
               <div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">Good morning!</h1>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                  Welcome, {currentUser.firstName}!
+                </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
               </div>
-              <button className="p-3 bg-white rounded-full shadow-sm border border-gray-200 hover:shadow-md transition-shadow md:rounded-lg md:px-4 md:py-2 md:flex md:items-center md:space-x-2">
-                <Bell className="h-5 w-5 text-gray-600" />
-                <span className="hidden md:block text-sm font-medium text-gray-700">Notifications</span>
-              </button>
             </div>
           </div>
 
@@ -156,41 +163,22 @@ const PMDashboard = () => {
             </div>
           </div>
 
-          {/* Recent Activity - Responsive */}
-          <div className="bg-white rounded-2xl md:rounded-lg shadow-sm border border-gray-100">
-            <div className="p-5 md:p-6 border-b border-gray-100">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Recent Activity</h2>
+          {/* User Management - Responsive */}
+          <div className="bg-gradient-to-r from-teal-100 to-cyan-100 rounded-2xl md:rounded-lg shadow-sm border border-teal-200">
+            <div className="p-5 md:p-6 border-b border-teal-200">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">User Management</h2>
+              <p className="text-sm text-gray-600 mt-1">Manage user roles and permissions</p>
             </div>
-            <div className="divide-y divide-gray-100">
-              <div className="p-4 md:p-6 flex items-start space-x-3 md:space-x-4">
-                <div className="w-2 h-2 md:w-3 md:h-3 bg-primary rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm md:text-base text-gray-900 font-medium">Project "Website Redesign" was updated</p>
-                  <p className="text-xs md:text-sm text-gray-500 mt-1">2 hours ago</p>
-                </div>
-              </div>
-              
-              <div className="p-4 md:p-6 flex items-start space-x-3 md:space-x-4">
-                <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm md:text-base text-gray-900 font-medium">Task "Update homepage" was completed</p>
-                  <p className="text-xs md:text-sm text-gray-500 mt-1">4 hours ago</p>
-                </div>
-              </div>
-              
-              <div className="p-4 md:p-6 flex items-start space-x-3 md:space-x-4">
-                <div className="w-2 h-2 md:w-3 md:h-3 bg-yellow-500 rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm md:text-base text-gray-900 font-medium">New task "Review designs" was created</p>
-                  <p className="text-xs md:text-sm text-gray-500 mt-1">6 hours ago</p>
-                </div>
-              </div>
-              
-              <div className="p-4 md:p-6 flex items-start space-x-3 md:space-x-4">
-                <div className="w-2 h-2 md:w-3 md:h-3 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm md:text-base text-gray-900 font-medium">Team member joined "Mobile App" project</p>
-                  <p className="text-xs md:text-sm text-gray-500 mt-1">1 day ago</p>
+            <div className="p-5 md:p-6">
+              <div className="flex items-center justify-between">
+                <button 
+                  onClick={() => navigate('/user-management')}
+                  className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
+                >
+                  <span className="font-semibold">Manage Users</span>
+                </button>
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Assign roles and manage user access</p>
                 </div>
               </div>
             </div>

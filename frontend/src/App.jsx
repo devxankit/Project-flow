@@ -7,6 +7,7 @@ import ProjectDetails from './pages/ProjectDetails';
 import Tasks from './pages/Tasks';
 import ActivityPage from './pages/Activity';
 import ProfilePage from './pages/Profile';
+import UserManagement from './pages/UserManagement';
 import Auth from './pages/Auth';
 
 function App() {
@@ -17,12 +18,12 @@ function App() {
           <Route path="/" element={<PMDashboard />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/pm-dashboard" element={<PMDashboard />} />
-          <Route path="/dashboard" element={<PMDashboard />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/project/:id" element={<ProjectDetails />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/user-management" element={<UserManagement />} />
         </Routes>
       </div>
     </Router>

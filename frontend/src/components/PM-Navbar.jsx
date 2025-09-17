@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Home, 
   FolderKanban, 
   CheckSquare, 
   Activity, 
@@ -26,11 +25,10 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
   }, []);
 
   const navigationItems = [
-    { name: 'Home', icon: Home, href: '/pm-dashboard', key: 'home' },
+    { name: 'Dashboard', icon: BarChart3, href: '/pm-dashboard', key: 'dashboard' },
     { name: 'Projects', icon: FolderKanban, href: '/projects', key: 'projects' },
     { name: 'Tasks', icon: CheckSquare, href: '/tasks', key: 'tasks' },
     { name: 'Activity', icon: Activity, href: '/activity', key: 'activity' },
-    { name: 'Dashboard', icon: BarChart3, href: '/dashboard', key: 'dashboard' },
   ];
 
   const handleNavigation = (href) => {
