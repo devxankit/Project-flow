@@ -207,60 +207,56 @@ const ActivityPage = () => {
             {filteredActivities.map((activity, index) => {
               const IconComponent = activity.icon;
               return (
-                <div key={activity.id} className="group bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
-                  <div className="flex items-start space-x-4">
-                    {/* Activity Icon */}
-                    <div className={`p-3 rounded-xl ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
-                      <IconComponent className="h-5 w-5" />
+                <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+                  <div className="flex items-start space-x-3">
+                    {/* Activity Icon - Smaller and more compact */}
+                    <div className={`p-2 rounded-lg ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
+                      <IconComponent className="h-4 w-4" />
                     </div>
 
-                    {/* Activity Content */}
+                    {/* Activity Content - Better space utilization */}
                     <div className="flex-1 min-w-0">
-                      {/* Header Section */}
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="text-base font-bold text-gray-900 group-hover:text-primary transition-colors duration-200 mb-1">
+                      {/* Header Section - More compact */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-bold text-gray-900 group-hover:text-primary transition-colors duration-200 mb-1">
                             {activity.title}
                           </h3>
-                          <p className="text-sm text-gray-600 leading-relaxed">
+                          <p className="text-xs text-gray-600 leading-relaxed">
                             {activity.description}
                           </p>
                         </div>
-                        <span className="text-xs font-medium text-gray-500 ml-3 flex-shrink-0">
+                        <span className="text-xs font-medium text-gray-500 ml-2 flex-shrink-0">
                           {formatTimestamp(activity.timestamp)}
                         </span>
                       </div>
 
-                      {/* Meta Information */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-primary" />
+                      {/* Meta Information - More compact layout */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="h-3 w-3 text-primary" />
                           </div>
-                          <span className="text-sm font-medium text-gray-700">{activity.user}</span>
+                          <span className="text-xs font-medium text-gray-700">{activity.user}</span>
                         </div>
                         
-                        <div className="flex items-center space-x-3">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
-                            {activity.type.replace('_', ' ')}
-                          </span>
-                        </div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
+                          {activity.type.replace('_', ' ')}
+                        </span>
                       </div>
 
-                      {/* Project and Milestone Information */}
-                      <div className="mt-3 pt-3 border-t border-gray-100">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-primary rounded-full"></div>
-                            <span className="text-sm font-semibold text-primary">{activity.project}</span>
-                          </div>
-                          {activity.milestone && (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                              <span className="text-sm font-medium text-orange-600">{activity.milestone}</span>
-                            </div>
-                          )}
+                      {/* Project and Milestone Information - Inline layout */}
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-1.5">
+                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                          <span className="text-xs font-semibold text-primary">{activity.project}</span>
                         </div>
+                        {activity.milestone && (
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
+                            <span className="text-xs font-medium text-orange-600">{activity.milestone}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
