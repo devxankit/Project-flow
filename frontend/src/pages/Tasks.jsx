@@ -14,7 +14,8 @@ const Tasks = () => {
       priority: 'High',
       assignee: 'John Doe',
       dueDate: '2024-02-10',
-      project: 'Website Redesign'
+      project: 'Website Redesign',
+      milestone: 'Design Phase'
     },
     {
       id: 2,
@@ -24,7 +25,8 @@ const Tasks = () => {
       priority: 'Medium',
       assignee: 'Jane Smith',
       dueDate: '2024-02-12',
-      project: 'Mobile App Development'
+      project: 'Mobile App Development',
+      milestone: 'Research Phase'
     },
     {
       id: 3,
@@ -34,7 +36,8 @@ const Tasks = () => {
       priority: 'High',
       assignee: 'Mike Johnson',
       dueDate: '2024-02-05',
-      project: 'Database Migration'
+      project: 'Database Migration',
+      milestone: 'Implementation Phase'
     },
     {
       id: 4,
@@ -44,7 +47,30 @@ const Tasks = () => {
       priority: 'Low',
       assignee: 'Sarah Wilson',
       dueDate: '2024-02-15',
-      project: 'Website Redesign'
+      project: 'Website Redesign',
+      milestone: 'Development Phase'
+    },
+    {
+      id: 5,
+      title: 'User authentication setup',
+      description: 'Implement secure user authentication system',
+      status: 'Pending',
+      priority: 'High',
+      assignee: 'Alex Brown',
+      dueDate: '2024-02-18',
+      project: 'E-commerce Platform',
+      milestone: 'Security Phase'
+    },
+    {
+      id: 6,
+      title: 'Performance testing',
+      description: 'Conduct comprehensive performance testing',
+      status: 'In Progress',
+      priority: 'Medium',
+      assignee: 'Emma Davis',
+      dueDate: '2024-02-20',
+      project: 'API Integration',
+      milestone: 'Testing Phase'
     }
   ];
 
@@ -135,8 +161,8 @@ const Tasks = () => {
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-1">
-                    <span className="text-lg font-bold">{count}</span>
                     <span className="text-sm font-medium">{label}</span>
+                    <span className="text-lg font-bold">{count}</span>
                   </div>
                 </button>
               ))}
@@ -167,48 +193,111 @@ const Tasks = () => {
             </div>
           </div>
 
-          {/* Responsive Task Cards */}
-          <div className="space-y-3 md:space-y-4">
+          {/* Responsive Task Cards - Balanced Magic UI Style */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {filteredTasks.map((task) => (
-              <div key={task.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-98 md:hover:shadow-md transition-all">
-                <div className="flex items-start justify-between mb-3 md:mb-4">
-                  <div className="flex items-start space-x-3 md:space-x-4 flex-1">
-                    <div className={`p-2 md:p-3 rounded-xl md:rounded-lg ${getStatusColor(task.status)}`}>
-                      <CheckSquare className="h-4 w-4 md:h-5 md:w-5" />
+              <div key={task.id} className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden">
+                {/* Magic UI Border Effect */}
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
+                {/* Header */}
+                <div className="relative flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className={`p-2 rounded-lg ${getStatusColor(task.status)} flex-shrink-0`}>
+                      <CheckSquare className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1 md:mb-2">{task.title}</h3>
-                      <p className="text-sm md:text-base text-gray-600 line-clamp-2">{task.description}</p>
+                      <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
+                        {task.title}
+                      </h3>
                     </div>
                   </div>
-                  <button className="p-1 md:p-2 text-gray-400 hover:text-gray-600">
-                    <MoreVertical className="h-4 w-4 md:h-5 md:w-5" />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Handle menu click
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-all duration-200 flex-shrink-0"
+                  >
+                    <MoreVertical className="h-4 w-4" />
                   </button>
                 </div>
 
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-                  <div className="flex items-center space-x-3">
-                    <span className={`px-2 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(task.status)}`}>
-                      {task.status}
-                    </span>
-                    <span className={`px-2 py-1 rounded-full text-xs md:text-sm font-medium ${getPriorityColor(task.priority)}`}>
-                      {task.priority}
-                    </span>
-                  </div>
-                  <div className="text-xs md:text-sm text-gray-500">
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
+                {/* Description */}
+                <p className="text-xs text-gray-600 mb-3 line-clamp-2">
+                  {task.description}
+                </p>
+
+                {/* Tags Row */}
+                <div className="flex items-center space-x-2 mb-3">
+                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(task.status)}`}>
+                    {task.status}
+                  </span>
+                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                    {task.priority}
+                  </span>
+                </div>
+
+                {/* Project & Milestone */}
+                <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center space-x-1 text-gray-600">
+                      <span className="text-primary font-semibold">{task.project}</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-gray-600">
+                      <span className="text-primary font-semibold">{task.milestone}</span>
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                    <div className="flex items-center space-x-2 md:space-x-3">
-                      <div className="w-6 h-6 md:w-8 md:h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-                      </div>
-                      <span className="text-sm md:text-base text-gray-600">{task.assignee}</span>
+                {/* Footer */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-1.5 text-gray-500">
+                      <User className="h-3.5 w-3.5" />
+                      <span className="text-xs">{task.assignee}</span>
                     </div>
-                    <span className="text-xs md:text-sm text-primary font-medium">{task.project}</span>
+                    <div className="flex items-center space-x-1.5 text-gray-500">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="text-xs">
+                        {new Date(task.dueDate).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-xs font-semibold ${
+                      (() => {
+                        const now = new Date();
+                        const dueDate = new Date(task.dueDate);
+                        const diffTime = dueDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) return 'text-red-600';
+                        if (diffDays <= 1) return 'text-orange-600';
+                        if (diffDays <= 3) return 'text-yellow-600';
+                        return 'text-green-600';
+                      })()
+                    }`}>
+                      {(() => {
+                        const now = new Date();
+                        const dueDate = new Date(task.dueDate);
+                        const diffTime = dueDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) {
+                          return `${Math.abs(diffDays)}d`;
+                        } else if (diffDays === 0) {
+                          return 'Today';
+                        } else if (diffDays === 1) {
+                          return '1d';
+                        } else {
+                          return `${diffDays}d`;
+                        }
+                      })()}
+                    </div>
                   </div>
                 </div>
               </div>

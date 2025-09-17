@@ -171,8 +171,8 @@ const Projects = () => {
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-1">
-                    <span className="text-lg font-bold">{count}</span>
                     <span className="text-sm font-medium">{label}</span>
+                    <span className="text-lg font-bold">{count}</span>
                   </div>
                 </button>
               ))}
@@ -209,57 +209,97 @@ const Projects = () => {
               <div 
                 key={project.id} 
                 onClick={() => navigate(`/project/${project.id}`)}
-                className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 active:scale-98 md:hover:shadow-md transition-all cursor-pointer"
+                className="group bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
               >
-                <div className="flex items-start justify-between mb-4 md:mb-6">
-                  <div className="flex items-start space-x-3 md:space-x-4 flex-1">
-                    <div className="p-3 md:p-4 bg-primary/10 rounded-xl md:rounded-lg">
-                      <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                {/* Header Section */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl group-hover:from-primary/20 group-hover:to-primary/30 transition-all duration-300">
+                      <FolderKanban className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col md:flex-row md:items-center md:space-x-2 mb-1 md:mb-2">
-                        <h3 className="text-lg md:text-xl font-semibold text-gray-900">{project.name}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs md:text-sm font-medium ${getPriorityColor(project.priority)} w-fit`}>
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                          {project.name}
+                        </h3>
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Handle menu click
+                          }}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-all duration-200 ml-1"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center space-x-1.5 mb-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
                           {project.priority}
                         </span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(project.status)}`}>
+                          {project.status}
+                        </span>
                       </div>
-                      <p className="text-sm md:text-base text-gray-600 line-clamp-2">{project.description}</p>
                     </div>
                   </div>
-                  <button className="p-1 md:p-2 text-gray-400 hover:text-gray-600">
-                    <MoreVertical className="h-4 w-4 md:h-5 md:w-5" />
-                  </button>
                 </div>
 
-                {/* Progress Bar */}
-                <div className="mb-4 md:mb-6">
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Progress</span>
-                    <span className="text-gray-900 font-medium">{project.progress}%</span>
+                {/* Description */}
+                <p className="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">
+                  {project.description}
+                </p>
+
+                {/* Progress Section */}
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs font-medium text-gray-700">Progress</span>
+                    <span className="text-sm font-bold text-gray-900">{project.progress}%</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                     <div 
-                      className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-300"
+                      className="bg-gradient-to-r from-primary to-primary-dark h-2 rounded-full transition-all duration-500 ease-out"
                       style={{ width: `${project.progress}%` }}
                     ></div>
                   </div>
                 </div>
 
-                {/* Project Details */}
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-                  <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
-                    <div className="flex items-center space-x-1 md:space-x-2">
-                      <Users className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-                      <span className="text-sm md:text-base text-gray-600">{project.team} members</span>
+                {/* Footer Section */}
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium">{project.team}</span>
                     </div>
-                    <div className="flex items-center space-x-1 md:space-x-2">
-                      <Calendar className="h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-                      <span className="text-sm md:text-base text-gray-600">{new Date(project.dueDate).toLocaleDateString()}</span>
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium">
+                        {new Date(project.dueDate).toLocaleDateString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric'
+                        })}
+                      </span>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(project.status)} w-fit`}>
-                    {project.status}
-                  </span>
+                  <div className="text-right">
+                    <div className="text-xs font-semibold text-gray-700">
+                      {(() => {
+                        const now = new Date();
+                        const dueDate = new Date(project.dueDate);
+                        const diffTime = dueDate.getTime() - now.getTime();
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        
+                        if (diffDays < 0) {
+                          return `${Math.abs(diffDays)}d overdue`;
+                        } else if (diffDays === 0) {
+                          return 'Today';
+                        } else if (diffDays === 1) {
+                          return 'Tomorrow';
+                        } else {
+                          return `${diffDays}d left`;
+                        }
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}

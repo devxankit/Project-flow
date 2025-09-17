@@ -337,25 +337,69 @@ const ProjectDetails = () => {
         </div>
       </div>
 
-      {/* Project Details */}
-      <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100">
-        <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Project Information</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          <div>
-            <label className="text-sm font-medium text-gray-600">Client</label>
-            <p className="text-base text-gray-900 mt-1">{project.client}</p>
+      {/* Project Information Card */}
+      <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20 shadow-sm">
+        {/* Card Title */}
+        <div className="flex items-center space-x-3 mb-6">
+          <div className="p-2 bg-primary/20 rounded-xl">
+            <FileText className="h-5 w-5 text-primary" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900">Project Information</h3>
+        </div>
+
+        {/* Client Section */}
+        <div className="flex items-center space-x-4 mb-6">
+          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-lg">
+                {project.client.split(' ').map(word => word[0]).join('').substring(0, 2)}
+              </span>
+            </div>
           </div>
           <div>
-            <label className="text-sm font-medium text-gray-600">Budget</label>
-            <p className="text-base text-gray-900 mt-1">{project.budget}</p>
+            <p className="text-sm font-semibold text-primary/80 uppercase tracking-wide mb-1">Client</p>
+            <p className="text-lg font-bold text-gray-900">{project.client}</p>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Start Date</label>
-            <p className="text-base text-gray-900 mt-1">{new Date(project.startDate).toLocaleDateString()}</p>
+        </div>
+
+        {/* Date Boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Start Date Box */}
+          <div className="bg-white/50 rounded-xl p-4 border border-primary/10">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Calendar className="h-4 w-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Start Date</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {new Date(project.startDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Due Date</label>
-            <p className="text-base text-gray-900 mt-1">{new Date(project.dueDate).toLocaleDateString()}</p>
+
+          {/* Due Date Box */}
+          <div className="bg-white/50 rounded-xl p-4 border border-primary/10">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Clock className="h-4 w-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Due Date</p>
+                <p className="text-sm font-bold text-gray-900">
+                  {new Date(project.dueDate).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -527,7 +571,7 @@ const ProjectDetails = () => {
 
               {/* Action Buttons */}
               <div className="flex space-x-3">
-                <button className="flex-1 bg-white border-2 border-primary text-primary py-4 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
+                <button className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
                   <Flag className="h-5 w-5" />
                   <span className="font-semibold text-sm">Add Milestone</span>
                 </button>
@@ -594,7 +638,7 @@ const ProjectDetails = () => {
                   <p className="text-sm text-gray-600">Add milestones and tasks to keep the project moving forward</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <button className="bg-white border-2 border-primary text-primary px-6 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                  <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
                     <Flag className="h-5 w-5" />
                     <span className="font-semibold">Add Milestone</span>
                   </button>

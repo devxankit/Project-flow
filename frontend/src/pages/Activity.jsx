@@ -165,8 +165,8 @@ const ActivityPage = () => {
                   }`}
                 >
                   <div className="flex flex-col items-center space-y-1">
-                    <span className="text-lg font-bold">{count}</span>
                     <span className="text-sm font-medium">{label}</span>
+                    <span className="text-lg font-bold">{count}</span>
                   </div>
                 </button>
               ))}
