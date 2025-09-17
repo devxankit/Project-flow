@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import { Combobox } from '../components/magicui/combobox';
@@ -27,6 +27,11 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Mock data for users
   const [users, setUsers] = useState([
