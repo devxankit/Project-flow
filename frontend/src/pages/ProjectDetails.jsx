@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import MilestoneForm from '../components/MilestoneForm';
+import TaskForm from '../components/TaskForm';
 import { 
   FolderKanban, 
   Calendar, 
@@ -26,6 +27,7 @@ const ProjectDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
   const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
 
   // Handle milestone form submission
   const handleMilestoneSubmit = (milestoneData) => {
@@ -33,6 +35,14 @@ const ProjectDetails = () => {
     // Here you would typically send the data to your backend API
     // For now, we'll just log it and close the form
     setIsMilestoneFormOpen(false);
+  };
+
+  // Handle task form submission
+  const handleTaskSubmit = (taskData) => {
+    console.log('New task created:', taskData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and close the form
+    setIsTaskFormOpen(false);
   };
 
   // Mock project data - should match the data from Projects page
@@ -597,7 +607,10 @@ const ProjectDetails = () => {
                   <Flag className="h-5 w-5" />
                   <span className="font-semibold text-sm">Add Milestone</span>
                 </button>
-                <button className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
+                <button 
+                  onClick={() => setIsTaskFormOpen(true)}
+                  className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                >
                   <Plus className="h-5 w-5" />
                   <span className="font-semibold text-sm">Add Task</span>
                 </button>
@@ -667,7 +680,10 @@ const ProjectDetails = () => {
                     <Flag className="h-5 w-5" />
                     <span className="font-semibold">Add Milestone</span>
                   </button>
-                  <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                  <button 
+                    onClick={() => setIsTaskFormOpen(true)}
+                    className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                  >
                     <Plus className="h-5 w-5" />
                     <span className="font-semibold">Add Task</span>
                   </button>
@@ -737,6 +753,14 @@ const ProjectDetails = () => {
         isOpen={isMilestoneFormOpen}
         onClose={() => setIsMilestoneFormOpen(false)}
         onSubmit={handleMilestoneSubmit}
+        projectId={project?.id}
+      />
+
+      {/* Task Form */}
+      <TaskForm
+        isOpen={isTaskFormOpen}
+        onClose={() => setIsTaskFormOpen(false)}
+        onSubmit={handleTaskSubmit}
         projectId={project?.id}
       />
     </div>

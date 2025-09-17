@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
+import TaskForm from '../components/TaskForm';
+import ProjectForm from '../components/ProjectForm';
 import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Bell, Users, Calendar } from 'lucide-react';
 
 const PMDashboard = () => {
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
+
+  // Handle task form submission
+  const handleTaskSubmit = (taskData) => {
+    console.log('New task created:', taskData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and close the form
+    setIsTaskFormOpen(false);
+  };
+
+  // Handle project form submission
+  const handleProjectSubmit = (projectData) => {
+    console.log('New project created:', projectData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and close the form
+    setIsProjectFormOpen(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <PMNavbar />
@@ -117,11 +138,17 @@ const PMDashboard = () => {
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
               <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Quick Actions</h2>
               <div className="grid grid-cols-2 md:grid-cols-1 gap-3 md:gap-4">
-                <button className="bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3">
+                <button 
+                  onClick={() => setIsTaskFormOpen(true)}
+                  className="bg-gradient-to-r from-primary to-primary-dark text-white rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3"
+                >
                   <Plus className="h-6 w-6 md:h-5 md:w-5" />
                   <p className="text-sm md:text-base font-medium">New Task</p>
                 </button>
-                <button className="bg-white border border-gray-200 rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3">
+                <button 
+                  onClick={() => setIsProjectFormOpen(true)}
+                  className="bg-white border border-gray-200 rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3"
+                >
                   <FolderKanban className="h-6 w-6 md:h-5 md:w-5 text-primary" />
                   <p className="text-sm md:text-base font-medium text-gray-900">New Project</p>
                 </button>
@@ -170,6 +197,20 @@ const PMDashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* Task Form */}
+      <TaskForm
+        isOpen={isTaskFormOpen}
+        onClose={() => setIsTaskFormOpen(false)}
+        onSubmit={handleTaskSubmit}
+      />
+
+      {/* Project Form */}
+      <ProjectForm
+        isOpen={isProjectFormOpen}
+        onClose={() => setIsProjectFormOpen(false)}
+        onSubmit={handleProjectSubmit}
+      />
     </div>
   );
 };

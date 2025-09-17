@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
+import TaskForm from '../components/TaskForm';
 import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical } from 'lucide-react';
 
 const Tasks = () => {
   const [filter, setFilter] = useState('all');
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+
+  // Handle task form submission
+  const handleTaskSubmit = (taskData) => {
+    console.log('New task created:', taskData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and close the form
+    setIsTaskFormOpen(false);
+  };
 
   const tasks = [
     {
@@ -108,7 +118,10 @@ const Tasks = () => {
                   <h2 className="text-lg font-bold text-gray-900 mb-1">Manage your tasks</h2>
                   <p className="text-sm text-gray-600">Add new tasks and track progress</p>
                 </div>
-                <button className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                <button 
+                  onClick={() => setIsTaskFormOpen(true)}
+                  className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                >
                   <Plus className="h-5 w-5" />
                   <span className="font-medium">Add Task</span>
                 </button>
@@ -319,6 +332,13 @@ const Tasks = () => {
           )}
         </div>
       </main>
+
+      {/* Task Form */}
+      <TaskForm
+        isOpen={isTaskFormOpen}
+        onClose={() => setIsTaskFormOpen(false)}
+        onSubmit={handleTaskSubmit}
+      />
     </div>
   );
 };
