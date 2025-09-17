@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import MilestoneForm from '../components/MilestoneForm';
 import TaskForm from '../components/TaskForm';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   FolderKanban, 
   Calendar, 
@@ -138,9 +139,7 @@ const ProjectDetails = () => {
   }, [project, navigate]);
 
   // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [id]);
+  useScrollToTop();
   
   // Return early if project not found
   if (!project) {

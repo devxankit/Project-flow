@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import ProjectForm from '../components/ProjectForm';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar } from 'lucide-react';
 
 const PMDashboard = () => {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
   const navigate = useNavigate();
+  
+  // Scroll to top when component mounts
+  useScrollToTop();
   
   // Mock user data - in a real app, this would come from authentication context
   const currentUser = {

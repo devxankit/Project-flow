@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import { Combobox } from '../components/magicui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/magicui/dialog';
 import { Input } from '../components/magicui/input';
 import { Button } from '../components/magicui/button';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   Users, 
   UserPlus, 
@@ -29,9 +30,7 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null);
 
   // Scroll to top when component mounts
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
+  useScrollToTop();
 
   // Mock data for users
   const [users, setUsers] = useState([

@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import ProjectForm from '../components/ProjectForm';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { FolderKanban, Plus, Search, Filter, Users, Calendar, TrendingUp, MoreVertical } from 'lucide-react';
 
 const Projects = () => {
   const [filter, setFilter] = useState('all');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const navigate = useNavigate();
+  
+  // Scroll to top when component mounts
+  useScrollToTop();
 
   const projects = [
     {

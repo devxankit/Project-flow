@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical } from 'lucide-react';
 
 const Tasks = () => {
   const [filter, setFilter] = useState('all');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  
+  // Scroll to top when component mounts
+  useScrollToTop();
 
   // Handle task form submission
   const handleTaskSubmit = (taskData) => {

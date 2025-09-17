@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { User, Mail, Lock, Camera, Edit3, Save, X, Eye, EyeOff } from 'lucide-react';
 
 const ProfilePage = () => {
@@ -7,6 +8,9 @@ const ProfilePage = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Scroll to top when component mounts
+  useScrollToTop();
   
   const [profileData, setProfileData] = useState({
     name: 'John Doe',

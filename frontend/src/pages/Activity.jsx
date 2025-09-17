@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import PMNavbar from '../components/PM-Navbar';
+import useScrollToTop from '../hooks/useScrollToTop';
 import { Activity, Filter, Calendar, User, Clock, CheckCircle, Plus, MessageSquare, UserPlus, BarChart3, FolderPlus } from 'lucide-react';
 
 const ActivityPage = () => {
   const [filter, setFilter] = useState('all');
+  
+  // Scroll to top when component mounts
+  useScrollToTop();
 
   const activities = [
     {
