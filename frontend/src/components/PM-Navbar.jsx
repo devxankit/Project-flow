@@ -85,7 +85,10 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
           {/* Profile */}
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <button className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors">
+              <button 
+                onClick={() => navigate('/profile')}
+                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
+              >
                 <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
                   <User className="h-4 w-4 text-white" />
                 </div>
@@ -111,7 +114,10 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
 
         {/* Profile */}
         <div className="flex items-center">
-          <button className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200">
+          <button 
+            onClick={() => navigate('/profile')}
+            className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
+          >
             <User className="h-4 w-4 text-white" />
           </button>
         </div>

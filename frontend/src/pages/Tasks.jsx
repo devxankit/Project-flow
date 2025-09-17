@@ -105,7 +105,7 @@ const Tasks = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">Stay productive today</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Manage your tasks</h2>
                   <p className="text-sm text-gray-600">Add new tasks and track progress</p>
                 </div>
                 <button className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">

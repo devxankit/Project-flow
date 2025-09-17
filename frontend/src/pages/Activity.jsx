@@ -14,6 +14,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T10:30:00Z',
       user: 'John Doe',
       project: 'Website Redesign',
+      milestone: 'Design Phase',
       icon: CheckCircle,
       color: 'text-green-600'
     },
@@ -25,6 +26,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T09:15:00Z',
       user: 'Jane Smith',
       project: 'Mobile App Development',
+      milestone: null,
       icon: FolderPlus,
       color: 'text-blue-600'
     },
@@ -36,6 +38,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-08T08:45:00Z',
       user: 'Mike Johnson',
       project: 'Database Migration',
+      milestone: 'Backend Setup',
       icon: MessageSquare,
       color: 'text-purple-600'
     },
@@ -47,6 +50,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T16:20:00Z',
       user: 'Sarah Wilson',
       project: 'Website Redesign',
+      milestone: 'Development Phase',
       icon: UserPlus,
       color: 'text-yellow-600'
     },
@@ -58,6 +62,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T14:10:00Z',
       user: 'John Doe',
       project: 'Website Redesign',
+      milestone: null,
       icon: BarChart3,
       color: 'text-indigo-600'
     },
@@ -69,6 +74,7 @@ const ActivityPage = () => {
       timestamp: '2024-02-07T11:30:00Z',
       user: 'Jane Smith',
       project: 'Mobile App Development',
+      milestone: 'Testing Phase',
       icon: Plus,
       color: 'text-orange-600'
     }
@@ -152,8 +158,7 @@ const ActivityPage = () => {
                 { key: 'all', label: 'All', count: activities.length },
                 { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
                 { key: 'project_created', label: 'Projects', count: activities.filter(a => a.type === 'project_created').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length },
-                { key: 'task_assigned', label: 'Tasks', count: activities.filter(a => a.type === 'task_assigned').length }
+                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -180,8 +185,7 @@ const ActivityPage = () => {
                 { key: 'all', label: 'All', count: activities.length },
                 { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
                 { key: 'project_created', label: 'Projects', count: activities.filter(a => a.type === 'project_created').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length },
-                { key: 'task_assigned', label: 'Tasks', count: activities.filter(a => a.type === 'task_assigned').length }
+                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -198,35 +202,65 @@ const ActivityPage = () => {
             </div>
           </div>
 
-          {/* Responsive Activity Feed */}
-          <div className="space-y-3 md:space-y-4">
+          {/* Enhanced Activity Feed */}
+          <div className="space-y-4">
             {filteredActivities.map((activity, index) => {
               const IconComponent = activity.icon;
               return (
-                <div key={activity.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-98 md:hover:shadow-md transition-all">
-                  <div className="flex items-start space-x-3 md:space-x-4">
-                    <div className={`p-2 md:p-3 rounded-xl md:rounded-lg bg-gray-50 ${activity.color}`}>
-                      <IconComponent className="h-4 w-4 md:h-5 md:w-5" />
+                <div key={activity.id} className="group bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+                  <div className="flex items-start space-x-4">
+                    {/* Activity Icon */}
+                    <div className={`p-3 rounded-xl ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
+                      <IconComponent className="h-5 w-5" />
                     </div>
+
+                    {/* Activity Content */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-1 md:mb-2">
-                        <h3 className="text-sm md:text-base font-semibold text-gray-900">{activity.title}</h3>
-                        <span className="text-xs md:text-sm text-gray-500">{formatTimestamp(activity.timestamp)}</span>
-                      </div>
-                      <p className="text-sm md:text-base text-gray-600 mb-2 md:mb-3">{activity.description}</p>
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-                        <div className="flex items-center space-x-2 md:space-x-3">
-                          <div className="w-5 h-5 md:w-6 md:h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                            <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-                          </div>
-                          <span className="text-xs md:text-sm text-gray-600">{activity.user}</span>
+                      {/* Header Section */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="text-base font-bold text-gray-900 group-hover:text-primary transition-colors duration-200 mb-1">
+                            {activity.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 leading-relaxed">
+                            {activity.description}
+                          </p>
                         </div>
-                        <span className={`px-2 py-1 rounded-full text-xs md:text-sm font-medium border ${getActivityTypeColor(activity.type)} w-fit`}>
-                          {activity.type.replace('_', ' ')}
+                        <span className="text-xs font-medium text-gray-500 ml-3 flex-shrink-0">
+                          {formatTimestamp(activity.timestamp)}
                         </span>
                       </div>
-                      <div className="mt-2 md:mt-3 pt-2 md:pt-3 border-t border-gray-100">
-                        <span className="text-xs md:text-sm text-primary font-medium">{activity.project}</span>
+
+                      {/* Meta Information */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">{activity.user}</span>
+                        </div>
+                        
+                        <div className="flex items-center space-x-3">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
+                            {activity.type.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Project and Milestone Information */}
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-primary rounded-full"></div>
+                            <span className="text-sm font-semibold text-primary">{activity.project}</span>
+                          </div>
+                          {activity.milestone && (
+                            <div className="flex items-center space-x-2">
+                              <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                              <span className="text-sm font-medium text-orange-600">{activity.milestone}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

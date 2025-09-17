@@ -6,6 +6,7 @@ import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
 import Tasks from './pages/Tasks';
 import ActivityPage from './pages/Activity';
+import ProfilePage from './pages/Profile';
 import Auth from './pages/Auth';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
           <Route path="/project/:id" element={<ProjectDetails />} />
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/activity" element={<ActivityPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Routes>
       </div>
     </Router>

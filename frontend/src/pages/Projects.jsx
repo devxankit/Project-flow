@@ -109,8 +109,8 @@ const Projects = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">Build something amazing</h2>
-                  <p className="text-sm text-gray-600">Start your next project</p>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Manage your projects</h2>
+                  <p className="text-sm text-gray-600">Create and track project progress</p>
                 </div>
                 <button 
                   onClick={() => setIsFormOpen(true)}
