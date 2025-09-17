@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
+import MilestoneForm from '../components/MilestoneForm';
 import { 
   FolderKanban, 
   Calendar, 
@@ -24,6 +25,15 @@ const ProjectDetails = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
+  const [isMilestoneFormOpen, setIsMilestoneFormOpen] = useState(false);
+
+  // Handle milestone form submission
+  const handleMilestoneSubmit = (milestoneData) => {
+    console.log('New milestone created:', milestoneData);
+    // Here you would typically send the data to your backend API
+    // For now, we'll just log it and close the form
+    setIsMilestoneFormOpen(false);
+  };
 
   // Mock project data - should match the data from Projects page
   const projectsData = [
@@ -580,7 +590,10 @@ const ProjectDetails = () => {
 
               {/* Action Buttons */}
               <div className="flex space-x-3">
-                <button className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
+                <button 
+                  onClick={() => setIsMilestoneFormOpen(true)}
+                  className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                >
                   <Flag className="h-5 w-5" />
                   <span className="font-semibold text-sm">Add Milestone</span>
                 </button>
@@ -647,7 +660,10 @@ const ProjectDetails = () => {
                   <p className="text-sm text-gray-600">Add milestones and tasks to keep the project moving forward</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                  <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                  <button 
+                    onClick={() => setIsMilestoneFormOpen(true)}
+                    className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                  >
                     <Flag className="h-5 w-5" />
                     <span className="font-semibold">Add Milestone</span>
                   </button>
@@ -715,6 +731,14 @@ const ProjectDetails = () => {
           </div>
         </div>
       </main>
+
+      {/* Milestone Form */}
+      <MilestoneForm
+        isOpen={isMilestoneFormOpen}
+        onClose={() => setIsMilestoneFormOpen(false)}
+        onSubmit={handleMilestoneSubmit}
+        projectId={project?.id}
+      />
     </div>
   );
 };
