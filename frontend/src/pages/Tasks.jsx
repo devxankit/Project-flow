@@ -74,25 +74,45 @@ const Tasks = () => {
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-          {/* Responsive Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8">
-            <div className="mb-4 md:mb-0">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">Tasks</h1>
-              <p className="text-sm md:text-base text-gray-600 mt-1">{filteredTasks.length} tasks</p>
+          {/* Mobile Layout - Creative Tile with Button */}
+          <div className="md:hidden mb-6">
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Stay productive today</h2>
+                  <p className="text-sm text-gray-600">Add new tasks and track progress</p>
+                </div>
+                <button className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                  <Plus className="h-5 w-5" />
+                  <span className="font-medium">Add Task</span>
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Desktop Layout - Keep original design */}
+          <div className="hidden md:flex md:items-center md:justify-between mb-8">
             <div className="flex items-center space-x-3">
-              <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <Search className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">Search</span>
               </button>
-              <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <Filter className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">Filter</span>
               </button>
-              <button className="p-3 md:px-4 md:py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-full md:rounded-lg shadow-sm active:scale-95 md:hover:shadow-md transition-all flex items-center space-x-2">
-                <Plus className="h-5 w-5" />
-                <span className="hidden md:block text-sm font-medium">New Task</span>
-              </button>
+            </div>
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <h3 className="text-sm font-semibold text-gray-900">Stay productive today</h3>
+                  <p className="text-xs text-gray-600">Add new tasks and track progress</p>
+                </div>
+                <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                  <Plus className="h-5 w-5" />
+                  <span className="font-medium">New Task</span>
+                </button>
+              </div>
             </div>
           </div>
 

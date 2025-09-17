@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
+import ProjectForm from '../components/ProjectForm';
 import { FolderKanban, Plus, Search, Filter, Users, Calendar, TrendingUp, MoreVertical } from 'lucide-react';
 
 const Projects = () => {
   const [filter, setFilter] = useState('all');
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const navigate = useNavigate();
 
   const projects = [
@@ -15,7 +17,7 @@ const Projects = () => {
       status: 'In Progress',
       progress: 65,
       team: 4,
-      dueDate: '2024-02-15',
+      dueDate: '2025-10-15',
       priority: 'High'
     },
     {
@@ -25,7 +27,7 @@ const Projects = () => {
       status: 'Planning',
       progress: 20,
       team: 6,
-      dueDate: '2024-03-30',
+      dueDate: '2025-01-15',
       priority: 'Medium'
     },
     {
@@ -45,8 +47,28 @@ const Projects = () => {
       status: 'In Progress',
       progress: 40,
       team: 2,
-      dueDate: '2024-02-28',
+      dueDate: '2024-12-30',
       priority: 'Low'
+    },
+    {
+      id: 5,
+      name: 'E-commerce Platform',
+      description: 'Build new e-commerce platform with modern features',
+      status: 'In Progress',
+      progress: 30,
+      team: 5,
+      dueDate: '2025-02-14',
+      priority: 'High'
+    },
+    {
+      id: 6,
+      name: 'Security Audit',
+      description: 'Comprehensive security audit and vulnerability assessment',
+      status: 'Planning',
+      progress: 10,
+      team: 3,
+      dueDate: '2025-01-30',
+      priority: 'Medium'
     }
   ];
 
@@ -70,31 +92,63 @@ const Projects = () => {
 
   const filteredProjects = filter === 'all' ? projects : projects.filter(project => project.status.toLowerCase() === filter.toLowerCase());
 
+  const handleProjectSubmit = (projectData) => {
+    // In a real app, this would make an API call to create the project
+    console.log('New project created:', projectData);
+    // You could also update the projects state here to show the new project immediately
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <PMNavbar />
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-          {/* Responsive Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 md:mb-8">
-            <div className="mb-4 md:mb-0">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">Projects</h1>
-              <p className="text-sm md:text-base text-gray-600 mt-1">{filteredProjects.length} active projects</p>
+          {/* Mobile Layout - Creative Tile with Button */}
+          <div className="md:hidden mb-6">
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Build something amazing</h2>
+                  <p className="text-sm text-gray-600">Start your next project</p>
+                </div>
+                <button 
+                  onClick={() => setIsFormOpen(true)}
+                  className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="font-medium">Create</span>
+                </button>
+              </div>
             </div>
+          </div>
+
+          {/* Desktop Layout - Keep original design */}
+          <div className="hidden md:flex md:items-center md:justify-between mb-8">
             <div className="flex items-center space-x-3">
-              <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <Search className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">Search</span>
               </button>
-              <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+              <button className="flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
                 <Filter className="h-4 w-4 text-gray-600" />
                 <span className="text-sm font-medium text-gray-700">Filter</span>
               </button>
-              <button className="p-3 md:px-4 md:py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-full md:rounded-lg shadow-sm active:scale-95 md:hover:shadow-md transition-all flex items-center space-x-2">
-                <Plus className="h-5 w-5" />
-                <span className="hidden md:block text-sm font-medium">New Project</span>
-              </button>
+            </div>
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
+              <div className="flex items-center space-x-4">
+                <div className="text-right">
+                  <h3 className="text-sm font-semibold text-gray-900">Build something amazing</h3>
+                  <p className="text-xs text-gray-600">Start your next project</p>
+                </div>
+                <button 
+                  onClick={() => setIsFormOpen(true)}
+                  className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                >
+                  <Plus className="h-5 w-5" />
+                  <span className="font-medium">New Project</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -219,13 +273,23 @@ const Projects = () => {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
               <p className="text-gray-600 mb-4">Try adjusting your filter or create a new project</p>
-              <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium">
+              <button 
+                onClick={() => setIsFormOpen(true)}
+                className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium"
+              >
                 Create Project
               </button>
             </div>
           )}
         </div>
       </main>
+
+      {/* Project Creation Form */}
+      <ProjectForm
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleProjectSubmit}
+      />
     </div>
   );
 };

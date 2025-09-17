@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import { 
@@ -15,28 +15,157 @@ import {
   MoreVertical,
   BarChart3,
   FileText,
-  Settings
+  Settings,
+  Flag
 } from 'lucide-react';
 
 const ProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [timeLeft, setTimeLeft] = useState('');
 
-  // Mock project data
-  const project = {
-    id: parseInt(id),
-    name: 'Website Redesign',
-    description: 'Complete redesign of company website with modern UI/UX and improved user experience',
-    status: 'In Progress',
-    progress: 65,
-    team: 4,
-    dueDate: '2024-02-15',
-    priority: 'High',
-    startDate: '2024-01-01',
-    budget: '$50,000',
-    client: 'Acme Corporation'
-  };
+  // Mock project data - should match the data from Projects page
+  const projectsData = [
+    {
+      id: 1,
+      name: 'Website Redesign',
+      description: 'Complete redesign of company website with modern UI/UX and improved user experience',
+      status: 'In Progress',
+      progress: 65,
+      team: 4,
+      dueDate: '2025-10-15',
+      priority: 'High',
+      startDate: '2024-01-01',
+      budget: '$50,000',
+      client: 'Acme Corporation'
+    },
+    {
+      id: 2,
+      name: 'Mobile App Development',
+      description: 'iOS and Android app for customer portal with modern features and intuitive design',
+      status: 'Planning',
+      progress: 20,
+      team: 6,
+      dueDate: '2025-01-15',
+      priority: 'Medium',
+      startDate: '2024-02-01',
+      budget: '$75,000',
+      client: 'TechCorp Inc'
+    },
+    {
+      id: 3,
+      name: 'Database Migration',
+      description: 'Migrate to new database system for better performance and scalability',
+      status: 'Completed',
+      progress: 100,
+      team: 3,
+      dueDate: '2024-01-20',
+      priority: 'High',
+      startDate: '2023-12-01',
+      budget: '$30,000',
+      client: 'DataFlow Systems'
+    },
+    {
+      id: 4,
+      name: 'API Integration',
+      description: 'Integrate third-party APIs for enhanced functionality and seamless user experience',
+      status: 'In Progress',
+      progress: 40,
+      team: 2,
+      dueDate: '2024-12-30',
+      priority: 'Low',
+      startDate: '2024-03-01',
+      budget: '$25,000',
+      client: 'Integration Solutions'
+    },
+    {
+      id: 5,
+      name: 'E-commerce Platform',
+      description: 'Build new e-commerce platform with modern features and secure payment processing',
+      status: 'In Progress',
+      progress: 30,
+      team: 5,
+      dueDate: '2025-02-14',
+      priority: 'High',
+      startDate: '2024-04-01',
+      budget: '$100,000',
+      client: 'ShopMaster Ltd'
+    },
+    {
+      id: 6,
+      name: 'Security Audit',
+      description: 'Comprehensive security audit and vulnerability assessment for enterprise systems',
+      status: 'Planning',
+      progress: 10,
+      team: 3,
+      dueDate: '2025-01-30',
+      priority: 'Medium',
+      startDate: '2024-05-01',
+      budget: '$40,000',
+      client: 'SecureTech Corp'
+    }
+  ];
+
+  // Find the project based on the ID parameter
+  const project = projectsData.find(p => p.id === parseInt(id));
+  
+  // If project not found, redirect to projects page
+  useEffect(() => {
+    if (!project) {
+      navigate('/projects');
+    }
+  }, [project, navigate]);
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+  
+  // Return early if project not found
+  if (!project) {
+    return null;
+  }
+
+  // Countdown logic
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date();
+      const dueDate = new Date(project.dueDate);
+      const difference = dueDate.getTime() - now.getTime();
+
+      if (difference > 0) {
+        // Project is not overdue - show remaining time
+        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+        if (days > 0) {
+          setTimeLeft(`${days}d ${hours}h`);
+        } else if (hours > 0) {
+          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+          setTimeLeft(`${hours}h ${minutes}m`);
+        } else {
+          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+          setTimeLeft(`${minutes}m left`);
+        }
+      } else {
+        // Project is overdue - show how many days overdue
+        const overdueDays = Math.floor(Math.abs(difference) / (1000 * 60 * 60 * 24));
+        const overdueHours = Math.floor((Math.abs(difference) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        
+        if (overdueDays > 0) {
+          setTimeLeft(`${overdueDays}d overdue`);
+        } else {
+          setTimeLeft(`${overdueHours}h overdue`);
+        }
+      }
+    };
+
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [project.dueDate]);
 
   const milestones = [
     { id: 1, title: 'Design Phase', status: 'Completed', progress: 100, dueDate: '2024-01-15' },
@@ -85,38 +214,126 @@ const ProjectDetails = () => {
     }
   };
 
+  const getDueDateColor = () => {
+    const now = new Date();
+    const dueDate = new Date(project.dueDate);
+    const difference = dueDate.getTime() - now.getTime();
+    const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
+
+    if (difference < 0) {
+      return 'bg-red-100 text-red-800 border-red-200'; // Overdue
+    } else if (daysLeft <= 1) {
+      return 'bg-orange-100 text-orange-800 border-orange-200'; // Critical
+    } else if (daysLeft <= 3) {
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Warning
+    } else {
+      return 'bg-blue-100 text-blue-800 border-blue-200'; // Normal
+    }
+  };
+
+  const getCountdownColor = () => {
+    const now = new Date();
+    const dueDate = new Date(project.dueDate);
+    const difference = dueDate.getTime() - now.getTime();
+    const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
+
+    if (difference < 0) {
+      return 'text-red-600'; // Overdue
+    } else if (daysLeft <= 1) {
+      return 'text-orange-600'; // Critical
+    } else if (daysLeft <= 3) {
+      return 'text-yellow-600'; // Warning
+    } else {
+      return 'text-blue-600'; // Normal
+    }
+  };
+
 
   const renderOverview = () => (
     <div className="space-y-6">
-      {/* Project Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <span className="text-xs text-gray-500">Progress</span>
+      {/* Project Stats - Mobile App Style */}
+      <div className="space-y-4">
+        {/* Progress Card - Featured */}
+        <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-3xl p-6 border border-primary/20">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="p-3 bg-primary/20 rounded-2xl">
+                <TrendingUp className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Project Progress</h3>
+                <p className="text-sm text-gray-600">Overall completion status</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-primary">{project.progress}%</div>
+              <div className="text-xs text-gray-500">Complete</div>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{project.progress}%</p>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
+              style={{ width: `${project.progress}%` }}
+            ></div>
+          </div>
         </div>
-        <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <CheckSquare className="h-5 w-5 text-green-600" />
-            <span className="text-xs text-gray-500">Tasks</span>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* Tasks Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="p-2 bg-green-100 rounded-xl">
+                <CheckSquare className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
+                <div className="text-xs text-gray-500">Total Tasks</div>
+              </div>
+            </div>
+            <div className="text-xs text-gray-600">
+              {tasks.filter(t => t.status === 'Completed').length} completed
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{tasks.length}</p>
-        </div>
-        <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <Users className="h-5 w-5 text-blue-600" />
-            <span className="text-xs text-gray-500">Team</span>
+
+          {/* Team Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="p-2 bg-blue-100 rounded-xl">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-gray-900">{project.team}</div>
+                <div className="text-xs text-gray-500">Team Members</div>
+              </div>
+            </div>
+            <div className="text-xs text-gray-600">
+              Active contributors
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{project.team}</p>
-        </div>
-        <div className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-2">
-            <Calendar className="h-5 w-5 text-purple-600" />
-            <span className="text-xs text-gray-500">Days Left</span>
+
+          {/* Timeline Card */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 col-span-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-xl">
+                  <Calendar className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="text-lg font-semibold text-gray-900">Timeline</div>
+                  <div className="text-sm text-gray-600">Project deadline</div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className={`text-lg font-bold ${getCountdownColor()}`}>
+                  {timeLeft}
+                </div>
+                <div className="text-xs text-gray-500">
+                  {new Date(project.dueDate).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">7</p>
         </div>
       </div>
 
@@ -260,48 +477,136 @@ const ProjectDetails = () => {
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-          {/* Header */}
-          <div className="mb-6 md:mb-8">
-            <div className="mb-4">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">{project.name}</h1>
-              <p className="text-sm md:text-base text-gray-600 mt-1">{project.description}</p>
-            </div>
-            
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0">
-              <div className="flex items-center space-x-3">
-                <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(project.status)}`}>
+          {/* Mobile Layout - Professional Design */}
+          <div className="md:hidden mb-8">
+            {/* Project Header Card */}
+            <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-4">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1 pr-4">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3 leading-tight">{project.name}</h1>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <div className={`text-sm font-semibold ${getCountdownColor()}`}>
+                    {timeLeft}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Due: {new Date(project.dueDate).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Full-width description */}
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
+              </div>
+              
+              {/* Status and Priority Tags */}
+              <div className="flex items-center space-x-2 mb-6 overflow-x-auto">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
                   {project.status}
                 </span>
-                <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium ${getPriorityColor(project.priority)}`}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(project.priority)}`}>
                   {project.priority}
                 </span>
+                {/* Show overdue tag only if project is overdue */}
+                {(() => {
+                  const now = new Date();
+                  const dueDate = new Date(project.dueDate);
+                  const difference = dueDate.getTime() - now.getTime();
+                  if (difference < 0) {
+                    return (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap bg-red-100 text-red-800 border-red-200">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        Overdue
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
-              <div className="flex items-center space-x-3">
-                <button className="hidden md:flex items-center space-x-2 px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
-                  <Settings className="h-4 w-4 text-gray-600" />
-                  <span className="text-sm font-medium text-gray-700">Settings</span>
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3">
+                <button className="flex-1 bg-white border-2 border-primary text-primary py-4 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
+                  <Flag className="h-5 w-5" />
+                  <span className="font-semibold text-sm">Add Milestone</span>
                 </button>
-                <button className="p-3 md:px-4 md:py-2 bg-gradient-to-r from-primary to-primary-dark text-white rounded-full md:rounded-lg shadow-sm active:scale-95 md:hover:shadow-md transition-all flex items-center space-x-2">
+                <button className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2">
                   <Plus className="h-5 w-5" />
-                  <span className="hidden md:block text-sm font-medium">Add Task</span>
+                  <span className="font-semibold text-sm">Add Task</span>
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Progress Bar */}
-          <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-8">
-            <div className="flex justify-between text-sm md:text-base mb-3">
-              <span className="text-gray-600">Overall Progress</span>
-              <span className="text-gray-900 font-medium">{project.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 md:h-4">
-              <div 
-                className="bg-gradient-to-r from-primary to-primary-dark h-3 md:h-4 rounded-full transition-all duration-300"
-                style={{ width: `${project.progress}%` }}
-              ></div>
+          {/* Desktop Layout - Professional Design */}
+          <div className="hidden md:block mb-8">
+            {/* Project Header */}
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
+                        {project.status}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(project.priority)}`}>
+                        {project.priority}
+                      </span>
+                      {/* Show overdue tag only if project is overdue */}
+                      {(() => {
+                        const now = new Date();
+                        const dueDate = new Date(project.dueDate);
+                        const difference = dueDate.getTime() - now.getTime();
+                        if (difference < 0) {
+                          return (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap bg-red-100 text-red-800 border-red-200">
+                              <Calendar className="h-3 w-3 inline mr-1" />
+                              Overdue
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <div className={`text-lg font-semibold ${getCountdownColor()}`}>
+                    {timeLeft}
+                  </div>
+                  <div className="text-sm text-gray-500 mt-1">
+                    Due: {new Date(project.dueDate).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Full-width description */}
+              <div className="mb-6">
+                <p className="text-lg text-gray-600 leading-relaxed">{project.description}</p>
+              </div>
+
+              {/* Action Section */}
+              <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">Ready to add more content?</h3>
+                  <p className="text-sm text-gray-600">Add milestones and tasks to keep the project moving forward</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button className="bg-white border-2 border-primary text-primary px-6 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                    <Flag className="h-5 w-5" />
+                    <span className="font-semibold">Add Milestone</span>
+                  </button>
+                  <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                    <Plus className="h-5 w-5" />
+                    <span className="font-semibold">Add Task</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+
 
           {/* Mobile Tabs - Tiles Layout */}
           <div className="md:hidden mb-6">
