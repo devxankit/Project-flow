@@ -29,10 +29,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Role is required'],
     enum: {
-      values: ['PM', 'Employee', 'Customer'],
-      message: 'Role must be either PM, Employee, or Customer'
+      values: ['pm', 'employee', 'customer'],
+      message: 'Role must be either pm, employee, or customer'
     },
-    default: 'Employee'
+    default: 'employee'
   },
   status: {
     type: String,
@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema({
   department: {
     type: String,
     required: function() {
-      return this.role === 'Employee' || this.role === 'PM';
+      return this.role === 'employee' || this.role === 'pm';
     },
     trim: true,
     maxlength: [100, 'Department name cannot exceed 100 characters']
@@ -70,17 +70,49 @@ const userSchema = new mongoose.Schema({
   jobTitle: {
     type: String,
     required: function() {
-      return this.role === 'Employee' || this.role === 'PM';
+      return this.role === 'employee' || this.role === 'pm';
     },
     trim: true,
     maxlength: [100, 'Job title cannot exceed 100 characters']
+  },
+  workTitle: {
+    type: String,
+    required: function() {
+      return this.role === 'employee' || this.role === 'pm';
+    },
+    trim: true,
+    maxlength: [100, 'Work title cannot exceed 100 characters'],
+    enum: {
+      values: ['web-developer', 'ui-designer', 'backend-developer', 'mobile-developer', 'ux-designer', 'devops-engineer', 'project-manager', 'qa-engineer', 'data-analyst', 'product-manager'],
+      message: 'Invalid work title'
+    }
+  },
+  phone: {
+    type: String,
+    trim: true,
+    match: [/^[\+]?[1-9][\d]{0,15}$/, 'Please enter a valid phone number']
+  },
+  location: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Location cannot exceed 200 characters']
+  },
+  skills: [{
+    type: String,
+    trim: true,
+    maxlength: [50, 'Each skill cannot exceed 50 characters']
+  }],
+  projects: {
+    type: Number,
+    default: 0,
+    min: [0, 'Projects count cannot be negative']
   },
   
   // Customer-specific fields
   company: {
     type: String,
     required: function() {
-      return this.role === 'Customer';
+      return this.role === 'customer';
     },
     trim: true,
     maxlength: [200, 'Company name cannot exceed 200 characters']
@@ -117,6 +149,17 @@ const userSchema = new mongoose.Schema({
     select: false
   },
   
+  // User Management fields
+  createdBy: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Created by name cannot exceed 100 characters']
+  },
+  createdById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  
   // Timestamps
   createdAt: {
     type: Date,
@@ -142,6 +185,11 @@ userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ status: 1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ department: 1 });
+userSchema.index({ workTitle: 1 });
+userSchema.index({ company: 1 });
+userSchema.index({ createdById: 1 });
+userSchema.index({ fullName: 'text', email: 'text' }); // Text search index
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
@@ -202,9 +250,40 @@ userSchema.statics.findByRole = function(role) {
 userSchema.statics.findByDepartment = function(department) {
   return this.find({ 
     department, 
-    role: { $in: ['Employee', 'PM'] },
+    role: { $in: ['employee', 'pm'] },
     status: 'active' 
   });
+};
+
+// Static method to find users by work title
+userSchema.statics.findByWorkTitle = function(workTitle) {
+  return this.find({ 
+    workTitle, 
+    role: { $in: ['employee', 'pm'] },
+    status: 'active' 
+  });
+};
+
+// Static method to find users by company (for customers)
+userSchema.statics.findByCompany = function(company) {
+  return this.find({ 
+    company, 
+    role: 'customer',
+    status: 'active' 
+  });
+};
+
+// Static method to find users created by a specific user
+userSchema.statics.findByCreator = function(createdById) {
+  return this.find({ createdById });
+};
+
+// Static method to search users by text
+userSchema.statics.searchUsers = function(searchTerm) {
+  return this.find({
+    $text: { $search: searchTerm },
+    status: 'active'
+  }).sort({ score: { $meta: 'textScore' } });
 };
 
 // Transform function to remove sensitive data when converting to JSON
