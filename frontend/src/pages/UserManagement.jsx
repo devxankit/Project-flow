@@ -36,8 +36,7 @@ const UserManagement = () => {
   const [users, setUsers] = useState([
     {
       id: 1,
-      firstName: 'Sarah',
-      lastName: 'Johnson',
+      fullName: 'Sarah Johnson',
       email: 'sarah.johnson@example.com',
       role: 'employee',
       status: 'active',
@@ -46,8 +45,7 @@ const UserManagement = () => {
     },
     {
       id: 2,
-      firstName: 'Mike',
-      lastName: 'Chen',
+      fullName: 'Mike Chen',
       email: 'mike.chen@example.com',
       role: 'customer',
       status: 'active',
@@ -56,8 +54,7 @@ const UserManagement = () => {
     },
     {
       id: 3,
-      firstName: 'Emily',
-      lastName: 'Davis',
+      fullName: 'Emily Davis',
       email: 'emily.davis@example.com',
       role: 'pm',
       status: 'active',
@@ -66,8 +63,7 @@ const UserManagement = () => {
     },
     {
       id: 4,
-      firstName: 'Alex',
-      lastName: 'Thompson',
+      fullName: 'Alex Thompson',
       email: 'alex.thompson@company.com',
       role: 'employee',
       status: 'inactive',
@@ -76,8 +72,7 @@ const UserManagement = () => {
     },
     {
       id: 5,
-      firstName: 'Lisa',
-      lastName: 'Wilson',
+      fullName: 'Lisa Wilson',
       email: 'lisa.wilson@business.com',
       role: 'customer',
       status: 'active',
@@ -87,8 +82,7 @@ const UserManagement = () => {
   ]);
 
   const [newUser, setNewUser] = useState({
-    firstName: '',
-    lastName: '',
+    fullName: '',
     email: '',
     role: 'employee',
     status: 'active'
@@ -121,8 +115,7 @@ const UserManagement = () => {
 
   // Filter users based on search and role
   const filteredUsers = users.filter(user => {
-    const matchesSearch = user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     return matchesSearch && matchesRole;
@@ -147,22 +140,27 @@ const UserManagement = () => {
   };
 
   const handleAddUser = () => {
-    if (newUser.firstName && newUser.lastName && newUser.email) {
+    if (newUser.fullName && newUser.email) {
+      const nameParts = newUser.fullName.trim().split(' ');
+      const avatar = nameParts.length >= 2 
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : nameParts[0][0].toUpperCase();
+      
       const user = {
         ...newUser,
         id: Date.now(),
         joinDate: new Date().toISOString().split('T')[0],
-        avatar: `${newUser.firstName[0]}${newUser.lastName[0]}`
+        avatar
       };
       setUsers(prev => [...prev, user]);
-      setNewUser({ firstName: '', lastName: '', email: '', role: 'employee', status: 'active' });
+      setNewUser({ fullName: '', email: '', role: 'employee', status: 'active' });
       setIsAddUserOpen(false);
     }
   };
 
   const handleEditUser = (user) => {
     setEditUserData({
-      fullName: `${user.firstName} ${user.lastName}`,
+      fullName: user.fullName,
       email: user.email,
       role: user.role,
       status: user.status
@@ -173,18 +171,18 @@ const UserManagement = () => {
   const handleSaveUser = () => {
     if (editUserData.fullName && editUserData.email) {
       const nameParts = editUserData.fullName.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const avatar = nameParts.length >= 2 
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : nameParts[0][0].toUpperCase();
       
       setUsers(prev => prev.map(user => 
         user.id === editingUser.id 
           ? { 
               ...user, 
-              firstName,
-              lastName,
+              fullName: editUserData.fullName,
               role: editUserData.role,
               status: editUserData.status,
-              avatar: `${firstName[0] || ''}${lastName[0] || ''}`
+              avatar
             }
           : user
       ));
@@ -341,7 +339,7 @@ const UserManagement = () => {
                              <div className="flex items-start justify-between mb-2">
                                <div className="flex-1 min-w-0">
                                  <h3 className="text-sm font-semibold text-gray-900 truncate">
-                                   {user.firstName} {user.lastName}
+                                   {user.fullName}
                                  </h3>
                                  <p className="text-xs text-gray-600 truncate">{user.email}</p>
                                  <p className="text-xs text-gray-500">Joined: {user.joinDate}</p>
@@ -390,7 +388,7 @@ const UserManagement = () => {
                                <div className="flex items-center justify-between">
                                  <div>
                                    <h3 className="text-lg font-semibold text-gray-900">
-                                     {user.firstName} {user.lastName}
+                                     {user.fullName}
                                    </h3>
                                    <p className="text-sm text-gray-600">{user.email}</p>
                                    <p className="text-xs text-gray-500">Joined: {user.joinDate}</p>

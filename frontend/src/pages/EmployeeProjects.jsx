@@ -12,8 +12,7 @@ const EmployeeProjects = () => {
   
   // Mock user data - in a real app, this would come from authentication context
   const currentUser = {
-    firstName: 'Mike',
-    lastName: 'Johnson',
+    fullName: 'Mike Johnson',
     email: 'mike.johnson@company.com',
     role: 'Frontend Developer'
   };

@@ -13,7 +13,7 @@ const PMProfile = () => {
   useScrollToTop();
   
   const [profileData, setProfileData] = useState({
-    name: 'John Doe',
+    fullName: 'John Doe',
     email: 'john.doe@company.com',
     avatar: 'JD'
   });
@@ -99,7 +99,7 @@ const PMProfile = () => {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-base font-semibold text-gray-900">{profileData.name}</h3>
+                    <h3 className="text-base font-semibold text-gray-900">{profileData.fullName}</h3>
                     <p className="text-xs text-gray-500">Project Manager</p>
                     {isEditing && (
                       <button className="text-xs text-primary font-medium hover:text-primary-dark transition-colors duration-200 mt-1">
@@ -117,15 +117,15 @@ const PMProfile = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        value={profileData.name}
-                        onChange={(e) => handleProfileUpdate('name', e.target.value)}
+                        value={profileData.fullName}
+                        onChange={(e) => handleProfileUpdate('fullName', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm font-medium"
                         placeholder="Enter your full name"
                       />
                     ) : (
                       <div className="flex items-center space-x-2">
                         <User className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">{profileData.name}</span>
+                        <span className="text-sm font-medium text-gray-900">{profileData.fullName}</span>
                       </div>
                     )}
                   </div>

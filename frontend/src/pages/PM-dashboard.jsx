@@ -16,8 +16,7 @@ const PMDashboard = () => {
   
   // Mock user data - in a real app, this would come from authentication context
   const currentUser = {
-    firstName: 'John',
-    lastName: 'Doe',
+    fullName: 'John Doe',
     email: 'john.doe@example.com'
   };
 
@@ -49,7 +48,7 @@ const PMDashboard = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Welcome, {currentUser.firstName}!
+                  Welcome, {currentUser.fullName}!
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
               </div>

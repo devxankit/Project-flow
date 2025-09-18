@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   FolderKanban, 
@@ -8,7 +8,7 @@ import {
   User
 } from 'lucide-react';
 
-const PMNavbar = ({ currentPage = 'Dashboard' }) => {
+const PMNavbar = () => {
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -35,15 +35,6 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
     navigate(href);
   };
 
-  // Get current page from location with smooth transitions
-  const getCurrentPage = () => {
-    const path = location.pathname;
-    const item = navigationItems.find(item => item.href === path);
-    return item ? item.name : 'Dashboard';
-  };
-
-  // Memoize current page to prevent unnecessary re-renders
-  const currentPageName = React.useMemo(() => getCurrentPage(), [location.pathname]);
 
   // Desktop Navbar
   const DesktopNavbar = () => (
@@ -53,10 +44,11 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">PM</span>
-              </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">TaskFlow</span>
+              <img 
+                src="/images/logo.png" 
+                alt="TaskFlow Logo" 
+                className="h-10 w-auto"
+              />
             </div>
           </div>
 
@@ -103,11 +95,13 @@ const PMNavbar = ({ currentPage = 'Dashboard' }) => {
   const MobileTopBar = () => (
     <div className="md:hidden bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
       <div className="flex justify-between items-center h-14 px-4">
-        {/* Current Page Title */}
+        {/* Logo */}
         <div className="flex items-center">
-          <h1 className="text-lg font-semibold text-gray-900 page-title">
-            {currentPageName}
-          </h1>
+          <img 
+            src="/images/logo.png" 
+            alt="TaskFlow Logo" 
+            className="h-8 w-auto"
+          />
         </div>
 
         {/* Profile */}

@@ -21,10 +21,11 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <div className="flex items-center">
-              <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">PM</span>
-              </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">TaskFlow</span>
+              <img 
+                src="/images/logo.png" 
+                alt="TaskFlow Logo" 
+                className="h-10 w-auto"
+              />
             </div>
           </div>
 

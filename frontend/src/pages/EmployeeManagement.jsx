@@ -39,8 +39,7 @@ const EmployeeManagement = () => {
   const [employees] = useState([
     {
       id: 1,
-      firstName: 'Sarah',
-      lastName: 'Johnson',
+      fullName: 'Sarah Johnson',
       email: 'sarah.johnson@company.com',
       phone: '+1 (555) 123-4567',
       workTitle: 'web-developer',
@@ -54,8 +53,7 @@ const EmployeeManagement = () => {
     },
     {
       id: 2,
-      firstName: 'Mike',
-      lastName: 'Chen',
+      fullName: 'Mike Chen',
       email: 'mike.chen@company.com',
       phone: '+1 (555) 234-5678',
       workTitle: 'ui-designer',
@@ -69,8 +67,7 @@ const EmployeeManagement = () => {
     },
     {
       id: 3,
-      firstName: 'Emily',
-      lastName: 'Davis',
+      fullName: 'Emily Davis',
       email: 'emily.davis@company.com',
       phone: '+1 (555) 345-6789',
       workTitle: 'backend-developer',
@@ -84,8 +81,7 @@ const EmployeeManagement = () => {
     },
     {
       id: 4,
-      firstName: 'Alex',
-      lastName: 'Thompson',
+      fullName: 'Alex Thompson',
       email: 'alex.thompson@company.com',
       phone: '+1 (555) 456-7890',
       workTitle: 'mobile-developer',
@@ -99,8 +95,7 @@ const EmployeeManagement = () => {
     },
     {
       id: 5,
-      firstName: 'Lisa',
-      lastName: 'Wilson',
+      fullName: 'Lisa Wilson',
       email: 'lisa.wilson@company.com',
       phone: '+1 (555) 567-8901',
       workTitle: 'ux-designer',
@@ -114,8 +109,7 @@ const EmployeeManagement = () => {
     },
     {
       id: 6,
-      firstName: 'David',
-      lastName: 'Rodriguez',
+      fullName: 'David Rodriguez',
       email: 'david.rodriguez@company.com',
       phone: '+1 (555) 678-9012',
       workTitle: 'devops-engineer',
@@ -166,7 +160,7 @@ const EmployeeManagement = () => {
 
   const handleEditEmployee = (employee) => {
     setEditEmployeeData({
-      fullName: `${employee.firstName} ${employee.lastName}`,
+      fullName: employee.fullName,
       email: employee.email,
       workTitle: employee.workTitle,
       department: employee.department,
@@ -178,19 +172,19 @@ const EmployeeManagement = () => {
   const handleSaveEmployee = () => {
     if (editEmployeeData.fullName && editEmployeeData.email) {
       const nameParts = editEmployeeData.fullName.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || '';
+      const avatar = nameParts.length >= 2 
+        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+        : nameParts[0][0].toUpperCase();
       
       // In a real app, this would update the employee data via API
       console.log('Employee updated:', {
         ...editingEmployee,
-        firstName,
-        lastName,
+        fullName: editEmployeeData.fullName,
         email: editEmployeeData.email,
         workTitle: editEmployeeData.workTitle,
         department: editEmployeeData.department,
         status: editEmployeeData.status,
-        avatar: `${firstName[0] || ''}${lastName[0] || ''}`
+        avatar
       });
       
       setEditingEmployee(null);
@@ -212,8 +206,7 @@ const EmployeeManagement = () => {
 
   // Filter employees based on search and work title
   const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employee.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = employee.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          employee.workTitle.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesWorkTitle = workTitleFilter === 'all' || employee.workTitle === workTitleFilter;
@@ -353,7 +346,7 @@ const EmployeeManagement = () => {
                           {/* Employee Info */}
                           <div className="mb-2">
                             <h3 className="text-base font-semibold text-gray-900 truncate">
-                              {employee.firstName} {employee.lastName}
+                              {employee.fullName}
                             </h3>
                             <p className="text-sm text-gray-600 truncate">{employee.email}</p>
                           </div>
@@ -406,7 +399,7 @@ const EmployeeManagement = () => {
                             <div className="flex items-center justify-between">
                               <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                  {employee.firstName} {employee.lastName}
+                                  {employee.fullName}
                                 </h3>
                                 <p className="text-sm text-gray-600">{employee.email}</p>
                                 <div className="flex items-center space-x-2 mt-1">
