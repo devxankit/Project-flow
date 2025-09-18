@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import { Combobox } from '../components/magicui/combobox';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/magicui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
 import { Input } from '../components/magicui/input';
 import { Button } from '../components/magicui/button';
 import useScrollToTop from '../hooks/useScrollToTop';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Users, 
   UserPlus, 
@@ -19,7 +20,17 @@ import {
   CheckCircle,
   AlertCircle,
   Save,
-  X
+  X,
+  Eye,
+  EyeOff,
+  Copy,
+  Download,
+  Key,
+  Mail,
+  Calendar,
+  MapPin,
+  Briefcase,
+  FileText
 } from 'lucide-react';
 
 const UserManagement = () => {
@@ -28,71 +39,110 @@ const UserManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [activeTab, setActiveTab] = useState('all');
+  const [showCredentials, setShowCredentials] = useState({});
 
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock data for users
+  // Mock data for users with credentials
   const [users, setUsers] = useState([
     {
       id: 1,
       fullName: 'Sarah Johnson',
       email: 'sarah.johnson@example.com',
+      password: 'TempPass123!',
       role: 'employee',
       status: 'active',
       joinDate: '2024-01-15',
-      avatar: 'SJ'
+      avatar: 'SJ',
+      department: 'Engineering',
+      jobTitle: 'Frontend Developer',
+      createdBy: 'John Doe',
+      createdAt: '2024-01-15T10:30:00Z'
     },
     {
       id: 2,
       fullName: 'Mike Chen',
       email: 'mike.chen@example.com',
+      password: 'TempPass456!',
       role: 'customer',
       status: 'active',
       joinDate: '2024-01-20',
-      avatar: 'MC'
+      avatar: 'MC',
+      company: 'Acme Corporation',
+      address: '123 Business St, Suite 100, New York, NY 10001',
+      createdBy: 'John Doe',
+      createdAt: '2024-01-20T14:15:00Z'
     },
     {
       id: 3,
       fullName: 'Emily Davis',
       email: 'emily.davis@example.com',
+      password: 'TempPass789!',
       role: 'pm',
       status: 'active',
       joinDate: '2024-02-01',
-      avatar: 'ED'
+      avatar: 'ED',
+      department: 'Management',
+      jobTitle: 'Senior Project Manager',
+      createdBy: 'John Doe',
+      createdAt: '2024-02-01T09:45:00Z'
     },
     {
       id: 4,
       fullName: 'Alex Thompson',
       email: 'alex.thompson@company.com',
+      password: 'TempPass101!',
       role: 'employee',
       status: 'inactive',
       joinDate: '2024-02-10',
-      avatar: 'AT'
+      avatar: 'AT',
+      department: 'Design',
+      jobTitle: 'UI/UX Designer',
+      createdBy: 'John Doe',
+      createdAt: '2024-02-10T16:20:00Z'
     },
     {
       id: 5,
       fullName: 'Lisa Wilson',
       email: 'lisa.wilson@business.com',
+      password: 'TempPass202!',
       role: 'customer',
       status: 'active',
       joinDate: '2024-02-15',
-      avatar: 'LW'
+      avatar: 'LW',
+      company: 'Tech Solutions Inc',
+      address: '456 Innovation Ave, San Francisco, CA 94105',
+      createdBy: 'John Doe',
+      createdAt: '2024-02-15T11:30:00Z'
     }
   ]);
 
   const [newUser, setNewUser] = useState({
     fullName: '',
     email: '',
+    password: '',
     role: 'employee',
-    status: 'active'
+    status: 'active',
+    department: '',
+    jobTitle: '',
+    company: '',
+    address: ''
   });
+
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [editUserData, setEditUserData] = useState({
     fullName: '',
     email: '',
     role: 'employee',
-    status: 'active'
+    status: 'active',
+    department: '',
+    jobTitle: '',
+    company: '',
+    address: ''
   });
 
   const roleOptions = [
@@ -113,13 +163,60 @@ const UserManagement = () => {
     { value: 'inactive', label: 'Inactive', color: 'text-red-600', bgColor: 'bg-red-100' }
   ];
 
-  // Filter users based on search and role
+  const tabs = [
+    { id: 'all', label: 'All Users', count: users.length },
+    { id: 'employee', label: 'Employees', count: users.filter(u => u.role === 'employee').length },
+    { id: 'customer', label: 'Customers', count: users.filter(u => u.role === 'customer').length },
+    { id: 'pm', label: 'Project Managers', count: users.filter(u => u.role === 'pm').length }
+  ];
+
+  // Filter users based on search, role, and tab
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    return matchesSearch && matchesRole;
+    const matchesTab = activeTab === 'all' || user.role === activeTab;
+    return matchesSearch && matchesRole && matchesTab;
   });
+
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    // You could add a toast notification here
+  };
+
+  const exportCredentials = () => {
+    const credentials = users.map(user => ({
+      'Full Name': user.fullName,
+      'Email': user.email,
+      'Password': user.password,
+      'Role': user.role,
+      'Status': user.status,
+      'Created Date': new Date(user.createdAt).toLocaleDateString(),
+      'Created By': user.createdBy
+    }));
+
+    const csvContent = [
+      Object.keys(credentials[0]).join(','),
+      ...credentials.map(row => Object.values(row).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'user-credentials.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   const handleRoleChange = (userId, newRole) => {
     setUsers(prev => prev.map(user => 
@@ -139,23 +236,89 @@ const UserManagement = () => {
     }
   };
 
-  const handleAddUser = () => {
-    if (newUser.fullName && newUser.email) {
-      const nameParts = newUser.fullName.trim().split(' ');
-      const avatar = nameParts.length >= 2 
-        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-        : nameParts[0][0].toUpperCase();
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!newUser.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    }
+
+    if (!newUser.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(newUser.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+
+    if (!newUser.password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (newUser.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+    }
+
+    // Role-specific validation
+    if (newUser.role === 'employee' || newUser.role === 'pm') {
+      if (!newUser.department.trim()) {
+        newErrors.department = 'Department is required';
+      }
+      if (!newUser.jobTitle.trim()) {
+        newErrors.jobTitle = 'Job title is required';
+      }
+    }
+
+    if (newUser.role === 'customer') {
+      if (!newUser.company.trim()) {
+        newErrors.company = 'Company is required';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAddUser = async () => {
+    if (validateForm()) {
+      setIsSubmitting(true);
       
+      try {
+        const nameParts = newUser.fullName.trim().split(' ');
+        const avatar = nameParts.length >= 2 
+          ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+          : nameParts[0][0].toUpperCase();
+        
       const user = {
         ...newUser,
         id: Date.now(),
         joinDate: new Date().toISOString().split('T')[0],
-        avatar
+          avatar,
+          createdBy: 'John Doe', // Current PM
+          createdAt: new Date().toISOString()
       };
+        
       setUsers(prev => [...prev, user]);
-      setNewUser({ fullName: '', email: '', role: 'employee', status: 'active' });
-      setIsAddUserOpen(false);
+        handleCloseAddUser();
+      } catch (error) {
+        console.error('Error creating user:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
+  };
+
+  const handleCloseAddUser = () => {
+    setNewUser({ 
+      fullName: '', 
+      email: '', 
+      password: '',
+      role: 'employee', 
+      status: 'active',
+      department: '',
+      jobTitle: '',
+      company: '',
+      address: ''
+    });
+    setErrors({});
+    setIsSubmitting(false);
+    setIsAddUserOpen(false);
   };
 
   const handleEditUser = (user) => {
@@ -163,7 +326,11 @@ const UserManagement = () => {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
-      status: user.status
+      status: user.status,
+      department: user.department || '',
+      jobTitle: user.jobTitle || '',
+      company: user.company || '',
+      address: user.address || ''
     });
     setEditingUser(user);
   };
@@ -182,18 +349,40 @@ const UserManagement = () => {
               fullName: editUserData.fullName,
               role: editUserData.role,
               status: editUserData.status,
-              avatar
+              avatar,
+              department: editUserData.department,
+              jobTitle: editUserData.jobTitle,
+              company: editUserData.company,
+              address: editUserData.address
             }
           : user
       ));
       setEditingUser(null);
-      setEditUserData({ fullName: '', email: '', role: 'employee', status: 'active' });
+      setEditUserData({ 
+        fullName: '', 
+        email: '', 
+        role: 'employee', 
+        status: 'active',
+        department: '',
+        jobTitle: '',
+        company: '',
+        address: ''
+      });
     }
   };
 
   const handleCancelEdit = () => {
     setEditingUser(null);
-    setEditUserData({ fullName: '', email: '', role: 'employee', status: 'active' });
+    setEditUserData({ 
+      fullName: '', 
+      email: '', 
+      role: 'employee', 
+      status: 'active',
+      department: '',
+      jobTitle: '',
+      company: '',
+      address: ''
+    });
   };
 
   const getRoleInfo = (role) => {
@@ -204,219 +393,341 @@ const UserManagement = () => {
     return statusOptions.find(option => option.value === status) || statusOptions[0];
   };
 
+  const renderRoleSpecificFields = (userData, isEdit = false) => {
+    const data = isEdit ? editUserData : newUser;
+    const setData = isEdit ? setEditUserData : setNewUser;
+
+    if (data.role === 'employee' || data.role === 'pm') {
+      return (
+        <>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Department <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g., Engineering, Design, Marketing"
+              value={data.department}
+              onChange={(e) => setData(prev => ({ ...prev, department: e.target.value }))}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.department 
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.department && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.department}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Job Title <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g., Frontend Developer, UI Designer"
+              value={data.jobTitle}
+              onChange={(e) => setData(prev => ({ ...prev, jobTitle: e.target.value }))}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.jobTitle 
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.jobTitle && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.jobTitle}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+        </>
+      );
+    }
+
+    if (data.role === 'customer') {
+      return (
+        <>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Company <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="text"
+              placeholder="Company name"
+              value={data.company}
+              onChange={(e) => setData(prev => ({ ...prev, company: e.target.value }))}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.company 
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.company && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.company}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Address</label>
+            <Input
+              type="text"
+              placeholder="Company address (optional)"
+              value={data.address}
+              onChange={(e) => setData(prev => ({ ...prev, address: e.target.value }))}
+              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+            />
+          </div>
+        </>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <PMNavbar />
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-          {/* Header - Enhanced Card Design */}
+          {/* Header */}
           <div className="mb-4 md:mb-6">
             <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl md:rounded-lg p-4 md:p-6 border border-teal-100 shadow-sm">
-              <div className="text-center">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                <div>
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                   User Management
                 </h1>
                 <p className="text-sm md:text-base text-gray-600">
-                  Manage user roles and permissions
-                </p>
+                    Create and manage user accounts with role-based access
+                  </p>
+                </div>
+                <div className="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2">
+                  <Button
+                    onClick={exportCredentials}
+                    variant="outline"
+                    className="flex items-center space-x-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    <span>Export Credentials</span>
+                  </Button>
+                  <Button
+                    onClick={() => setIsAddUserOpen(true)}
+                    className="flex items-center space-x-2 bg-primary text-white hover:bg-primary-dark"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    <span>Add New User</span>
+                  </Button>
+                </div>
+                </div>
               </div>
             </div>
+
+          {/* Filter Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            {/* Total Users Card */}
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`p-3 shadow-sm hover:shadow-md transition-all duration-200 rounded-lg border ${
+                activeTab === 'all'
+                  ? 'bg-primary/10 border-primary text-primary'
+                  : 'bg-white border-gray-200 text-gray-600'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-600">All Users</p>
+                  <p className="text-lg font-bold text-gray-900">{users.length}</p>
+                </div>
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </button>
+
+            {/* Role Filter Cards */}
+            {roleOptions.map((role) => {
+              const count = users.filter(user => user.role === role.value).length;
+              const activeCount = users.filter(user => user.role === role.value && user.status === 'active').length;
+              return (
+                <button
+                  key={role.value}
+                  onClick={() => setActiveTab(role.value)}
+                  className={`${role.bgColor} ${role.borderColor} border rounded-lg p-3 shadow-sm hover:shadow-md transition-all duration-200 ${
+                    activeTab === role.value ? 'ring-2 ring-primary ring-opacity-50' : ''
+                  }`}
+                >
+              <div className="flex items-center justify-between">
+                <div>
+                      <p className={`text-xs font-medium ${role.color}`}>{role.label}</p>
+                      <p className="text-lg font-bold text-gray-900">{count}</p>
+                      <p className="text-xs text-gray-600">{activeCount} active</p>
+                </div>
+                    <role.icon className={`h-5 w-5 ${role.color}`} />
+                </div>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Stats Cards - Mobile First */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4 md:mb-6">
-            <div className="bg-white rounded-xl md:rounded-lg p-3 md:p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Total Users</p>
-                  <p className="text-lg md:text-2xl font-bold text-gray-900">{users.length}</p>
-                </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-primary to-primary-dark rounded-lg flex items-center justify-center">
-                  <Users className="h-4 w-4 md:h-5 md:w-5 text-white" />
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-white rounded-xl md:rounded-lg p-3 md:p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Employees</p>
-                  <p className="text-lg md:text-2xl font-bold text-blue-600">
-                    {users.filter(u => u.role === 'employee').length}
-                  </p>
-                </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <User className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl md:rounded-lg p-3 md:p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Customers</p>
-                  <p className="text-lg md:text-2xl font-bold text-green-600">
-                    {users.filter(u => u.role === 'customer').length}
-                  </p>
-                </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <Building2 className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl md:rounded-lg p-3 md:p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs md:text-sm text-gray-600">Project Managers</p>
-                  <p className="text-lg md:text-2xl font-bold text-purple-600">
-                    {users.filter(u => u.role === 'pm').length}
-                  </p>
-                </div>
-                <div className="w-8 h-8 md:w-10 md:h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <Shield className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Search and Filter - Mobile First */}
-          <div className="bg-white rounded-xl md:rounded-lg p-3 md:p-4 shadow-sm border border-gray-100 mb-4 md:mb-6">
-            <div className="flex flex-col gap-3">
+          {/* Search and Filter */}
+          <div className="mb-4 md:mb-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 md:h-5 md:w-5 text-gray-400" />
-                <input
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
                   type="text"
-                  placeholder="Search users..."
+                    placeholder="Search users by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 md:pl-10 pr-4 py-2.5 md:py-3 border border-gray-200 rounded-lg md:rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm md:text-base"
+                    className="pl-10 h-10"
                 />
+                </div>
               </div>
               <div className="md:w-48">
                 <Combobox
-                  options={filterOptions}
+                  options={filterOptions.map(option => ({
+                    value: option.value,
+                    label: option.label,
+                    icon: option.icon
+                  }))}
                   value={roleFilter}
-                  onChange={(value) => setRoleFilter(value)}
-                  placeholder="All Roles"
-                  className="h-10 md:h-12"
+                  onChange={setRoleFilter}
+                  placeholder="Filter by role"
+                  className="h-10"
                 />
               </div>
             </div>
           </div>
 
-          {/* Users List - Mobile First */}
-          <div className="bg-white rounded-xl md:rounded-lg shadow-sm border border-gray-100">
-            <div className="p-3 md:p-4 border-b border-gray-100">
-              <h2 className="text-base md:text-lg font-semibold text-gray-900">
-                Users ({filteredUsers.length})
-              </h2>
-            </div>
-            <div className="divide-y divide-gray-100">
+          {/* Users Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredUsers.map((user) => {
                 const roleInfo = getRoleInfo(user.role);
                 const statusInfo = getStatusInfo(user.status);
-                const RoleIcon = roleInfo.icon;
-                
                 return (
-                  <div
-                    key={user.id}
-                    className="p-3 md:p-4 hover:bg-gray-50 transition-colors duration-200"
-                  >
-                       {/* Mobile Layout - Professional Compact Design */}
-                       <div className="md:hidden">
-                         <div className="flex items-start space-x-3">
-                           {/* Profile Image - Normal Size */}
-                           <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center flex-shrink-0">
-                             <span className="text-white font-semibold text-xs">
+                <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
+                  {/* User Header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-primary-dark flex items-center justify-center">
+                        <span className="text-sm font-medium text-white">
                                {user.avatar}
                              </span>
                            </div>
-                           
-                           <div className="flex-1 min-w-0">
-                             {/* Top Section: Name and Status */}
-                             <div className="flex items-start justify-between mb-2">
-                               <div className="flex-1 min-w-0">
-                                 <h3 className="text-sm font-semibold text-gray-900 truncate">
-                                   {user.fullName}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-900">
+                          {user.fullName}
                                  </h3>
-                                 <p className="text-xs text-gray-600 truncate">{user.email}</p>
-                                 <p className="text-xs text-gray-500">Joined: {user.joinDate}</p>
-                               </div>
-                               {/* Status Tag - Top Right */}
-                               <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color} ml-2 flex-shrink-0`}>
-                                 {statusInfo.label}
+                        <p className="text-xs text-gray-500">
+                          {user.email}
+                        </p>
                                </div>
                              </div>
-                             
-                             {/* Bottom Section: Actions Only */}
-                             <div className="flex items-center justify-end">
-                               {/* Action Buttons - Right Side */}
-                               <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1">
                                  <button
                                    onClick={() => handleEditUser(user)}
-                                   className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors duration-200"
+                        className="p-1 text-gray-400 hover:text-primary transition-colors"
                                  >
                                    <Edit className="h-4 w-4" />
                                  </button>
                                  <button
                                    onClick={() => handleDeleteUser(user.id)}
-                                   className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors duration-200"
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                                  >
                                    <Trash2 className="h-4 w-4" />
                                  </button>
-                               </div>
-                             </div>
-                           </div>
                          </div>
                        </div>
 
-                       {/* Desktop Layout - Professional Compact Design */}
-                       <div className="hidden md:block">
-                         <div className="flex items-center justify-between">
-                           <div className="flex items-center space-x-4">
-                             {/* Profile Image - Normal Size */}
-                             <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                               <span className="text-white font-semibold text-sm">
-                                 {user.avatar}
+                  {/* Role & Details */}
+                  <div className="mb-3">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <roleInfo.icon className={`h-4 w-4 ${roleInfo.color}`} />
+                      <span className={`text-sm font-medium ${roleInfo.color}`}>
+                        {roleInfo.label}
                                </span>
                              </div>
-                             
-                             {/* User Information */}
-                             <div className="flex-1">
-                               <div className="flex items-center justify-between">
-                                 <div>
-                                   <h3 className="text-lg font-semibold text-gray-900">
-                                     {user.fullName}
-                                   </h3>
-                                   <p className="text-sm text-gray-600">{user.email}</p>
-                                   <p className="text-xs text-gray-500">Joined: {user.joinDate}</p>
-                                 </div>
-                                 {/* Status Tag - Top Right */}
-                                 <div className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color} ml-4`}>
-                                   {statusInfo.label}
-                                 </div>
-                               </div>
+                    <div className="text-xs text-gray-500">
+                      {user.role === 'employee' || user.role === 'pm' ? (
+                        <>
+                          {user.department && <div>{user.department}</div>}
+                          {user.jobTitle && <div>{user.jobTitle}</div>}
+                        </>
+                      ) : (
+                        <>
+                          {user.company && <div>{user.company}</div>}
+                          {user.address && <div className="truncate">{user.address}</div>}
+                        </>
+                      )}
                              </div>
                            </div>
                            
-                           <div className="flex items-center space-x-3">
-                             {/* Action Buttons - Compact */}
-                             <div className="flex items-center space-x-2">
+                  {/* Credentials */}
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-gray-700">Password:</span>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs font-mono text-gray-900">
+                          {showCredentials[user.id] ? user.password : '••••••••••••'}
+                        </span>
                                <button
-                                 onClick={() => handleEditUser(user)}
-                                 className="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                               >
-                                 <Edit className="h-5 w-5" />
+                          onClick={() => setShowCredentials(prev => ({
+                            ...prev,
+                            [user.id]: !prev[user.id]
+                          }))}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          {showCredentials[user.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                                </button>
                                <button
-                                 onClick={() => handleDeleteUser(user.id)}
-                                 className="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          onClick={() => copyToClipboard(user.password)}
+                          className="text-gray-400 hover:text-gray-600"
                                >
-                                 <Trash2 className="h-5 w-5" />
+                          <Copy className="h-3 w-3" />
                                </button>
                              </div>
+                    </div>
+                  </div>
+
+                  {/* Status & Created */}
+                  <div className="flex items-center justify-between">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${statusInfo.bgColor} ${statusInfo.color}`}>
+                      {statusInfo.label}
+                    </span>
+                    <div className="text-right">
+                      <div className="text-xs text-gray-500">
+                        {new Date(user.createdAt).toLocaleDateString()}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        by {user.createdBy}
                            </div>
                          </div>
                        </div>
@@ -424,68 +735,331 @@ const UserManagement = () => {
                   );
                 })}
             </div>
+
+          {filteredUsers.length === 0 && (
+            <div className="text-center py-12">
+              <Users className="mx-auto h-12 w-12 text-gray-400" />
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {searchTerm || roleFilter !== 'all' || activeTab !== 'all'
+                  ? 'Try adjusting your search or filter criteria.'
+                  : 'Get started by creating a new user.'}
+              </p>
            </div>
+          )}
          </div>
        </main>
 
-       {/* Edit User Dialog */}
-       <Dialog open={!!editingUser} onOpenChange={handleCancelEdit}>
-         <DialogContent className="max-w-md mx-auto">
-           <DialogHeader>
-             <DialogTitle className="text-xl font-bold text-gray-900">
-               Edit User
+      {/* Add User Dialog */}
+      <Dialog open={isAddUserOpen} onOpenChange={handleCloseAddUser}>
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={handleCloseAddUser}>
+          {/* Header with gradient background */}
+          <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+                <UserPlus className="h-6 w-6" />
+                <span>Create New User</span>
              </DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">
+                Fill in the user details below. Fields marked with * are required.
+              </DialogDescription>
            </DialogHeader>
-           
-           <div className="space-y-4">
-             {/* User Info */}
-             <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-               <div className="w-12 h-12 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                 <span className="text-white font-semibold text-sm">
-                   {editUserData.fullName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                 </span>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleAddUser(); }} className="p-6 space-y-6">
+            {/* Basic Information */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="space-y-4"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <User className="h-5 w-5 text-primary" />
+                <span>Basic Information</span>
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Full Name <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="Enter full name"
+                    value={newUser.fullName}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, fullName: e.target.value }))}
+                    className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                      errors.fullName 
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                        : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+                    }`}
+                  />
+                  <AnimatePresence>
+                    {errors.fullName && (
+                      <motion.p 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-sm text-red-500 flex items-center"
+                      >
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.fullName}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                </div>
-               <div>
-                 <p className="font-semibold text-gray-900">
-                   {editUserData.fullName}
-                 </p>
-                 <p className="text-sm text-gray-600">{editUserData.email}</p>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Email Address <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <Input
+                    type="email"
+                    placeholder="user@example.com"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                      errors.email 
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                        : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+                    }`}
+                  />
+                  <AnimatePresence>
+                    {errors.email && (
+                      <motion.p 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-sm text-red-500 flex items-center"
+                      >
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.email}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
                </div>
              </div>
 
-             {/* Form Fields */}
-             <div className="space-y-4">
-               {/* Full Name */}
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Full Name
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Password <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <div className="flex space-x-2">
+                    <Input
+                      type="text"
+                      placeholder="Generate or enter password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                      className={`h-12 rounded-xl border-2 transition-all duration-200 flex-1 ${
+                        errors.password 
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                          : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+                      }`}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setNewUser(prev => ({ ...prev, password: generatePassword() }))}
+                      className="h-12 px-4 rounded-xl border-2 hover:bg-gray-50"
+                    >
+                      <Key className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <AnimatePresence>
+                    {errors.password && (
+                      <motion.p 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="text-sm text-red-500 flex items-center"
+                      >
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        {errors.password}
+                      </motion.p>
+                    )}
+                  </AnimatePresence>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Role <span className="text-red-500 ml-1">*</span>
+                  </label>
+                  <Combobox
+                    options={roleOptions.map(option => ({
+                      value: option.value,
+                      label: option.label,
+                      icon: option.icon
+                    }))}
+                    value={newUser.role}
+                    onChange={(value) => setNewUser(prev => ({ ...prev, role: value }))}
+                    placeholder="Select Role"
+                    className="h-12 rounded-xl border-2"
+                  />
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Role-Specific Information */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-4"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <Briefcase className="h-5 w-5 text-primary" />
+                <span>Role-Specific Information</span>
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderRoleSpecificFields(newUser, false)}
+              </div>
+            </motion.div>
+
+            {/* Status */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-4"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <CheckCircle className="h-5 w-5 text-primary" />
+                <span>Account Status</span>
+              </h3>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">Status</label>
+                <Combobox
+                  options={statusOptions.map(option => ({
+                    value: option.value,
+                    label: option.label
+                  }))}
+                  value={newUser.status}
+                  onChange={(value) => setNewUser(prev => ({ ...prev, status: value }))}
+                  placeholder="Select Status"
+                  className="h-12 rounded-xl border-2"
+                />
+              </div>
+            </motion.div>
+
+            {/* Auto-populated fields info */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-xl border border-gray-200"
+            >
+              <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+                Auto-populated Fields
+              </h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>• Created By: Current PM</p>
+                <p>• Created On: {new Date().toLocaleDateString()}</p>
+                <p>• Avatar: Generated from initials</p>
+              </div>
+            </motion.div>
+
+            {/* Footer Buttons */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="flex flex-col sm:flex-row gap-3 pt-4"
+            >
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseAddUser}
+                className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Creating...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Save className="h-4 w-4" />
+                    <span>Create User</span>
+                  </div>
+                )}
+              </Button>
+            </motion.div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={() => setEditingUser(null)}>
+          {/* Header with gradient background */}
+          <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+                <Edit className="h-6 w-6" />
+                <span>Edit User</span>
+              </DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">
+                Update user information below. Email cannot be changed.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); handleSaveUser(); }} className="p-6 space-y-6">
+            {/* Basic Information */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="space-y-4"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <User className="h-5 w-5 text-primary" />
+                <span>Basic Information</span>
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Full Name <span className="text-red-500 ml-1">*</span>
                  </label>
                  <Input
+                    type="text"
+                    placeholder="Enter full name"
                      value={editUserData.fullName}
                      onChange={(e) => setEditUserData(prev => ({ ...prev, fullName: e.target.value }))}
-                     placeholder="Full name"
-                     className="h-10"
+                    className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
                    />
                </div>
 
-               {/* Email - Non-editable */}
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Email
-                 </label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Email Address</label>
                  <Input
                    type="email"
                    value={editUserData.email}
                    disabled
-                   className="h-10 bg-gray-100 text-gray-500 cursor-not-allowed"
+                    className="h-12 rounded-xl border-2 bg-gray-100 text-gray-500 cursor-not-allowed"
                  />
-                 <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500">Email cannot be changed</p>
+                </div>
                </div>
 
-               {/* Role */}
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Role
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center">
+                    Role <span className="text-red-500 ml-1">*</span>
                  </label>
                  <Combobox
                    options={roleOptions.map(option => ({
@@ -496,15 +1070,12 @@ const UserManagement = () => {
                    value={editUserData.role}
                    onChange={(value) => setEditUserData(prev => ({ ...prev, role: value }))}
                    placeholder="Select Role"
-                   className="h-10"
+                    className="h-12 rounded-xl border-2"
                  />
                </div>
 
-               {/* Status */}
-               <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                   Status
-                 </label>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700">Status</label>
                  <Combobox
                    options={statusOptions.map(option => ({
                      value: option.value,
@@ -513,30 +1084,55 @@ const UserManagement = () => {
                    value={editUserData.status}
                    onChange={(value) => setEditUserData(prev => ({ ...prev, status: value }))}
                    placeholder="Select Status"
-                   className="h-10"
+                    className="h-12 rounded-xl border-2"
                  />
                </div>
              </div>
+            </motion.div>
 
-             {/* Action Buttons */}
-             <div className="flex items-center justify-between pt-6 border-t border-gray-200">
+            {/* Role-Specific Information */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-4"
+            >
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+                <Briefcase className="h-5 w-5 text-primary" />
+                <span>Role-Specific Information</span>
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderRoleSpecificFields(editUserData, true)}
+              </div>
+            </motion.div>
+
+            {/* Footer Buttons */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-3 pt-4"
+            >
                <Button
+                type="button"
                  variant="outline"
                  onClick={handleCancelEdit}
-                 className="flex items-center space-x-2 px-6"
+                className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
                >
-                 <X className="h-4 w-4" />
-                 <span>Cancel</span>
+                Cancel
                </Button>
                <Button
-                 onClick={handleSaveUser}
-                 className="flex items-center space-x-2 px-6 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary"
+                type="submit"
+                className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
                >
+                <div className="flex items-center space-x-2">
                  <Save className="h-4 w-4" />
                  <span>Save Changes</span>
+                </div>
                </Button>
-             </div>
-           </div>
+            </motion.div>
+          </form>
          </DialogContent>
        </Dialog>
      </div>

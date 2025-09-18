@@ -6,7 +6,8 @@ import {
   User,
   BarChart3,
   Home,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 
 const EmployeeNavbar = () => {
@@ -29,7 +30,7 @@ const EmployeeNavbar = () => {
     { name: 'Home', icon: Home, href: '/employee-dashboard', key: 'dashboard' },
     { name: 'Projects', icon: FolderKanban, href: '/employee-projects', key: 'projects' },
     { name: 'Activity', icon: Activity, href: '/employee-activity', key: 'activity' },
-    { name: 'Profile', icon: User, href: '/employee-profile', key: 'profile' },
+    { name: 'Files', icon: FileText, href: '/employee-files', key: 'files' },
   ];
 
   const handleNavigation = (href) => {
@@ -101,10 +102,10 @@ const EmployeeNavbar = () => {
         {/* Profile */}
         <div className="flex items-center">
           <button 
-            onClick={() => navigate('/employee-profile')}
+            onClick={() => navigate('/employee-files')}
             className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
           >
-            <User className="h-4 w-4 text-white" />
+            <FileText className="h-4 w-4 text-white" />
           </button>
         </div>
       </div>

@@ -141,7 +141,7 @@ const CustomerDashboard = () => {
           <div className="mb-6 md:mb-8">
             <div className="mb-4 md:mb-6">
               <div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
+                <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
                   Welcome, {currentUser.fullName}!
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
@@ -158,7 +158,7 @@ const CustomerDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{activeProjects}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{activeProjects}</p>
               <p className="text-xs md:text-sm text-gray-600">Projects</p>
             </div>
 
@@ -169,7 +169,7 @@ const CustomerDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Done</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{completedTasks}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{completedTasks}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -180,7 +180,7 @@ const CustomerDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Due Soon</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{dueSoonTasks}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{dueSoonTasks}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -191,7 +191,7 @@ const CustomerDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Overdue</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{overdueTasks}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{overdueTasks}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
           </div>
@@ -270,7 +270,7 @@ const CustomerDashboard = () => {
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
               {/* Section Header with Better Visual Hierarchy */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Project Summary</h2>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">Project Summary</h2>
               </div>
               
               {/* Responsive Cards Grid - Better Spacing and Alignment */}
@@ -284,7 +284,7 @@ const CustomerDashboard = () => {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-1">Total Projects</p>
-                        <p className="text-3xl font-bold text-gray-900">{totalProjects}</p>
+                        <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
                       </div>
                     </div>
                   </div>
@@ -299,7 +299,7 @@ const CustomerDashboard = () => {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-1">Completed</p>
-                        <p className="text-3xl font-bold text-gray-900">{completedProjects}</p>
+                        <p className="text-2xl font-bold text-gray-900">{completedProjects}</p>
                       </div>
                     </div>
                   </div>
@@ -310,11 +310,11 @@ const CustomerDashboard = () => {
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-primary">{activeProjects}</p>
+                    <p className="text-xl font-bold text-primary">{activeProjects}</p>
                     <p className="text-sm text-gray-600">Active Projects</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-yellow-600">{projects.filter(p => p.status === 'Planning').length}</p>
+                    <p className="text-xl font-bold text-yellow-600">{projects.filter(p => p.status === 'Planning').length}</p>
                     <p className="text-sm text-gray-600">In Planning</p>
                   </div>
                 </div>
@@ -345,7 +345,7 @@ const CustomerDashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
-                          <h3 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                          <h3 className="text-base font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
                             {project.name}
                           </h3>
                         </div>

@@ -4,7 +4,7 @@ import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import ProjectForm from '../components/ProjectForm';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar } from 'lucide-react';
+import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
 
 const PMDashboard = () => {
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -173,6 +173,27 @@ const PMDashboard = () => {
                 >
                   <FolderKanban className="h-6 w-6 md:h-5 md:w-5 text-primary" />
                   <p className="text-sm md:text-base font-medium text-gray-900">New Project</p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Task Requests - Responsive */}
+          <div className="bg-gradient-to-r from-teal-100 to-cyan-100 rounded-2xl md:rounded-lg shadow-sm border border-teal-200 mb-6">
+            <div className="p-5 md:p-6 border-b border-teal-200">
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Task Requests</h2>
+              <p className="text-sm text-gray-600 mt-1">Review and approve customer task requests</p>
+            </div>
+            <div className="p-5 md:p-6">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <p className="text-sm text-gray-600">3 pending requests need review</p>
+                </div>
+                <button 
+                  onClick={() => navigate('/task-requests')}
+                  className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
+                >
+                  <span className="font-semibold">View Requests</span>
                 </button>
               </div>
             </div>

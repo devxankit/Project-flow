@@ -18,6 +18,7 @@ import CustomerDashboard from './pages/CustomerDashboard';
 import CustomerProjectDetails from './pages/CustomerProjectDetails';
 import CustomerActivity from './pages/CustomerActivity';
 import CustomerTaskDetail from './pages/CustomerTaskDetail';
+import CustomerMilestoneDetail from './pages/CustomerMilestoneDetail';
 import CustomerFiles from './pages/CustomerFiles';
 import CustomerProfile from './pages/CustomerProfile';
 // Employee Module imports
@@ -27,6 +28,8 @@ import EmployeeProjects from './pages/EmployeeProjects';
 import EmployeeProjectDetails from './pages/EmployeeProjectDetails';
 import EmployeeActivity from './pages/EmployeeActivity';
 import EmployeeProfile from './pages/EmployeeProfile';
+import EmployeeFiles from './pages/EmployeeFiles';
+import TaskRequests from './pages/TaskRequests';
 
 function App() {
   return (
@@ -39,6 +42,7 @@ function App() {
           <Route path="/projects" element={<Projects />} />
           <Route path="/project/:id" element={<ProjectDetails />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/task-requests" element={<TaskRequests />} />
           <Route path="/activity" element={<ActivityPage />} />
           <Route path="/profile" element={<PMProfile />} />
           <Route path="/user-management" element={<UserManagement />} />
@@ -53,6 +57,7 @@ function App() {
           <Route path="/customer-project/:id" element={<CustomerProjectDetails />} />
           <Route path="/customer-activity" element={<CustomerActivity />} />
           <Route path="/customer-task/:id" element={<CustomerTaskDetail />} />
+          <Route path="/customer-milestone/:id" element={<CustomerMilestoneDetail />} />
           <Route path="/customer-files" element={<CustomerFiles />} />
           <Route path="/customer-profile" element={<CustomerProfile />} />
           
@@ -62,6 +67,7 @@ function App() {
           <Route path="/employee-projects" element={<EmployeeProjects />} />
           <Route path="/employee-project/:id" element={<EmployeeProjectDetails />} />
           <Route path="/employee-activity" element={<EmployeeActivity />} />
+          <Route path="/employee-files" element={<EmployeeFiles />} />
           <Route path="/employee-profile" element={<EmployeeProfile />} />
         </Routes>
       </div>

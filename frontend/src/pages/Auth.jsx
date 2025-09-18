@@ -12,12 +12,9 @@ import { Input } from '../components/magicui/input';
 import { Button } from '../components/magicui/button';
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
-    fullName: '',
     email: '',
-    password: '',
-    confirmPassword: ''
+    password: ''
   });
   const [errors, setErrors] = useState({});
 
@@ -51,18 +48,6 @@ const Auth = () => {
       newErrors.password = 'Password must be at least 6 characters';
     }
 
-    if (!isLogin) {
-      if (!formData.fullName) {
-        newErrors.fullName = 'Full name is required';
-      }
-
-      if (!formData.confirmPassword) {
-        newErrors.confirmPassword = 'Please confirm your password';
-      } else if (formData.password !== formData.confirmPassword) {
-        newErrors.confirmPassword = 'Passwords do not match';
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -76,16 +61,6 @@ const Auth = () => {
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setFormData({
-      fullName: '',
-      email: '',
-      password: '',
-      confirmPassword: ''
-    });
-    setErrors({});
-  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -93,40 +68,16 @@ const Auth = () => {
         <Card className="shadow-lg">
           <CardHeader className="border-b border-border/50">
             <CardTitle className="text-2xl font-semibold text-foreground">
-              {isLogin ? 'Welcome Back' : 'Create Account'}
+              Welcome Back
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              {isLogin 
-                ? 'Enter your credentials to access your account' 
-                : 'Sign up to get started with your account'
-              }
+              Enter your credentials to access your account
             </CardDescription>
           </CardHeader>
           
           <CardContent className="p-6">
             <form onSubmit={handleSubmit}>
               <div className="grid gap-4">
-                {/* Full Name Field (Signup only) */}
-                {!isLogin && (
-                  <div className="grid gap-2">
-                    <label htmlFor="fullName" className="text-sm font-medium text-foreground">
-                      Full Name
-                    </label>
-                    <Input
-                      id="fullName"
-                      name="fullName"
-                      type="text"
-                      value={formData.fullName}
-                      onChange={handleInputChange}
-                      placeholder="Enter your full name"
-                      className={errors.fullName ? 'border-destructive focus-visible:ring-destructive' : ''}
-                    />
-                    {errors.fullName && (
-                      <p className="text-xs text-destructive">{errors.fullName}</p>
-                    )}
-                  </div>
-                )}
-
                 {/* Email Field */}
                 <div className="grid gap-2">
                   <label htmlFor="email" className="text-sm font-medium text-foreground">
@@ -164,27 +115,6 @@ const Auth = () => {
                     <p className="text-xs text-destructive">{errors.password}</p>
                   )}
                 </div>
-
-                {/* Confirm Password Field (Signup only) */}
-                {!isLogin && (
-                  <div className="grid gap-2">
-                    <label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-                      Confirm Password
-                    </label>
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      placeholder="Confirm your password"
-                      className={errors.confirmPassword ? 'border-destructive focus-visible:ring-destructive' : ''}
-                    />
-                    {errors.confirmPassword && (
-                      <p className="text-xs text-destructive">{errors.confirmPassword}</p>
-                    )}
-                  </div>
-                )}
               </div>
             </form>
           </CardContent>
@@ -195,20 +125,13 @@ const Auth = () => {
                onClick={handleSubmit}
                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all duration-200"
              >
-               {isLogin ? 'Sign In' : 'Sign Up'}
+               Sign In
              </ShinyButton>
             
-            {/* Toggle Mode */}
+            {/* Information */}
             <div className="text-center">
               <p className="text-sm text-muted-foreground">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="ml-2 text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  {isLogin ? 'Sign Up' : 'Sign In'}
-                </button>
+                Don't have an account? Contact your Project Manager to get access.
               </p>
             </div>
           </CardFooter>

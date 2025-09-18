@@ -5,7 +5,8 @@ import {
   CheckSquare, 
   Activity, 
   BarChart3, 
-  User
+  User,
+  MessageSquare
 } from 'lucide-react';
 
 const PMNavbar = () => {
@@ -28,6 +29,7 @@ const PMNavbar = () => {
     { name: 'Dashboard', icon: BarChart3, href: '/pm-dashboard', key: 'dashboard' },
     { name: 'Projects', icon: FolderKanban, href: '/projects', key: 'projects' },
     { name: 'Tasks', icon: CheckSquare, href: '/tasks', key: 'tasks' },
+    { name: 'Requests', icon: MessageSquare, href: '/task-requests', key: 'requests' },
     { name: 'Activity', icon: Activity, href: '/activity', key: 'activity' },
   ];
 

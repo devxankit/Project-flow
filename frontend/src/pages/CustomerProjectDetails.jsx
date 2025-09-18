@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CustomerNavbar from '../components/Customer-Navbar';
+import TaskRequestForm from '../components/TaskRequestForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   FolderKanban, 
@@ -13,7 +14,8 @@ import {
   User,
   BarChart3,
   FileText,
-  Flag
+  Flag,
+  Plus
 } from 'lucide-react';
 
 const CustomerProjectDetails = () => {
@@ -21,6 +23,7 @@ const CustomerProjectDetails = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
+  const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
 
   // Mock project data - should match the data from CustomerDashboard
   const projectsData = [
@@ -153,11 +156,19 @@ const CustomerProjectDetails = () => {
   }, [project.dueDate]);
 
   const milestones = [
-    { id: 1, title: 'Design Phase', status: 'Completed', progress: 100, dueDate: '2024-01-15' },
-    { id: 2, title: 'Development Phase', status: 'In Progress', progress: 65, dueDate: '2024-02-15' },
-    { id: 3, title: 'Testing Phase', status: 'Pending', progress: 0, dueDate: '2024-02-20' },
-    { id: 4, title: 'Launch Phase', status: 'Pending', progress: 0, dueDate: '2024-02-25' }
+    { id: 1, title: 'Design Phase', status: 'Completed', progress: 100, dueDate: '2024-01-15', value: 'milestone-1', label: 'Design Phase' },
+    { id: 2, title: 'Development Phase', status: 'In Progress', progress: 65, dueDate: '2024-02-15', value: 'milestone-2', label: 'Development Phase' },
+    { id: 3, title: 'Testing Phase', status: 'Pending', progress: 0, dueDate: '2024-02-20', value: 'milestone-3', label: 'Testing Phase' },
+    { id: 4, title: 'Launch Phase', status: 'Pending', progress: 0, dueDate: '2024-02-25', value: 'milestone-4', label: 'Launch Phase' }
   ];
+
+  // Handle task request submission
+  const handleTaskRequestSubmit = (requestData) => {
+    console.log('Task request submitted:', requestData);
+    // In a real app, this would send the request to the backend
+    // For now, we'll just show a success message
+    alert('Task request submitted successfully! The project manager will review your request.');
+  };
 
   const tasks = [
     { id: 1, title: 'Create wireframes', description: 'Design initial wireframes for all pages', status: 'Completed', assignee: 'John Doe', dueDate: '2024-01-10' },
@@ -298,7 +309,7 @@ const CustomerProjectDetails = () => {
                 </div>
               </div>
               <div className="text-right">
-                <div className={`text-lg font-bold ${getCountdownColor()}`}>
+                <div className={`text-base font-bold ${getCountdownColor()}`}>
                   {timeLeft}
                 </div>
                 <div className="text-xs text-gray-500">
@@ -382,9 +393,13 @@ const CustomerProjectDetails = () => {
   const renderMilestones = () => (
     <div className="space-y-4">
       {milestones.map((milestone) => (
-        <div key={milestone.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
+        <div 
+          key={milestone.id} 
+          onClick={() => navigate(`/customer-milestone/${milestone.id}`)}
+          className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900">{milestone.title}</h3>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 hover:text-primary transition-colors">{milestone.title}</h3>
             <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(milestone.status)}`}>
               {milestone.status}
             </span>
@@ -411,9 +426,26 @@ const CustomerProjectDetails = () => {
   );
 
   const renderTasks = () => (
-    <div className="space-y-3">
-      {tasks.map((task) => (
-        <div key={task.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+    <div className="space-y-4">
+      {/* Request Task Button */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => setIsTaskRequestFormOpen(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+        >
+          <Plus className="h-4 w-4" />
+          <span>Request New Task</span>
+        </button>
+      </div>
+
+      {/* Tasks List */}
+      <div className="space-y-3">
+        {tasks.map((task) => (
+        <div 
+          key={task.id} 
+          onClick={() => navigate(`/customer-task/${task.id}`)}
+          className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+        >
           <div className="flex items-center space-x-4">
             {/* Checkbox */}
             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
@@ -468,6 +500,7 @@ const CustomerProjectDetails = () => {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 
@@ -492,7 +525,7 @@ const CustomerProjectDetails = () => {
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-4">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
-                  <h1 className="text-2xl font-bold text-gray-900 mb-3 leading-tight">{project.name}</h1>
+                  <h1 className="text-xl font-bold text-gray-900 mb-3 leading-tight">{project.name}</h1>
                 </div>
                 <div className="flex-shrink-0 text-right">
                   <div className={`text-sm font-semibold ${getCountdownColor()}`}>
@@ -543,7 +576,7 @@ const CustomerProjectDetails = () => {
               <div className="flex items-start justify-between mb-6">
                 <div className="flex-1">
                   <div className="flex items-center space-x-4 mb-4">
-                    <h1 className="text-3xl font-bold text-gray-900">{project.name}</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
                         {project.status}
@@ -570,10 +603,10 @@ const CustomerProjectDetails = () => {
                   </div>
                 </div>
                 <div className="flex-shrink-0 text-right">
-                  <div className={`text-lg font-semibold ${getCountdownColor()}`}>
+                  <div className={`text-base font-semibold ${getCountdownColor()}`}>
                     {timeLeft}
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">
+                  <div className="text-xs text-gray-500 mt-1">
                     Due: {new Date(project.dueDate).toLocaleDateString()}
                   </div>
                 </div>
@@ -640,6 +673,16 @@ const CustomerProjectDetails = () => {
           </div>
         </div>
       </main>
+
+      {/* Task Request Form */}
+      <TaskRequestForm
+        isOpen={isTaskRequestFormOpen}
+        onClose={() => setIsTaskRequestFormOpen(false)}
+        onSubmit={handleTaskRequestSubmit}
+        projectId={project.id}
+        projectName={project.name}
+        milestones={milestones}
+      />
     </div>
   );
 };

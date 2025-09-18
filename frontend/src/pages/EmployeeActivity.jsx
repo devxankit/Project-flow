@@ -24,6 +24,14 @@ const EmployeeActivity = () => {
   // Scroll to top when component mounts
   useScrollToTop();
 
+  // Mock current user
+  const currentUser = {
+    fullName: 'Mike Johnson',
+    email: 'mike.johnson@company.com',
+    role: 'Frontend Developer'
+  };
+
+  // Activities related only to current employee's tasks and milestones
   const activities = [
     {
       id: 1,
@@ -34,6 +42,7 @@ const EmployeeActivity = () => {
       user: 'Mike Johnson',
       project: 'Website Redesign',
       milestone: 'Design Phase',
+      task: 'Update homepage design',
       icon: CheckCircle,
       color: 'text-green-600'
     },
@@ -46,80 +55,87 @@ const EmployeeActivity = () => {
       user: 'John Doe',
       project: 'Website Redesign',
       milestone: 'Development Phase',
+      task: 'Implement responsive design',
       icon: UserPlus,
       color: 'text-yellow-600'
     },
     {
       id: 3,
-      type: 'comment_added',
-      title: 'Comment added',
-      description: 'You added a comment to "Fix navigation bugs"',
-      timestamp: '2024-02-08T08:45:00Z',
+      type: 'task_updated',
+      title: 'Task updated',
+      description: 'Task "Fix navigation bugs" status changed to In Progress',
+      timestamp: '2024-02-07T14:20:00Z',
       user: 'Mike Johnson',
       project: 'Website Redesign',
-      milestone: 'Bug Fixes',
-      icon: MessageSquare,
+      milestone: 'Development Phase',
+      task: 'Fix navigation bugs',
+      icon: BarChart3,
       color: 'text-purple-600'
     },
     {
       id: 4,
-      type: 'task_overdue',
-      title: 'Task overdue',
-      description: 'Task "Optimize page load speed" is now overdue',
-      timestamp: '2024-02-07T16:20:00Z',
-      user: 'System',
-      project: 'Website Redesign',
-      milestone: 'Performance',
-      icon: AlertTriangle,
-      color: 'text-red-600'
-    },
-    {
-      id: 5,
-      type: 'task_started',
-      title: 'Task started',
-      description: 'You started working on "Create user dashboard"',
-      timestamp: '2024-02-07T14:30:00Z',
+      type: 'comment_added',
+      title: 'Comment added',
+      description: 'You added a comment to "Update homepage design"',
+      timestamp: '2024-02-07T11:30:00Z',
       user: 'Mike Johnson',
-      project: 'Mobile App Development',
-      milestone: 'Frontend Development',
-      icon: Clock,
-      color: 'text-orange-600'
-    },
-    {
-      id: 6,
-      type: 'project_updated',
-      title: 'Project updated',
-      description: 'Project "Mobile App Development" timeline updated',
-      timestamp: '2024-02-07T11:00:00Z',
-      user: 'Jane Smith',
-      project: 'Mobile App Development',
-      milestone: null,
-      icon: BarChart3,
+      project: 'Website Redesign',
+      milestone: 'Design Phase',
+      task: 'Update homepage design',
+      icon: MessageSquare,
       color: 'text-indigo-600'
     },
     {
-      id: 7,
-      type: 'task_completed',
-      title: 'Task completed',
-      description: 'You completed "Setup testing environment"',
-      timestamp: '2024-02-06T15:45:00Z',
+      id: 5,
+      type: 'milestone_updated',
+      title: 'Milestone updated',
+      description: 'Milestone "Design Phase" progress updated to 75%',
+      timestamp: '2024-02-06T16:30:00Z',
       user: 'Mike Johnson',
-      project: 'Mobile App Development',
-      milestone: 'Testing Setup',
-      icon: CheckCircle,
-      color: 'text-green-600'
+      project: 'Website Redesign',
+      milestone: 'Design Phase',
+      task: null,
+      icon: FolderPlus,
+      color: 'text-blue-600'
+    },
+    {
+      id: 6,
+      type: 'file_shared',
+      title: 'File shared',
+      description: 'Design mockup shared for "Update homepage design"',
+      timestamp: '2024-02-06T14:15:00Z',
+      user: 'Sarah Johnson',
+      project: 'Website Redesign',
+      milestone: 'Design Phase',
+      task: 'Update homepage design',
+      icon: FileText,
+      color: 'text-cyan-600'
+    },
+    {
+      id: 7,
+      type: 'task_created',
+      title: 'Task created',
+      description: 'New task "Mobile navigation testing" created and assigned to you',
+      timestamp: '2024-02-05T10:15:00Z',
+      user: 'John Doe',
+      project: 'Website Redesign',
+      milestone: 'Development Phase',
+      task: 'Mobile navigation testing',
+      icon: Plus,
+      color: 'text-orange-600'
     },
     {
       id: 8,
-      type: 'comment_added',
-      title: 'Comment added',
-      description: 'You added a comment to "Database Migration"',
-      timestamp: '2024-02-06T10:30:00Z',
+      type: 'milestone_completed',
+      title: 'Milestone completed',
+      description: 'Milestone "Design Phase" completed for Website Redesign',
+      timestamp: '2024-02-04T15:45:00Z',
       user: 'Mike Johnson',
-      project: 'Database Migration',
-      milestone: 'Migration Phase',
-      icon: MessageSquare,
-      color: 'text-purple-600'
+      project: 'Website Redesign',
+      milestone: 'Design Phase',
+      task: null,
+      icon: CheckCircle,
+      color: 'text-green-600'
     }
   ];
 
