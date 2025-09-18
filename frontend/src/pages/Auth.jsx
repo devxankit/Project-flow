@@ -10,8 +10,12 @@ import {
 } from '../components/magicui/card';
 import { Input } from '../components/magicui/input';
 import { Button } from '../components/magicui/button';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Auth = () => {
+  const { toast } = useToast();
+  const { login, isLoading } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -52,20 +56,55 @@ const Auth = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (validateForm()) {
-      // Handle form submission here
-      console.log('Form submitted:', formData);
-      // You can add your authentication logic here
+      try {
+        const result = await login(formData.email, formData.password);
+        
+        if (result.success) {
+          toast.success(
+            'Login Successful!', 
+            `Welcome back, ${result.user.fullName}!`
+          );
+          
+          // The AuthContext will handle navigation automatically
+        } else {
+          // Handle unknown user case with specific toast
+          if (result.error === 'unknown_user') {
+            toast.warning(
+              'Account Not Found',
+              'Don\'t have an account? Contact your Project Manager to get access.'
+            );
+          } else {
+            toast.error(
+              'Login Failed', 
+              result.error || 'Invalid email or password. Please check your credentials.'
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        toast.error(
+          'Login Error', 
+          'Something went wrong. Please try again.'
+        );
+      }
+    } else {
+      toast.error(
+        'Validation Error', 
+        'Please fix the errors in the form before submitting.'
+      );
     }
   };
 
 
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <Card className="shadow-lg">
+  try {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <Card className="shadow-lg">
           <CardHeader className="border-b border-border/50">
             <CardTitle className="text-2xl font-semibold text-foreground">
               Welcome Back
@@ -75,8 +114,8 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit}>
+            <CardContent className="p-6">
               <div className="grid gap-4">
                 {/* Email Field */}
                 <div className="grid gap-2">
@@ -116,29 +155,41 @@ const Auth = () => {
                   )}
                 </div>
               </div>
-            </form>
-          </CardContent>
-          
-           <CardFooter className="border-t border-border/50 flex flex-col gap-4">
-             <ShinyButton
-               type="submit"
-               onClick={handleSubmit}
-               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all duration-200"
-             >
-               Sign In
-             </ShinyButton>
+            </CardContent>
             
-            {/* Information */}
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account? Contact your Project Manager to get access.
-              </p>
-            </div>
-          </CardFooter>
-        </Card>
+            <CardFooter className="border-t border-border/50 flex flex-col gap-4">
+              <ShinyButton
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Signing In...' : 'Sign In'}
+              </ShinyButton>
+            
+              {/* Information */}
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  Enter your credentials to access the platform
+                </p>
+              </div>
+            </CardFooter>
+          </form>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  } catch (error) {
+    console.error('Auth component error:', error);
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Auth Component Error</h1>
+          <p className="text-gray-600">There was an error loading the authentication page.</p>
+          <p className="text-sm text-gray-500 mt-2">Error: {error.message}</p>
+        </div>
+      </div>
+    );
+  }
 };
 
 export default Auth;

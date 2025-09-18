@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
+import { useToast } from '../contexts/ToastContext';
 import { Combobox } from '../components/magicui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
 import { Input } from '../components/magicui/input';
@@ -35,6 +36,7 @@ import {
 
 const UserManagement = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
@@ -190,7 +192,10 @@ const UserManagement = () => {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    // You could add a toast notification here
+    toast.success(
+      'Copied to Clipboard!',
+      'The text has been copied to your clipboard.'
+    );
   };
 
   const exportCredentials = () => {
@@ -216,6 +221,11 @@ const UserManagement = () => {
     a.download = 'user-credentials.csv';
     a.click();
     window.URL.revokeObjectURL(url);
+    
+    toast.success(
+      'Export Successful!',
+      'User credentials have been exported to CSV file.'
+    );
   };
 
   const handleRoleChange = (userId, newRole) => {
@@ -231,8 +241,13 @@ const UserManagement = () => {
   };
 
   const handleDeleteUser = (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
+    const userToDelete = users.find(user => user.id === userId);
+    if (window.confirm(`Are you sure you want to delete ${userToDelete?.fullName}?`)) {
       setUsers(prev => prev.filter(user => user.id !== userId));
+      toast.success(
+        'User Deleted Successfully!',
+        `${userToDelete?.fullName} has been removed from the system.`
+      );
     }
   };
 
@@ -285,22 +300,37 @@ const UserManagement = () => {
           ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
           : nameParts[0][0].toUpperCase();
         
-      const user = {
-        ...newUser,
-        id: Date.now(),
-        joinDate: new Date().toISOString().split('T')[0],
+        const user = {
+          ...newUser,
+          id: Date.now(),
+          joinDate: new Date().toISOString().split('T')[0],
           avatar,
           createdBy: 'John Doe', // Current PM
           createdAt: new Date().toISOString()
-      };
+        };
         
-      setUsers(prev => [...prev, user]);
+        setUsers(prev => [...prev, user]);
+        
+        toast.success(
+          'User Created Successfully!',
+          `${user.fullName} has been added to the system.`
+        );
+        
         handleCloseAddUser();
       } catch (error) {
         console.error('Error creating user:', error);
+        toast.error(
+          'User Creation Failed',
+          'There was an error creating the user. Please try again.'
+        );
       } finally {
         setIsSubmitting(false);
       }
+    } else {
+      toast.error(
+        'Validation Error',
+        'Please fix the errors in the form before submitting.'
+      );
     }
   };
 
@@ -357,6 +387,12 @@ const UserManagement = () => {
             }
           : user
       ));
+      
+      toast.success(
+        'User Updated Successfully!',
+        `${editUserData.fullName}'s information has been updated.`
+      );
+      
       setEditingUser(null);
       setEditUserData({ 
         fullName: '', 
@@ -368,6 +404,11 @@ const UserManagement = () => {
         company: '',
         address: ''
       });
+    } else {
+      toast.error(
+        'Validation Error',
+        'Please fill in all required fields.'
+      );
     }
   };
 

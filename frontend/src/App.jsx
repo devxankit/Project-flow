@@ -1,6 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
+import { ToastProvider } from './contexts/ToastContext';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import PublicRoute from './components/PublicRoute';
 import PMDashboard from './pages/PM-dashboard';
 import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
@@ -34,43 +38,156 @@ import TaskRequests from './pages/TaskRequests';
 function App() {
   return (
     <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<PMDashboard />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/pm-dashboard" element={<PMDashboard />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/project/:id" element={<ProjectDetails />} />
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/task-requests" element={<TaskRequests />} />
-          <Route path="/activity" element={<ActivityPage />} />
-          <Route path="/profile" element={<PMProfile />} />
-          <Route path="/user-management" element={<UserManagement />} />
-          <Route path="/employee-management" element={<EmployeeManagement />} />
+      <AuthProvider>
+        <ToastProvider>
+          <div className="App">
+            <Routes>
+              {/* Public Route - Auth Page */}
+              <Route path="/" element={
+                <PublicRoute>
+                  <Auth />
+                </PublicRoute>
+              } />
+              <Route path="/auth" element={
+                <PublicRoute>
+                  <Auth />
+                </PublicRoute>
+              } />
+              {/* PM Module Routes - Protected for PM role only */}
+              <Route path="/pm-dashboard" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <PMDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/projects" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <Projects />
+                </ProtectedRoute>
+              } />
+              <Route path="/project/:id" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <ProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <Tasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/task-requests" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <TaskRequests />
+                </ProtectedRoute>
+              } />
+              <Route path="/activity" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <ActivityPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/profile" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <PMProfile />
+                </ProtectedRoute>
+              } />
+              <Route path="/user-management" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <UserManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-management" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <EmployeeManagement />
+                </ProtectedRoute>
+              } />
           
-          {/* PM Module Routes */}
-          <Route path="/pm-task/:id" element={<PMTaskDetail />} />
-          <Route path="/pm-milestone/:id" element={<PMMilestoneDetail />} />
+              <Route path="/pm-task/:id" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <PMTaskDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/pm-milestone/:id" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <PMMilestoneDetail />
+                </ProtectedRoute>
+              } />
           
-          {/* Customer Module Routes */}
-          <Route path="/customer-dashboard" element={<CustomerDashboard />} />
-          <Route path="/customer-project/:id" element={<CustomerProjectDetails />} />
-          <Route path="/customer-activity" element={<CustomerActivity />} />
-          <Route path="/customer-task/:id" element={<CustomerTaskDetail />} />
-          <Route path="/customer-milestone/:id" element={<CustomerMilestoneDetail />} />
-          <Route path="/customer-files" element={<CustomerFiles />} />
-          <Route path="/customer-profile" element={<CustomerProfile />} />
+              {/* Customer Module Routes - Protected for Customer role only */}
+              <Route path="/customer-dashboard" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-project/:id" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-activity" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerActivity />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-task/:id" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerTaskDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-milestone/:id" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerMilestoneDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-files" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerFiles />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-profile" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerProfile />
+                </ProtectedRoute>
+              } />
           
-          {/* Employee Module Routes */}
-          <Route path="/employee-dashboard" element={<EmployeeDashboard />} />
-          <Route path="/employee-task/:id" element={<EmployeeTaskDetail />} />
-          <Route path="/employee-projects" element={<EmployeeProjects />} />
-          <Route path="/employee-project/:id" element={<EmployeeProjectDetails />} />
-          <Route path="/employee-activity" element={<EmployeeActivity />} />
-          <Route path="/employee-files" element={<EmployeeFiles />} />
-          <Route path="/employee-profile" element={<EmployeeProfile />} />
-        </Routes>
-      </div>
+              {/* Employee Module Routes - Protected for Employee role only */}
+              <Route path="/employee-dashboard" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeDashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-task/:id" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeTaskDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-projects" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeProjects />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-project/:id" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-activity" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeActivity />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-files" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeFiles />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee-profile" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeProfile />
+                </ProtectedRoute>
+              } />
+            </Routes>
+          </div>
+        </ToastProvider>
+      </AuthProvider>
     </Router>
   );
 }

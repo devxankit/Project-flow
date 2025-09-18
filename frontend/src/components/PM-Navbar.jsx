@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { 
   FolderKanban, 
   CheckSquare, 
   Activity, 
   BarChart3, 
   User,
-  MessageSquare
+  MessageSquare,
+  LogOut
 } from 'lucide-react';
 
 const PMNavbar = () => {
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
 
   // Check if screen is mobile
   useEffect(() => {
@@ -35,6 +40,11 @@ const PMNavbar = () => {
 
   const handleNavigation = (href) => {
     navigate(href);
+  };
+
+  const handleLogout = () => {
+    toast.success('Logged Out', 'You have been successfully logged out.');
+    logout();
   };
 
 
@@ -74,17 +84,27 @@ const PMNavbar = () => {
             </div>
           </div>
 
-          {/* Profile */}
+          {/* Logout & Profile */}
           <div className="flex items-center space-x-4">
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-gray-700 hover:text-red-600 transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden lg:block text-sm font-medium">Logout</span>
+            </button>
             <div className="relative">
               <button 
                 onClick={() => navigate('/profile')}
                 className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
+                  <span className="text-white text-sm font-medium">
+                    {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+                  </span>
                 </div>
-                <span className="hidden lg:block text-sm font-medium">John Doe</span>
+                <span className="hidden lg:block text-sm font-medium">{user?.fullName || 'User'}</span>
               </button>
             </div>
           </div>
@@ -106,13 +126,22 @@ const PMNavbar = () => {
           />
         </div>
 
-        {/* Profile */}
-        <div className="flex items-center">
+        {/* Logout & Profile */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleLogout}
+            className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-red-600 transition-colors"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
           <button 
             onClick={() => navigate('/profile')}
             className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
           >
-            <User className="h-4 w-4 text-white" />
+            <span className="text-white text-xs font-medium">
+              {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'U'}
+            </span>
           </button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
+import { useToast } from '../contexts/ToastContext';
 import { 
   CheckSquare, 
   Calendar, 
@@ -21,6 +22,7 @@ import {
 const CustomerTaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [timeLeft, setTimeLeft] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
@@ -268,8 +270,10 @@ const CustomerTaskDetail = () => {
     setUploadedFiles([]);
     setShowUploadForm(false);
     
-    // Show success message (in a real app, this would be a toast notification)
-    alert('Files uploaded successfully!');
+    toast.success(
+      'Files Uploaded Successfully!',
+      `${newAttachments.length} file(s) have been added to this task.`
+    );
   };
 
   return (

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
+import { useToast } from '../contexts/ToastContext';
 import { Input } from '../components/magicui/input';
 import { Combobox } from '../components/magicui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 
 const TaskRequests = () => {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -199,9 +201,14 @@ const TaskRequests = () => {
 
   // Handle request approval
   const handleApprove = (requestId) => {
+    const request = taskRequests.find(r => r.id === requestId);
     console.log('Approving request:', requestId);
     // In a real app, this would update the request status and create a task
-    alert('Task request approved! A new task has been created.');
+    
+    toast.success(
+      'Request Approved!',
+      `Task request from ${request?.customerName} has been approved and a new task has been created.`
+    );
   };
 
   // Handle request rejection
@@ -216,10 +223,20 @@ const TaskRequests = () => {
     if (rejectionReason.trim()) {
       console.log('Rejecting request:', requestToReject.id, 'Reason:', rejectionReason);
       // In a real app, this would update the request status with rejection reason
-      alert('Task request rejected.');
+      
+      toast.success(
+        'Request Rejected',
+        `Task request from ${requestToReject?.customerName} has been rejected.`
+      );
+      
       setShowRejectionDialog(false);
       setRejectionReason('');
       setRequestToReject(null);
+    } else {
+      toast.error(
+        'Rejection Reason Required',
+        'Please provide a reason for rejecting this request.'
+      );
     }
   };
 
