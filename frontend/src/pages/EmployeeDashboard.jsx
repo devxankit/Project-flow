@@ -180,7 +180,7 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Quick Stats - Responsive Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-6 mb-6 md:mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
@@ -200,17 +200,6 @@ const EmployeeDashboard = () => {
                 <span className="text-xs md:text-sm text-gray-500">Done</span>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">{doneTasks}</p>
-              <p className="text-xs md:text-sm text-gray-600">Tasks</p>
-            </div>
-
-            <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-2 md:mb-3">
-                <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
-                  <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                </div>
-                <span className="text-xs md:text-sm text-gray-500">Active</span>
-              </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{inProgressTasks}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -237,14 +226,151 @@ const EmployeeDashboard = () => {
             </div>
           </div>
 
+          {/* Visual Progress Section */}
+          <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg md:text-xl font-semibold text-gray-900">Task Progress Overview</h3>
+              <TrendingUp className="h-5 w-5 text-primary" />
+            </div>
+            
+            {/* Overall Progress Bar */}
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-medium text-gray-700">Overall Completion</span>
+                <span className="text-sm font-bold text-primary">{totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div 
+                  className="bg-gradient-to-r from-primary to-primary-dark h-4 rounded-full transition-all duration-700"
+                  style={{ width: `${totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>{doneTasks} completed</span>
+                <span>{totalTasks - doneTasks} remaining</span>
+              </div>
+            </div>
+
+            {/* Task Status Distribution */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-2 relative">
+                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-gray-200"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-green-500"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                      strokeDasharray={`${totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">Completed</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-2 relative">
+                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-gray-200"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-primary"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                      strokeDasharray={`${totalTasks > 0 ? (inProgressTasks / totalTasks) * 100 : 0}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((inProgressTasks / totalTasks) * 100) : 0}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">In Progress</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-2 relative">
+                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-gray-200"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-yellow-500"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                      strokeDasharray={`${totalTasks > 0 ? (dueSoonTasks / totalTasks) * 100 : 0}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((dueSoonTasks / totalTasks) * 100) : 0}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">Due Soon</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-2 relative">
+                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-gray-200"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      className="text-red-500"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      fill="none"
+                      strokeDasharray={`${totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0}, 100`}
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((overdueTasks / totalTasks) * 100) : 0}%</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-600">Overdue</p>
+              </div>
+            </div>
+          </div>
+
           {/* Mobile Filter Tabs - Tiles Layout */}
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'all', label: 'All', count: totalTasks },
+                { key: 'done', label: 'Done', count: doneTasks },
                 { key: 'due-soon', label: 'Due Soon', count: dueSoonTasks },
-                { key: 'overdue', label: 'Overdue', count: overdueTasks },
-                { key: 'done', label: 'Done', count: doneTasks }
+                { key: 'overdue', label: 'Overdue', count: overdueTasks }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -269,11 +395,9 @@ const EmployeeDashboard = () => {
             <div className="flex gap-2 flex-wrap">
               {[
                 { key: 'all', label: 'All', count: totalTasks },
-                { key: 'due-soon', label: 'Due Soon', count: dueSoonTasks },
-                { key: 'overdue', label: 'Overdue', count: overdueTasks },
                 { key: 'done', label: 'Done', count: doneTasks },
-                { key: 'high-priority', label: 'High Priority', count: tasks.filter(t => t.priority === 'High' && t.status !== 'Done').length },
-                { key: 'project', label: 'Website Redesign', count: tasks.filter(t => t.project === 'Website Redesign').length }
+                { key: 'due-soon', label: 'Due Soon', count: dueSoonTasks },
+                { key: 'overdue', label: 'Overdue', count: overdueTasks }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}

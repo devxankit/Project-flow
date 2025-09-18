@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import useScrollToTop from '../hooks/useScrollToTop';
@@ -7,6 +8,7 @@ import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical 
 const Tasks = () => {
   const [filter, setFilter] = useState('all');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const navigate = useNavigate();
   
   // Scroll to top when component mounts
   useScrollToTop();
@@ -213,7 +215,11 @@ const Tasks = () => {
           {/* Responsive Task Cards - Balanced Magic UI Style */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
             {filteredTasks.map((task) => (
-              <div key={task.id} className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden">
+              <div 
+                key={task.id} 
+                onClick={() => navigate(`/pm-task/${task.id}`)}
+                className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
+              >
                 {/* Magic UI Border Effect */}
                 <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 

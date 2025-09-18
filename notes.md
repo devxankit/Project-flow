@@ -1,0 +1,1 @@
+ frontend =>   .\fix-magicui-components.ps1

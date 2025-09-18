@@ -95,14 +95,41 @@ const CustomerDashboard = () => {
     }
   };
 
-  // Calculate overall stats
-  const totalProjects = projects.length;
-  const activeProjects = projects.filter(p => p.status === 'In Progress').length;
-  const completedProjects = projects.filter(p => p.status === 'Completed').length;
-  const totalTasks = projects.reduce((sum, p) => sum + p.totalTasks, 0);
-  const completedTasks = projects.reduce((sum, p) => sum + p.completedTasks, 0);
-  const dueSoonTasks = projects.reduce((sum, p) => sum + p.dueSoonTasks, 0);
-  const overdueTasks = projects.reduce((sum, p) => sum + p.overdueTasks, 0);
+   // Calculate overall stats
+   const totalProjects = projects.length;
+   const activeProjects = projects.filter(p => p.status === 'In Progress').length;
+   const completedProjects = projects.filter(p => p.status === 'Completed').length;
+   const totalTasks = projects.reduce((sum, p) => sum + p.totalTasks, 0);
+   const completedTasks = projects.reduce((sum, p) => sum + p.completedTasks, 0);
+   const dueSoonTasks = projects.reduce((sum, p) => sum + p.dueSoonTasks, 0);
+   const overdueTasks = projects.reduce((sum, p) => sum + p.overdueTasks, 0);
+   
+   // Calculate milestone-based progress (assuming each project has milestones)
+   // For demo purposes, we'll simulate milestone data
+   const totalMilestones = projects.reduce((sum, p) => {
+     // Simulate milestones based on project status and progress
+     const milestonesPerProject = Math.ceil(p.totalTasks / 6); // Rough estimate: 1 milestone per 6 tasks
+     return sum + milestonesPerProject;
+   }, 0);
+   
+   const completedMilestones = projects.reduce((sum, p) => {
+     const milestonesPerProject = Math.ceil(p.totalTasks / 6);
+     if (p.status === 'Completed') {
+       return sum + milestonesPerProject; // All milestones completed
+     } else if (p.status === 'In Progress') {
+       // Calculate completed milestones based on progress percentage
+       const completedMilestonesInProject = Math.floor((p.progress / 100) * milestonesPerProject);
+       return sum + completedMilestonesInProject;
+     } else {
+       // Planning projects have no completed milestones
+       return sum + 0;
+     }
+   }, 0);
+   
+   // Calculate overall progress as average of milestone and task progress
+   const milestoneProgress = (completedMilestones / totalMilestones) * 100;
+   const taskProgress = (completedTasks / totalTasks) * 100;
+   const overallProgress = (milestoneProgress + taskProgress) / 2;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -172,74 +199,124 @@ const CustomerDashboard = () => {
 
           {/* Desktop Layout - Two Column Grid */}
           <div className="md:grid md:grid-cols-2 md:gap-8 md:mb-8">
-            {/* Progress Overview - Responsive */}
+             {/* Progress Overview - Enhanced Design */}
+             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
+               <div className="flex items-center justify-between mb-6">
+                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Overall Progress</h2>
+                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+               </div>
+               
+               {/* Overall Progress Bar - Average of Milestone and Task Progress */}
+               <div className="mb-6">
+                 <div className="flex justify-between text-sm mb-2">
+                   <span className="text-gray-600">Overall Progress</span>
+                   <span className="text-gray-900 font-medium">{Math.round(overallProgress)}%</span>
+                 </div>
+                 <div className="w-full bg-gray-200 rounded-full h-3">
+                   <div 
+                     className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
+                     style={{ width: `${overallProgress}%` }}
+                   ></div>
+                 </div>
+               </div>
+               
+               <div className="space-y-4 md:space-y-6">
+                 {/* Total Milestones - Simple display without bar */}
+                 <div>
+                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                     <span className="text-gray-600">Total Milestones</span>
+                     <span className="text-gray-900 font-medium">{totalMilestones}</span>
+                   </div>
+                 </div>
+                 
+                 {/* Completed Milestones - Shows ratio and percentage */}
+                 <div>
+                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                     <span className="text-gray-600">Completed Milestones</span>
+                     <span className="text-gray-900 font-medium">{completedMilestones}/{totalMilestones} ({Math.round((completedMilestones / totalMilestones) * 100)}%)</span>
+                   </div>
+                   <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                     <div 
+                       className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
+                       style={{width: `${(completedMilestones / totalMilestones) * 100}%`}}
+                     ></div>
+                   </div>
+                 </div>
+                 
+                 {/* Total Tasks - Simple display without bar */}
+                 <div>
+                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                     <span className="text-gray-600">Total Tasks</span>
+                     <span className="text-gray-900 font-medium">{totalTasks}</span>
+                   </div>
+                 </div>
+                 
+                 {/* Completed Tasks - Shows ratio and percentage */}
+                 <div>
+                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                     <span className="text-gray-600">Completed Tasks</span>
+                     <span className="text-gray-900 font-medium">{completedTasks}/{totalTasks} ({Math.round((completedTasks / totalTasks) * 100)}%)</span>
+                   </div>
+                   <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                     <div 
+                       className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
+                       style={{width: `${(completedTasks / totalTasks) * 100}%`}}
+                     ></div>
+                   </div>
+                 </div>
+               </div>
+             </div>
+
+            {/* Project Summary - Enhanced Responsive Design */}
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
-              <div className="flex items-center justify-between mb-4 md:mb-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Overall Progress</h2>
-                <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+              {/* Section Header with Better Visual Hierarchy */}
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl md:text-2xl font-bold text-gray-900">Project Summary</h2>
               </div>
               
-              {/* Overall Progress Bar */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600">Overall Progress</span>
-                  <span className="text-gray-900 font-medium">{Math.round((completedTasks / totalTasks) * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div 
-                    className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${(completedTasks / totalTasks) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Total Tasks</span>
-                    <span className="text-gray-900 font-medium">{totalTasks}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full" style={{width: '100%'}}></div>
+              {/* Responsive Cards Grid - Better Spacing and Alignment */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
+                {/* Total Projects Card */}
+                <div className="bg-gradient-to-br from-teal-50 to-teal-100 rounded-2xl p-6 border border-teal-200 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-teal-200 rounded-xl shadow-sm">
+                        <FolderKanban className="h-6 w-6 text-teal-700" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-1">Total Projects</p>
+                        <p className="text-3xl font-bold text-gray-900">{totalProjects}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Completed</span>
-                    <span className="text-gray-900 font-medium">{completedTasks}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-green-500 to-green-600 h-2 md:h-3 rounded-full" style={{width: `${(completedTasks / totalTasks) * 100}%`}}></div>
+                {/* Completed Projects Card */}
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200 shadow-sm hover:shadow-md transition-all duration-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 bg-green-200 rounded-xl shadow-sm">
+                        <CheckSquare className="h-6 w-6 text-green-700" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-1">Completed</p>
+                        <p className="text-3xl font-bold text-gray-900">{completedProjects}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            {/* Project Summary - Responsive */}
-            <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Project Summary</h2>
-              <div className="grid grid-cols-2 md:grid-cols-1 gap-3 md:gap-4">
-                <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/20 rounded-lg">
-                      <FolderKanban className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-600">Total Projects</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
-                    </div>
+              
+              {/* Additional Stats Row for Better Context */}
+              <div className="mt-6 pt-6 border-t border-gray-100">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-primary">{activeProjects}</p>
+                    <p className="text-sm text-gray-600">Active Projects</p>
                   </div>
-                </div>
-                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <CheckSquare className="h-5 w-5 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-gray-600">Completed</p>
-                      <p className="text-2xl font-bold text-gray-900">{completedProjects}</p>
-                    </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-yellow-600">{projects.filter(p => p.status === 'Planning').length}</p>
+                    <p className="text-sm text-gray-600">In Planning</p>
                   </div>
                 </div>
               </div>

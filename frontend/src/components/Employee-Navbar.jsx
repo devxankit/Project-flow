@@ -4,7 +4,9 @@ import {
   CheckSquare, 
   FolderKanban, 
   User,
-  BarChart3
+  BarChart3,
+  Home,
+  Activity
 } from 'lucide-react';
 
 const EmployeeNavbar = ({ currentPage = 'My Tasks' }) => {
@@ -24,8 +26,10 @@ const EmployeeNavbar = ({ currentPage = 'My Tasks' }) => {
   }, []);
 
   const navigationItems = [
-    { name: 'My Tasks', icon: CheckSquare, href: '/employee-dashboard', key: 'dashboard' },
+    { name: 'Home', icon: Home, href: '/employee-dashboard', key: 'dashboard' },
     { name: 'Projects', icon: FolderKanban, href: '/employee-projects', key: 'projects' },
+    { name: 'Activity', icon: Activity, href: '/employee-activity', key: 'activity' },
+    { name: 'Profile', icon: User, href: '/employee-profile', key: 'profile' },
   ];
 
   const handleNavigation = (href) => {
@@ -36,7 +40,7 @@ const EmployeeNavbar = ({ currentPage = 'My Tasks' }) => {
   const getCurrentPage = () => {
     const path = location.pathname;
     const item = navigationItems.find(item => item.href === path);
-    return item ? item.name : 'My Tasks';
+    return item ? item.name : 'Home';
   };
 
   // Memoize current page to prevent unnecessary re-renders
@@ -77,19 +81,12 @@ const EmployeeNavbar = ({ currentPage = 'My Tasks' }) => {
             </div>
           </div>
 
-          {/* Profile */}
+          {/* Logo/Title */}
           <div className="flex items-center space-x-4">
-            <div className="relative">
-              <button 
-                onClick={() => navigate('/employee-profile')}
-                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <span className="hidden lg:block text-sm font-medium">Employee</span>
-              </button>
+            <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">E</span>
             </div>
+            <span className="hidden lg:block text-sm font-medium text-gray-700">Employee</span>
           </div>
         </div>
       </div>
@@ -107,14 +104,11 @@ const EmployeeNavbar = ({ currentPage = 'My Tasks' }) => {
           </h1>
         </div>
 
-        {/* Profile */}
+        {/* Logo */}
         <div className="flex items-center">
-          <button 
-            onClick={() => navigate('/employee-profile')}
-            className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
-          >
-            <User className="h-4 w-4 text-white" />
-          </button>
+          <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-sm">E</span>
+          </div>
         </div>
       </div>
     </div>

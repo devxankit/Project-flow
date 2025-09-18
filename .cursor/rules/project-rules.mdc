@@ -1,0 +1,14 @@
+---
+description: |
+  1. All pages and components must use the project's centralized color theme. Use theme variables or utility classes for colors, backgrounds, and gradients. Do not hardcode color values.
+  2. Every new page and component must be fully responsive, with a mobile-first layout as the default. Design for small screens first, then enhance for tablets and desktops.
+  3. The website should look and function like a mobile app on mobile devices, with navigation and UI optimized for touch and small screens.
+  4. Desktop and larger screen layouts must be visually appealing and make good use of available space, but mobile experience is the priority.
+  5. Use CSS variables, Tailwind classes, or theme utilities for all color and spacing decisions.
+  6. Test all new UI on both mobile and desktop breakpoints before merging.
+  7. Do not introduce any new color, font, or spacing outside the theme configuration.
+  8. Navigation and interactive elements must be easily accessible and usable on mobile devices.
+  9. Document any new component’s responsive behavior and color usage in its code comments.
+globs:
+alwaysApply: true
+---

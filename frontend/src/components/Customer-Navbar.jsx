@@ -29,6 +29,7 @@ const CustomerNavbar = ({ currentPage = 'Dashboard' }) => {
     { name: 'My Projects', icon: FolderKanban, href: '/customer-dashboard', key: 'dashboard' },
     { name: 'Activity', icon: Activity, href: '/customer-activity', key: 'activity' },
     { name: 'Files', icon: FileText, href: '/customer-files', key: 'files' },
+    { name: 'Profile', icon: User, href: '/customer-profile', key: 'profile' },
   ];
 
   const handleNavigation = (href) => {
@@ -80,19 +81,12 @@ const CustomerNavbar = ({ currentPage = 'Dashboard' }) => {
             </div>
           </div>
 
-          {/* Profile */}
+          {/* Logo/Title */}
           <div className="flex items-center space-x-4">
-            <div className="relative">
-              <button 
-                onClick={() => navigate('/customer-profile')}
-                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
-              >
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-white" />
-                </div>
-                <span className="hidden lg:block text-sm font-medium">Customer</span>
-              </button>
+            <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+              <span className="text-white font-bold text-sm">C</span>
             </div>
+            <span className="hidden lg:block text-sm font-medium text-gray-700">Customer</span>
           </div>
         </div>
       </div>
@@ -110,14 +104,11 @@ const CustomerNavbar = ({ currentPage = 'Dashboard' }) => {
           </h1>
         </div>
 
-        {/* Profile */}
+        {/* Logo */}
         <div className="flex items-center">
-          <button 
-            onClick={() => navigate('/customer-profile')}
-            className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
-          >
-            <User className="h-4 w-4 text-white" />
-          </button>
+          <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-sm">C</span>
+          </div>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@ import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { User, Mail, Lock, Camera, Edit3, Save, X, Eye, EyeOff } from 'lucide-react';
 
-const ProfilePage = () => {
+const PMProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -61,11 +61,11 @@ const ProfilePage = () => {
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Profile Information Card */}
-            <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between mb-8">
-                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+            <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold text-gray-900">Profile Information</h2>
                 <button
                   onClick={() => setIsEditing(!isEditing)}
                   className={`p-2 rounded-lg transition-all duration-200 ${
@@ -82,96 +82,102 @@ const ProfilePage = () => {
                 </button>
               </div>
 
-              {/* Centered Profile Layout */}
-              <div className="flex flex-col items-center text-center space-y-6">
+              {/* Left-aligned Profile Layout */}
+              <div className="flex flex-col space-y-4">
                 {/* Profile Picture Section */}
-                <div className="relative">
-                  <div className="w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
-                    <span className="text-2xl md:text-3xl font-bold text-primary">
-                      {profileData.avatar}
-                    </span>
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <div className="w-16 h-16 md:w-18 md:h-18 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
+                      <span className="text-lg md:text-xl font-bold text-primary">
+                        {profileData.avatar}
+                      </span>
+                    </div>
+                    {isEditing && (
+                      <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary-dark transition-colors duration-200 shadow-lg">
+                        <Camera className="h-3 w-3" />
+                      </button>
+                    )}
                   </div>
-                  {isEditing && (
-                    <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary-dark transition-colors duration-200 shadow-lg">
-                      <Camera className="h-3.5 w-3.5" />
-                    </button>
-                  )}
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900">{profileData.name}</h3>
+                    <p className="text-xs text-gray-500">Project Manager</p>
+                    {isEditing && (
+                      <button className="text-xs text-primary font-medium hover:text-primary-dark transition-colors duration-200 mt-1">
+                        Change Photo
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Profile Details */}
-                <div className="space-y-4 w-full max-w-sm">
+                <div className="space-y-3">
                   {/* Name Field */}
                   <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
                     {isEditing ? (
                       <input
                         type="text"
                         value={profileData.name}
                         onChange={(e) => handleProfileUpdate('name', e.target.value)}
-                        className="w-full px-4 py-3 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-lg font-medium"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm font-medium"
                         placeholder="Enter your full name"
                       />
                     ) : (
-                      <div className="flex items-center justify-center space-x-3">
-                        <User className="h-5 w-5 text-gray-400" />
-                        <span className="text-lg font-medium text-gray-900">{profileData.name}</span>
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-900">{profileData.name}</span>
                       </div>
                     )}
                   </div>
 
                   {/* Email Field */}
                   <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
                     {isEditing ? (
                       <input
                         type="email"
                         value={profileData.email}
                         onChange={(e) => handleProfileUpdate('email', e.target.value)}
-                        className="w-full px-4 py-3 text-center border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm"
                         placeholder="Enter your email address"
                       />
                     ) : (
-                      <div className="flex items-center justify-center space-x-3">
-                        <Mail className="h-5 w-5 text-gray-400" />
-                        <span className="text-lg font-medium text-gray-900">{profileData.email}</span>
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-gray-400" />
+                        <span className="text-sm font-medium text-gray-900">{profileData.email}</span>
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Change Photo Button */}
-                {isEditing && (
-                  <button className="text-sm text-primary font-medium hover:text-primary-dark transition-colors duration-200">
-                    Change Photo
-                  </button>
-                )}
               </div>
 
               {/* Save Button */}
               {isEditing && (
-                <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                <div className="mt-6 pt-4 border-t border-gray-100 text-center">
                   <button
                     onClick={handleSaveProfile}
-                    className="flex items-center space-x-2 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
+                    className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
                   >
                     <Save className="h-4 w-4" />
-                    <span className="font-medium">Save Changes</span>
+                    <span className="text-sm font-medium">Save Changes</span>
                   </button>
                 </div>
               )}
             </div>
 
              {/* Change Password Card */}
-             <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100">
-               <div className="flex items-center space-x-3 mb-6">
+             <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-gray-100">
+               <div className="flex items-center space-x-3 mb-4">
                  <div className="p-2 bg-primary/10 rounded-lg">
-                   <Lock className="h-5 w-5 text-primary" />
+                   <Lock className="h-4 w-4 text-primary" />
                  </div>
-                 <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+                 <h2 className="text-lg font-bold text-gray-900">Change Password</h2>
                </div>
 
-               <div className="space-y-6">
+               <div className="space-y-4">
                  {/* Current Password */}
                  <div>
-                   <label className="block text-sm font-semibold text-gray-700 mb-2">
+                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                      Current Password
                    </label>
                    <div className="relative">
@@ -179,22 +185,22 @@ const ProfilePage = () => {
                        type={showCurrentPassword ? 'text' : 'password'}
                        value={passwordData.currentPassword}
                        onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
-                       className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm"
                        placeholder="Enter your current password"
                      />
                      <button
                        type="button"
                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                      >
-                       {showCurrentPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                       {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                      </button>
                    </div>
                  </div>
 
                  {/* New Password */}
                  <div>
-                   <label className="block text-sm font-semibold text-gray-700 mb-2">
+                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                      New Password
                    </label>
                    <div className="relative">
@@ -202,22 +208,22 @@ const ProfilePage = () => {
                        type={showNewPassword ? 'text' : 'password'}
                        value={passwordData.newPassword}
                        onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
-                       className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm"
                        placeholder="Enter your new password"
                      />
                      <button
                        type="button"
                        onClick={() => setShowNewPassword(!showNewPassword)}
-                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                      >
-                       {showNewPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                       {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                      </button>
                    </div>
                  </div>
 
                  {/* Confirm Password */}
                  <div>
-                   <label className="block text-sm font-semibold text-gray-700 mb-2">
+                   <label className="block text-xs font-semibold text-gray-700 mb-1">
                      Confirm New Password
                    </label>
                    <div className="relative">
@@ -225,27 +231,27 @@ const ProfilePage = () => {
                        type={showConfirmPassword ? 'text' : 'password'}
                        value={passwordData.confirmPassword}
                        onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
-                       className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200"
+                       className="w-full px-3 py-2 pr-10 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 text-sm"
                        placeholder="Confirm your new password"
                      />
                      <button
                        type="button"
                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                       className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
                      >
-                       {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                       {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                      </button>
                    </div>
                  </div>
 
                  {/* Change Password Button */}
-                 <div className="pt-4">
+                 <div className="pt-2">
                    <button
                      onClick={handleChangePassword}
-                     className="flex items-center space-x-2 bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl"
+                     className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl"
                    >
                      <Lock className="h-4 w-4" />
-                     <span className="font-medium">Change Password</span>
+                     <span className="text-sm font-medium">Change Password</span>
                    </button>
                  </div>
                </div>
@@ -258,4 +264,4 @@ const ProfilePage = () => {
   );
 };
 
-export default ProfilePage;
+export default PMProfile;

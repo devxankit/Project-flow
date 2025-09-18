@@ -100,6 +100,33 @@ const EmployeeProjects = () => {
   const completedProjects = projects.filter(p => p.status === 'Completed').length;
   const totalMyTasks = projects.reduce((sum, p) => sum + p.myTasks, 0);
   const completedMyTasks = projects.reduce((sum, p) => sum + p.myCompletedTasks, 0);
+  
+  // Calculate milestone-based progress for employee's projects
+  const totalMilestones = projects.reduce((sum, p) => {
+    // Simulate milestones based on project complexity
+    const milestonesPerProject = Math.ceil(p.myTasks / 3); // Rough estimate: 1 milestone per 3 tasks
+    return sum + milestonesPerProject;
+  }, 0);
+  
+  const completedMilestones = projects.reduce((sum, p) => {
+    const milestonesPerProject = Math.ceil(p.myTasks / 3);
+    if (p.status === 'Completed') {
+      return sum + milestonesPerProject; // All milestones completed
+    } else if (p.status === 'In Progress') {
+      // Calculate completed milestones based on my task completion
+      const myTaskProgress = p.myTasks > 0 ? (p.myCompletedTasks / p.myTasks) * 100 : 0;
+      const completedMilestonesInProject = Math.floor((myTaskProgress / 100) * milestonesPerProject);
+      return sum + completedMilestonesInProject;
+    } else {
+      // Planning projects have no completed milestones
+      return sum + 0;
+    }
+  }, 0);
+  
+  // Calculate overall progress as average of milestone and task progress
+  const milestoneProgress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
+  const taskProgress = totalMyTasks > 0 ? (completedMyTasks / totalMyTasks) * 100 : 0;
+  const overallProgress = (milestoneProgress + taskProgress) / 2;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -169,45 +196,69 @@ const EmployeeProjects = () => {
 
           {/* Desktop Layout - Two Column Grid */}
           <div className="md:grid md:grid-cols-2 md:gap-8 md:mb-8">
-            {/* Progress Overview - Responsive */}
+            {/* Progress Overview - Enhanced Design */}
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
-              <div className="flex items-center justify-between mb-4 md:mb-6">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">My Progress</h2>
                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               
-              {/* Overall Progress Bar */}
+              {/* Overall Progress Bar - Average of Milestone and Task Progress */}
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Overall Progress</span>
-                  <span className="text-gray-900 font-medium">{Math.round((completedMyTasks / totalMyTasks) * 100)}%</span>
+                  <span className="text-gray-900 font-medium">{Math.round(overallProgress)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
                   <div 
                     className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${(completedMyTasks / totalMyTasks) * 100}%` }}
+                    style={{ width: `${overallProgress}%` }}
                   ></div>
                 </div>
               </div>
               
               <div className="space-y-4 md:space-y-6">
+                {/* Total Milestones - Simple display without bar */}
+                <div>
+                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                    <span className="text-gray-600">My Milestones</span>
+                    <span className="text-gray-900 font-medium">{totalMilestones}</span>
+                  </div>
+                </div>
+                
+                {/* Completed Milestones - Shows ratio and percentage */}
+                <div>
+                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                    <span className="text-gray-600">Completed Milestones</span>
+                    <span className="text-gray-900 font-medium">{completedMilestones}/{totalMilestones} ({Math.round(milestoneProgress)}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                    <div 
+                      className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
+                      style={{width: `${milestoneProgress}%`}}
+                    ></div>
+                  </div>
+                </div>
+                
+                {/* Total Tasks - Simple display without bar */}
                 <div>
                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
                     <span className="text-gray-600">My Tasks</span>
                     <span className="text-gray-900 font-medium">{totalMyTasks}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full" style={{width: '100%'}}></div>
-                  </div>
                 </div>
                 
+                {/* Completed Tasks - Shows ratio and percentage */}
                 <div>
                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Completed</span>
-                    <span className="text-gray-900 font-medium">{completedMyTasks}</span>
+                    <span className="text-gray-600">Completed Tasks</span>
+                    <span className="text-gray-900 font-medium">{completedMyTasks}/{totalMyTasks} ({Math.round(taskProgress)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-green-500 to-green-600 h-2 md:h-3 rounded-full" style={{width: `${(completedMyTasks / totalMyTasks) * 100}%`}}></div>
+                    <div 
+                      className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
+                      style={{width: `${taskProgress}%`}}
+                    ></div>
                   </div>
                 </div>
               </div>
@@ -255,6 +306,7 @@ const EmployeeProjects = () => {
               {projects.map((project) => (
                 <div 
                   key={project.id} 
+                  onClick={() => navigate(`/employee-project/${project.id}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -351,19 +403,6 @@ const EmployeeProjects = () => {
                     </div>
                   </div>
 
-                  {/* View Project Button */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/employee-project/${project.id}`);
-                      }}
-                      className="w-full flex items-center justify-center space-x-2 bg-primary/10 text-primary py-2 rounded-lg hover:bg-primary/20 transition-colors duration-200"
-                    >
-                      <Eye className="h-4 w-4" />
-                      <span className="text-sm font-medium">View Project</span>
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>

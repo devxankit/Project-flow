@@ -428,9 +428,13 @@ const ProjectDetails = () => {
   const renderMilestones = () => (
     <div className="space-y-4">
       {milestones.map((milestone) => (
-        <div key={milestone.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
+        <div 
+          key={milestone.id} 
+          onClick={() => navigate(`/pm-milestone/${milestone.id}`)}
+          className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+        >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900">{milestone.title}</h3>
+            <h3 className="text-base md:text-lg font-semibold text-gray-900 group-hover:text-primary transition-colors duration-200">{milestone.title}</h3>
             <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(milestone.status)}`}>
               {milestone.status}
             </span>
@@ -459,7 +463,11 @@ const ProjectDetails = () => {
   const renderTasks = () => (
     <div className="space-y-3">
       {tasks.map((task) => (
-        <div key={task.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+        <div 
+          key={task.id} 
+          onClick={() => navigate(`/pm-task/${task.id}`)}
+          className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+        >
           <div className="flex items-center space-x-4">
             {/* Checkbox */}
             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
