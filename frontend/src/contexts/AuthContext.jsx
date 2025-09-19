@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -83,20 +84,13 @@ export const AuthProvider = ({ children }) => {
   // Validate token with backend
   const validateToken = async (token) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/validate', {
-        method: 'GET',
+      const response = await api.get('/auth/validate', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        return data.success;
-      } else {
-        return false;
-      }
+      return response.data.success;
     } catch (error) {
       console.log('Token validation failed');
       return false;
@@ -108,18 +102,11 @@ export const AuthProvider = ({ children }) => {
     setIsLoading(true);
     
     try {
-      // Make API call to backend
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      // Make API call to backend using the API utility
+      const response = await api.post('/auth/login', { email, password });
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         // Extract token and user data from response
         const { token, user } = data;
         
@@ -165,11 +152,9 @@ export const AuthProvider = ({ children }) => {
       
       // Call backend logout endpoint if token exists
       if (token) {
-        await fetch('http://localhost:5000/api/auth/logout', {
-          method: 'POST',
+        await api.post('/auth/logout', {}, {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
           },
         });
       }
@@ -194,20 +179,16 @@ export const AuthProvider = ({ children }) => {
         return false;
       }
 
-      const response = await fetch('http://localhost:5000/api/auth/refresh', {
-        method: 'POST',
+      const response = await api.post('/auth/refresh', {}, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
         },
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.token) {
-          localStorage.setItem('token', data.token);
-          return true;
-        }
+      const data = response.data;
+      if (data.success && data.token) {
+        localStorage.setItem('token', data.token);
+        return true;
       }
       
       return false;
