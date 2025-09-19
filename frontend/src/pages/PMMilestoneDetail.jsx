@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
+import { milestoneApi, taskApi, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
 import { 
   Target, 
   Calendar, 
@@ -27,15 +29,26 @@ import {
 } from 'lucide-react';
 
 const PMMilestoneDetail = () => {
+  const { toast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const projectId = searchParams.get('projectId');
+  const [milestone, setMilestone] = useState(null);
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState('');
   const [newComment, setNewComment] = useState('');
   const [newAttachment, setNewAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Mock milestone data - all milestones for PM to manage
-  const milestonesData = [
+  // Scroll to top when component mounts
+  useScrollToTop();
+
+  // Mock milestone data - all milestones for PM to manage (not used anymore)
+  // const milestonesData = [
+  /*
     {
       id: 1,
       title: 'Design Phase',
@@ -144,56 +157,96 @@ const PMMilestoneDetail = () => {
       ]
     }
   ];
+  */
 
-  // Find the milestone based on the ID parameter
-  const milestone = milestonesData.find(m => m.id === parseInt(id));
-  
+  const loadMilestone = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (!id || !projectId) {
+        toast.error('Error', 'Missing milestone or project ID');
+        navigate('/projects');
+        return;
+      }
+
+      // Fetch the real milestone from the API
+      const response = await milestoneApi.getMilestone(id, projectId);
+      
+      if (response.success) {
+        setMilestone(response.data.milestone);
+        setProject(response.data.project);
+        // Load tasks for this milestone
+        await loadTasks();
+      } else {
+        toast.error('Error', response.message || 'Failed to load milestone');
+        navigate('/projects');
+      }
+    } catch (error) {
+      console.error('Error loading milestone:', error);
+      toast.error('Error', 'Failed to load milestone details');
+      navigate('/projects');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      if (!id || !projectId) return;
+      
+      const response = await taskApi.getTasksByMilestone(id, projectId);
+      if (response.success && response.data) {
+        setTasks(response.data.tasks || []);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      // Don't show error toast for tasks as it's not critical
+    }
+  };
+
+  // Use the real milestone data from the API
+  const currentMilestone = milestone;
+
+  // Load milestone data on component mount
+  useEffect(() => {
+    if (id && projectId) {
+      loadMilestone();
+    }
+  }, [id, projectId]);
+
   // If milestone not found, redirect to projects page
   useEffect(() => {
-    if (!milestone) {
+    if (!currentMilestone && !isLoading) {
       navigate('/projects');
     }
-  }, [milestone, navigate]);
-
-  // Scroll to top when component mounts
-  useScrollToTop();
-  
-  // Return early if milestone not found
-  if (!milestone) {
-    return null;
-  }
+  }, [currentMilestone, isLoading, navigate]);
 
   // Countdown logic
   useEffect(() => {
+    if (!currentMilestone) return;
+    
     const calculateTimeLeft = () => {
       const now = new Date();
-      const dueDate = new Date(milestone.dueDate);
+      const dueDate = new Date(currentMilestone.dueDate);
       const difference = dueDate.getTime() - now.getTime();
 
       if (difference > 0) {
         // Milestone is not overdue - show remaining time
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
 
         if (days > 0) {
-          setTimeLeft(`${days}d ${hours}h`);
+          setTimeLeft(`${days} day${days > 1 ? 's' : ''} remaining`);
         } else if (hours > 0) {
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeLeft(`${hours}h ${minutes}m`);
+          setTimeLeft(`${hours} hour${hours > 1 ? 's' : ''} remaining`);
         } else {
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeLeft(`${minutes}m left`);
+          setTimeLeft(`${minutes} minute${minutes > 1 ? 's' : ''} remaining`);
         }
       } else {
-        // Milestone is overdue - show how many days overdue
+        // Milestone is overdue
         const overdueDays = Math.floor(Math.abs(difference) / (1000 * 60 * 60 * 24));
-        const overdueHours = Math.floor((Math.abs(difference) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        
-        if (overdueDays > 0) {
-          setTimeLeft(`${overdueDays}d overdue`);
-        } else {
-          setTimeLeft(`${overdueHours}h overdue`);
-        }
+        setTimeLeft(`Overdue by ${overdueDays} day${overdueDays > 1 ? 's' : ''}`);
       }
     };
 
@@ -201,20 +254,71 @@ const PMMilestoneDetail = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [milestone.dueDate]);
+  }, [currentMilestone?.dueDate]);
+  
+  // Return early if loading or milestone not found
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <PMNavbar />
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading milestone details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentMilestone) {
+    return null;
+  }
+
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatStatus = (status) => {
+    switch (status) {
+      case 'completed': return 'Completed';
+      case 'in-progress': return 'In Progress';
+      case 'pending': return 'Pending';
+      case 'cancelled': return 'Cancelled';
+      default: return status;
+    }
+  };
+
+  const formatPriority = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgent';
+      case 'high': return 'High';
+      case 'normal': return 'Normal';
+      case 'low': return 'Low';
+      default: return priority;
     }
   };
 
   const getCountdownColor = () => {
     const now = new Date();
-    const dueDate = new Date(milestone.dueDate);
+    const dueDate = new Date(currentMilestone.dueDate);
     const difference = dueDate.getTime() - now.getTime();
     const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
 
@@ -323,18 +427,18 @@ const PMMilestoneDetail = () => {
             <div className="flex items-start justify-between mb-6">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className={`p-2 rounded-lg ${getStatusColor(milestone.status)}`}>
+                  <div className={`p-2 rounded-lg ${getStatusColor(currentMilestone.status)}`}>
                     <Target className="h-5 w-5" />
                   </div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{milestone.title}</h1>
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{currentMilestone.title}</h1>
                 </div>
                 
                 <div className="flex items-center space-x-2 mb-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(milestone.status)}`}>
-                    {milestone.status}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(currentMilestone.status)}`}>
+                    {formatStatus(currentMilestone.status)}
                   </span>
-                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {milestone.progress}% Complete
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(currentMilestone.priority)}`}>
+                    {formatPriority(currentMilestone.priority)}
                   </span>
                 </div>
               </div>
@@ -344,7 +448,7 @@ const PMMilestoneDetail = () => {
                   {timeLeft}
                 </div>
                 <div className="text-sm text-gray-500 mt-1">
-                  Due: {new Date(milestone.dueDate).toLocaleDateString()}
+                  Due: {new Date(currentMilestone.dueDate).toLocaleDateString()}
                 </div>
               </div>
             </div>
@@ -353,12 +457,12 @@ const PMMilestoneDetail = () => {
             <div className="mb-6">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-gray-600">Progress</span>
-                <span className="text-gray-900 font-medium">{milestone.progress}%</span>
+                <span className="text-gray-900 font-medium">{currentMilestone.progress || 0}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div 
                   className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-300"
-                  style={{ width: `${milestone.progress}%` }}
+                  style={{ width: `${currentMilestone.progress || 0}%` }}
                 ></div>
               </div>
             </div>
@@ -366,7 +470,7 @@ const PMMilestoneDetail = () => {
             {/* Milestone Description */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-              <p className="text-gray-600 leading-relaxed">{milestone.description}</p>
+              <p className="text-gray-600 leading-relaxed">{currentMilestone.description}</p>
             </div>
 
             {/* Milestone Meta Information */}
@@ -378,7 +482,12 @@ const PMMilestoneDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Assigned to</p>
-                    <p className="text-base font-medium text-gray-900">{milestone.assignee}</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {currentMilestone.assignedTo && currentMilestone.assignedTo.length > 0 
+                        ? currentMilestone.assignedTo.map(user => user.fullName || user.name).join(', ')
+                        : 'No one assigned'
+                      }
+                    </p>
                   </div>
                 </div>
 
@@ -389,24 +498,26 @@ const PMMilestoneDetail = () => {
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Created</p>
                     <p className="text-base font-medium text-gray-900">
-                      {new Date(milestone.createdDate).toLocaleDateString()}
+                      {new Date(currentMilestone.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <FolderKanban className="h-4 w-4 text-green-600" />
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <FolderKanban className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600">Project</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {project?.name || 'Unknown Project'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Project</p>
-                    <p className="text-base font-medium text-gray-900">{milestone.project}</p>
-                  </div>
-                </div>
 
-                {milestone.completedDate && (
+                {currentMilestone.completedAt && (
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-green-100 rounded-lg">
                       <CheckSquare className="h-4 w-4 text-green-600" />
@@ -414,7 +525,7 @@ const PMMilestoneDetail = () => {
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Completed</p>
                       <p className="text-base font-medium text-gray-900">
-                        {new Date(milestone.completedDate).toLocaleDateString()}
+                        {new Date(currentMilestone.completedAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -431,7 +542,7 @@ const PMMilestoneDetail = () => {
                     key={option.value}
                     onClick={() => handleStatusChange(option.value)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      milestone.status === option.value
+                      currentMilestone.status === option.value
                         ? `${option.color} border-2 border-current`
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
@@ -445,48 +556,85 @@ const PMMilestoneDetail = () => {
 
           {/* Tasks Section */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <CheckSquare className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
+                  <p className="text-sm text-gray-600">Tasks assigned to this milestone</p>
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
-              <span className="text-sm text-gray-500">({milestone.tasks.length})</span>
+              <div className="text-sm text-gray-500">
+                {tasks.length} task{tasks.length !== 1 ? 's' : ''}
+              </div>
             </div>
 
             <div className="space-y-3">
-              {milestone.tasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
-                      task.status === 'Completed' 
-                        ? 'bg-primary border-primary' 
-                        : 'border-gray-300'
-                    }`}>
-                      {task.status === 'Completed' && (
-                        <CheckSquare className="h-3 w-3 text-white" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{task.title}</p>
-                      <p className="text-xs text-gray-500">{task.assignee}</p>
+              {tasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckSquare className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
+                  <p className="text-gray-600">Tasks will appear here when they are created for this milestone</p>
+                </div>
+              ) : (
+                tasks.map((task) => (
+                  <div 
+                    key={task._id} 
+                    onClick={() => navigate(`/pm-task/${task._id}?projectId=${projectId}`)}
+                    className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer border border-gray-200 hover:border-primary/20"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                          {task.title}
+                        </h4>
+                        {task.description && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+                        <div className="flex items-center space-x-4 mt-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {task.status === 'completed' ? 'Completed' :
+                             task.status === 'in-progress' ? 'In Progress' :
+                             'Pending'}
+                          </span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            task.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                            task.priority === 'low' ? 'bg-green-100 text-green-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {task.priority === 'urgent' ? 'Urgent' :
+                             task.priority === 'high' ? 'High' :
+                             task.priority === 'low' ? 'Low' :
+                             'Normal'}
+                          </span>
+                          {task.assignedTo && task.assignedTo.length > 0 && (
+                            <span className="text-xs text-gray-500">
+                              Assigned to: {task.assignedTo[0].fullName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">
+                          Due: {new Date(task.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                    {task.status}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-
-            {milestone.tasks.length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckSquare className="h-6 w-6 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
-                <p className="text-gray-600">Add tasks to this milestone to track progress</p>
-              </div>
-            )}
           </div>
 
           {/* Attachments Section */}
@@ -496,8 +644,8 @@ const PMMilestoneDetail = () => {
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <Paperclip className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Attachments</h3>
-                <span className="text-sm text-gray-500">({milestone.attachments.length})</span>
+              <h3 className="text-lg font-semibold text-gray-900">Attachments</h3>
+              <span className="text-sm text-gray-500">({currentMilestone.attachments?.length || 0})</span>
               </div>
               
               {/* File Upload Button */}
@@ -545,31 +693,40 @@ const PMMilestoneDetail = () => {
             )}
 
             <div className="space-y-3">
-              {milestone.attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {currentMilestone.attachments?.map((attachment, index) => (
+                <div key={attachment.cloudinaryId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{getFileIcon(attachment.type)}</span>
+                    <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
-                      <p className="text-xs text-gray-500">{attachment.size} • {attachment.uploadedBy} • {formatTimestamp(attachment.uploadDate)}</p>
+                      <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
+                      <p className="text-xs text-gray-500">
+                        {(attachment.size / 1024 / 1024).toFixed(2)} MB • 
+                        Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <a 
+                      href={attachment.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
                       <Eye className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    </a>
+                    <a 
+                      href={attachment.url} 
+                      download={attachment.originalName}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
                       <Download className="h-4 w-4" />
-                    </button>
-                    <button className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    </a>
                   </div>
                 </div>
               ))}
             </div>
 
-            {milestone.attachments.length === 0 && !newAttachment && (
+            {(!currentMilestone.attachments || currentMilestone.attachments.length === 0) && !newAttachment && (
               <div className="text-center py-8">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Paperclip className="h-6 w-6 text-gray-400" />
@@ -580,66 +737,6 @@ const PMMilestoneDetail = () => {
             )}
           </div>
 
-          {/* Comments Section */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <MessageSquare className="h-5 w-5 text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-              <span className="text-sm text-gray-500">({milestone.comments.length})</span>
-            </div>
-
-            {/* Add Comment Section */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 resize-none"
-                rows={3}
-              />
-              <div className="flex justify-end mt-3">
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-4 w-4" />
-                  <span className="text-sm font-medium">Add Comment</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Comments List */}
-            <div className="space-y-4">
-              {milestone.comments.map((comment) => (
-                <div key={comment.id} className="border-l-4 border-primary/20 pl-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                      <User className="h-3 w-3 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{comment.user}</span>
-                    <span className="text-xs text-gray-500">
-                      {formatTimestamp(comment.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">{comment.message}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Empty State for Comments */}
-            {milestone.comments.length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="h-6 w-6 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
-                <p className="text-gray-600">Start the conversation by adding a comment</p>
-              </div>
-            )}
-          </div>
         </div>
       </main>
     </div>

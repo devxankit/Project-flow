@@ -1,94 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical } from 'lucide-react';
+import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical, Loader2 } from 'lucide-react';
+import { taskApi, handleApiError } from '../utils/api';
+
+// Debug: Check if taskApi is properly imported
+console.log('Imported taskApi:', taskApi);
+console.log('taskApi keys:', Object.keys(taskApi || {}));
+import { useToast } from '../contexts/ToastContext';
 
 const Tasks = () => {
   const [filter, setFilter] = useState('all');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
 
+  // Load tasks from API
+  useEffect(() => {
+    // Add a small delay to ensure modules are loaded
+    const timer = setTimeout(() => {
+      loadTasks();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  const loadTasks = async () => {
+    try {
+      setIsLoading(true);
+      console.log('taskApi object:', taskApi);
+      console.log('getAllTasks function:', taskApi.getAllTasks);
+      
+      // Check if function exists
+      if (typeof taskApi.getAllTasks !== 'function') {
+        console.error('getAllTasks function not found, available functions:', Object.keys(taskApi || {}));
+        throw new Error('getAllTasks function not found in taskApi');
+      }
+      
+      const response = await taskApi.getAllTasks();
+      if (response.success) {
+        setTasks(response.data.tasks || []);
+      } else {
+        toast.error('Error', response.message || 'Failed to load tasks');
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      handleApiError(error, toast);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle task form submission
   const handleTaskSubmit = (taskData) => {
     console.log('New task created:', taskData);
-    // Here you would typically send the data to your backend API
-    // For now, we'll just log it and close the form
+    // Reload tasks after creating a new one
+    loadTasks();
     setIsTaskFormOpen(false);
   };
 
-  const tasks = [
-    {
-      id: 1,
-      title: 'Update homepage design',
-      description: 'Implement new design mockups for homepage',
-      status: 'In Progress',
-      priority: 'High',
-      assignee: 'John Doe',
-      dueDate: '2024-02-10',
-      project: 'Website Redesign',
-      milestone: 'Design Phase'
-    },
-    {
-      id: 2,
-      title: 'Review user feedback',
-      description: 'Analyze and categorize user feedback from surveys',
-      status: 'Pending',
-      priority: 'Medium',
-      assignee: 'Jane Smith',
-      dueDate: '2024-02-12',
-      project: 'Mobile App Development',
-      milestone: 'Research Phase'
-    },
-    {
-      id: 3,
-      title: 'Database optimization',
-      description: 'Optimize database queries for better performance',
-      status: 'Completed',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-05',
-      project: 'Database Migration',
-      milestone: 'Implementation Phase'
-    },
-    {
-      id: 4,
-      title: 'API documentation',
-      description: 'Create comprehensive API documentation',
-      status: 'In Progress',
-      priority: 'Low',
-      assignee: 'Sarah Wilson',
-      dueDate: '2024-02-15',
-      project: 'Website Redesign',
-      milestone: 'Development Phase'
-    },
-    {
-      id: 5,
-      title: 'User authentication setup',
-      description: 'Implement secure user authentication system',
-      status: 'Pending',
-      priority: 'High',
-      assignee: 'Alex Brown',
-      dueDate: '2024-02-18',
-      project: 'E-commerce Platform',
-      milestone: 'Security Phase'
-    },
-    {
-      id: 6,
-      title: 'Performance testing',
-      description: 'Conduct comprehensive performance testing',
-      status: 'In Progress',
-      priority: 'Medium',
-      assignee: 'Emma Davis',
-      dueDate: '2024-02-20',
-      project: 'API Integration',
-      milestone: 'Testing Phase'
-    }
-  ];
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -108,7 +85,10 @@ const Tasks = () => {
     }
   };
 
-  const filteredTasks = filter === 'all' ? tasks : tasks.filter(task => task.status.toLowerCase() === filter.toLowerCase());
+  const filteredTasks = filter === 'all' ? tasks : tasks.filter(task => {
+    const taskStatus = task.status?.toLowerCase() || '';
+    return taskStatus === filter.toLowerCase();
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -166,9 +146,9 @@ const Tasks = () => {
             <div className="grid grid-cols-2 gap-3">
               {[
                 { key: 'all', label: 'All', count: tasks.length },
-                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status === 'Pending').length },
-                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status === 'In Progress').length },
-                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status === 'Completed').length }
+                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status?.toLowerCase() === 'pending').length },
+                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status?.toLowerCase() === 'in progress').length },
+                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status?.toLowerCase() === 'completed').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -193,9 +173,9 @@ const Tasks = () => {
             <div className="flex gap-2 flex-wrap">
               {[
                 { key: 'all', label: 'All', count: tasks.length },
-                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status === 'Pending').length },
-                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status === 'In Progress').length },
-                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status === 'Completed').length }
+                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status?.toLowerCase() === 'pending').length },
+                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status?.toLowerCase() === 'in progress').length },
+                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status?.toLowerCase() === 'completed').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -212,12 +192,23 @@ const Tasks = () => {
             </div>
           </div>
 
+          {/* Loading State */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-gray-600">Loading tasks...</span>
+              </div>
+            </div>
+          )}
+
           {/* Responsive Task Cards - Balanced Magic UI Style */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
-            {filteredTasks.map((task) => (
+          {!isLoading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
+              {filteredTasks.map((task) => (
               <div 
-                key={task.id} 
-                onClick={() => navigate(`/pm-task/${task.id}`)}
+                key={task._id} 
+                onClick={() => navigate(`/pm-task/${task._id}?projectId=${task.project?._id || task.project}`)}
                 className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
               >
                 {/* Magic UI Border Effect */}
@@ -265,10 +256,10 @@ const Tasks = () => {
                 <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center space-x-1 text-gray-600">
-                      <span className="text-primary font-semibold">{task.project}</span>
+                      <span className="text-primary font-semibold">{task.project?.name || 'No Project'}</span>
                     </div>
                     <div className="flex items-center space-x-1 text-gray-600">
-                      <span className="text-primary font-semibold">{task.milestone}</span>
+                      <span className="text-primary font-semibold">{task.milestone?.name || 'No Milestone'}</span>
                     </div>
                   </div>
                 </div>
@@ -278,7 +269,7 @@ const Tasks = () => {
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-1.5 text-gray-500">
                       <User className="h-3.5 w-3.5" />
-                      <span className="text-xs">{task.assignee}</span>
+                      <span className="text-xs">{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
                     </div>
                     <div className="flex items-center space-x-1.5 text-gray-500">
                       <Calendar className="h-3.5 w-3.5" />
@@ -325,10 +316,11 @@ const Tasks = () => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          )}
 
           {/* Empty State */}
-          {filteredTasks.length === 0 && (
+          {!isLoading && filteredTasks.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckSquare className="h-8 w-8 text-gray-400" />

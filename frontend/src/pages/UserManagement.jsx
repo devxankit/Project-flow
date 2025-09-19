@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import { useToast } from '../contexts/ToastContext';
+import { userApi, handleApiError } from '../utils/api';
 import { Combobox } from '../components/magicui/combobox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
 import { Input } from '../components/magicui/input';
@@ -31,7 +32,8 @@ import {
   Calendar,
   MapPin,
   Briefcase,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 
 const UserManagement = () => {
@@ -43,83 +45,63 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [showCredentials, setShowCredentials] = useState({});
+  
+  // API state management
+  const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    user: null
+  });
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalUsers: 0,
+    hasNext: false,
+    hasPrev: false
+  });
 
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock data for users with credentials
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      fullName: 'Sarah Johnson',
-      email: 'sarah.johnson@example.com',
-      password: 'TempPass123!',
-      role: 'employee',
-      status: 'active',
-      joinDate: '2024-01-15',
-      avatar: 'SJ',
-      department: 'Engineering',
-      jobTitle: 'Frontend Developer',
-      createdBy: 'John Doe',
-      createdAt: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: 2,
-      fullName: 'Mike Chen',
-      email: 'mike.chen@example.com',
-      password: 'TempPass456!',
-      role: 'customer',
-      status: 'active',
-      joinDate: '2024-01-20',
-      avatar: 'MC',
-      company: 'Acme Corporation',
-      address: '123 Business St, Suite 100, New York, NY 10001',
-      createdBy: 'John Doe',
-      createdAt: '2024-01-20T14:15:00Z'
-    },
-    {
-      id: 3,
-      fullName: 'Emily Davis',
-      email: 'emily.davis@example.com',
-      password: 'TempPass789!',
-      role: 'pm',
-      status: 'active',
-      joinDate: '2024-02-01',
-      avatar: 'ED',
-      department: 'Management',
-      jobTitle: 'Senior Project Manager',
-      createdBy: 'John Doe',
-      createdAt: '2024-02-01T09:45:00Z'
-    },
-    {
-      id: 4,
-      fullName: 'Alex Thompson',
-      email: 'alex.thompson@company.com',
-      password: 'TempPass101!',
-      role: 'employee',
-      status: 'inactive',
-      joinDate: '2024-02-10',
-      avatar: 'AT',
-      department: 'Design',
-      jobTitle: 'UI/UX Designer',
-      createdBy: 'John Doe',
-      createdAt: '2024-02-10T16:20:00Z'
-    },
-    {
-      id: 5,
-      fullName: 'Lisa Wilson',
-      email: 'lisa.wilson@business.com',
-      password: 'TempPass202!',
-      role: 'customer',
-      status: 'active',
-      joinDate: '2024-02-15',
-      avatar: 'LW',
-      company: 'Tech Solutions Inc',
-      address: '456 Innovation Ave, San Francisco, CA 94105',
-      createdBy: 'John Doe',
-      createdAt: '2024-02-15T11:30:00Z'
+  // Load users from API
+  useEffect(() => {
+    loadUsers();
+  }, [searchTerm, roleFilter, pagination.currentPage]);
+
+  // Function to load users from API
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const params = {
+        page: pagination.currentPage,
+        limit: 10,
+        search: searchTerm,
+        role: roleFilter === 'all' ? undefined : roleFilter,
+        status: 'all'
+      };
+
+      const response = await userApi.getAllUsers(params);
+      
+      if (response.status === 'success') {
+        setUsers(response.data.users);
+        setPagination(response.data.pagination);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast.error(
+        'Failed to Load Users',
+        handleApiError(error, 'Unable to load users. Please try again.')
+      );
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
+
+  // Users data from API
+  const [users, setUsers] = useState([]);
 
   const [newUser, setNewUser] = useState({
     fullName: '',
@@ -129,12 +111,12 @@ const UserManagement = () => {
     status: 'active',
     department: '',
     jobTitle: '',
+    workTitle: '',
     company: '',
     address: ''
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [editUserData, setEditUserData] = useState({
     fullName: '',
@@ -143,6 +125,7 @@ const UserManagement = () => {
     status: 'active',
     department: '',
     jobTitle: '',
+    workTitle: '',
     company: '',
     address: ''
   });
@@ -230,25 +213,57 @@ const UserManagement = () => {
 
   const handleRoleChange = (userId, newRole) => {
     setUsers(prev => prev.map(user => 
-      user.id === userId ? { ...user, role: newRole } : user
+      user._id === userId ? { ...user, role: newRole } : user
     ));
   };
 
   const handleStatusChange = (userId, newStatus) => {
     setUsers(prev => prev.map(user => 
-      user.id === userId ? { ...user, status: newStatus } : user
+      user._id === userId ? { ...user, status: newStatus } : user
     ));
   };
 
   const handleDeleteUser = (userId) => {
-    const userToDelete = users.find(user => user.id === userId);
-    if (window.confirm(`Are you sure you want to delete ${userToDelete?.fullName}?`)) {
-      setUsers(prev => prev.filter(user => user.id !== userId));
-      toast.success(
-        'User Deleted Successfully!',
-        `${userToDelete?.fullName} has been removed from the system.`
+    const userToDelete = users.find(user => user._id === userId);
+    setDeleteDialog({
+      isOpen: true,
+      user: userToDelete
+    });
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!deleteDialog.user) return;
+    
+    setIsDeleting(true);
+    
+    try {
+      const response = await userApi.deleteUser(deleteDialog.user._id);
+      
+      if (response.status === 'success') {
+        toast.success(
+          'User Deleted Successfully!',
+          `${deleteDialog.user.fullName} has been removed from the system.`
+        );
+        
+        // Reload users to get updated list
+        await loadUsers();
+        
+        // Close dialog
+        setDeleteDialog({ isOpen: false, user: null });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error(
+        'User Deletion Failed',
+        handleApiError(error, 'There was an error deleting the user. Please try again.')
       );
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  const cancelDeleteUser = () => {
+    setDeleteDialog({ isOpen: false, user: null });
   };
 
   const validateForm = () => {
@@ -278,6 +293,9 @@ const UserManagement = () => {
       if (!newUser.jobTitle.trim()) {
         newErrors.jobTitle = 'Job title is required';
       }
+      if (!newUser.workTitle.trim()) {
+        newErrors.workTitle = 'Work title is required';
+      }
     }
 
     if (newUser.role === 'customer') {
@@ -292,39 +310,52 @@ const UserManagement = () => {
 
   const handleAddUser = async () => {
     if (validateForm()) {
-      setIsSubmitting(true);
+      setIsCreating(true);
       
       try {
-        const nameParts = newUser.fullName.trim().split(' ');
-        const avatar = nameParts.length >= 2 
-          ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-          : nameParts[0][0].toUpperCase();
-        
-        const user = {
-          ...newUser,
-          id: Date.now(),
-          joinDate: new Date().toISOString().split('T')[0],
-          avatar,
-          createdBy: 'John Doe', // Current PM
-          createdAt: new Date().toISOString()
+        // Prepare user data for API
+        const userData = {
+          fullName: newUser.fullName.trim(),
+          email: newUser.email.trim(),
+          password: newUser.password,
+          role: newUser.role,
+          status: newUser.status
         };
+
+        // Add role-specific fields
+        if (newUser.role === 'employee' || newUser.role === 'pm') {
+          userData.department = newUser.department;
+          userData.jobTitle = newUser.jobTitle;
+          userData.workTitle = newUser.workTitle;
+        }
+
+        if (newUser.role === 'customer') {
+          userData.company = newUser.company;
+          userData.address = newUser.address;
+        }
+
+        // Create user via API
+        const response = await userApi.createUser(userData);
         
-        setUsers(prev => [...prev, user]);
-        
-        toast.success(
-          'User Created Successfully!',
-          `${user.fullName} has been added to the system.`
-        );
-        
-        handleCloseAddUser();
+        if (response.status === 'success') {
+          toast.success(
+            'User Created Successfully!',
+            `${response.data.user.fullName} has been added to the system.`
+          );
+          
+          // Reload users to get updated list
+          await loadUsers();
+          
+          handleCloseAddUser();
+        }
       } catch (error) {
         console.error('Error creating user:', error);
         toast.error(
           'User Creation Failed',
-          'There was an error creating the user. Please try again.'
+          handleApiError(error, 'There was an error creating the user. Please try again.')
         );
       } finally {
-        setIsSubmitting(false);
+        setIsCreating(false);
       }
     } else {
       toast.error(
@@ -343,11 +374,12 @@ const UserManagement = () => {
       status: 'active',
       department: '',
       jobTitle: '',
+      workTitle: '',
       company: '',
       address: ''
     });
     setErrors({});
-    setIsSubmitting(false);
+    setIsCreating(false);
     setIsAddUserOpen(false);
   };
 
@@ -359,51 +391,71 @@ const UserManagement = () => {
       status: user.status,
       department: user.department || '',
       jobTitle: user.jobTitle || '',
+      workTitle: user.workTitle || '',
       company: user.company || '',
       address: user.address || ''
     });
     setEditingUser(user);
   };
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     if (editUserData.fullName && editUserData.email) {
-      const nameParts = editUserData.fullName.trim().split(' ');
-      const avatar = nameParts.length >= 2 
-        ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-        : nameParts[0][0].toUpperCase();
+      setIsUpdating(true);
       
-      setUsers(prev => prev.map(user => 
-        user.id === editingUser.id 
-          ? { 
-              ...user, 
-              fullName: editUserData.fullName,
-              role: editUserData.role,
-              status: editUserData.status,
-              avatar,
-              department: editUserData.department,
-              jobTitle: editUserData.jobTitle,
-              company: editUserData.company,
-              address: editUserData.address
-            }
-          : user
-      ));
-      
-      toast.success(
-        'User Updated Successfully!',
-        `${editUserData.fullName}'s information has been updated.`
-      );
-      
-      setEditingUser(null);
-      setEditUserData({ 
-        fullName: '', 
-        email: '', 
-        role: 'employee', 
-        status: 'active',
-        department: '',
-        jobTitle: '',
-        company: '',
-        address: ''
-      });
+      try {
+        // Prepare user data for API
+        const userData = {
+          fullName: editUserData.fullName.trim(),
+          role: editUserData.role,
+          status: editUserData.status
+        };
+
+        // Add role-specific fields
+        if (editUserData.role === 'employee' || editUserData.role === 'pm') {
+          userData.department = editUserData.department;
+          userData.jobTitle = editUserData.jobTitle;
+          userData.workTitle = editUserData.workTitle;
+        }
+
+        if (editUserData.role === 'customer') {
+          userData.company = editUserData.company;
+          userData.address = editUserData.address;
+        }
+
+        // Update user via API
+        const response = await userApi.updateUser(editingUser._id, userData);
+        
+        if (response.status === 'success') {
+          toast.success(
+            'User Updated Successfully!',
+            `${response.data.user.fullName}'s information has been updated.`
+          );
+          
+          // Reload users to get updated list
+          await loadUsers();
+          
+          setEditingUser(null);
+          setEditUserData({ 
+            fullName: '', 
+            email: '', 
+            role: 'employee', 
+            status: 'active',
+            department: '',
+            jobTitle: '',
+            workTitle: '',
+            company: '',
+            address: ''
+          });
+        }
+      } catch (error) {
+        console.error('Error updating user:', error);
+        toast.error(
+          'User Update Failed',
+          handleApiError(error, 'There was an error updating the user. Please try again.')
+        );
+      } finally {
+        setIsUpdating(false);
+      }
     } else {
       toast.error(
         'Validation Error',
@@ -421,6 +473,7 @@ const UserManagement = () => {
       status: 'active',
       department: '',
       jobTitle: '',
+      workTitle: '',
       company: '',
       address: ''
     });
@@ -495,6 +548,35 @@ const UserManagement = () => {
                 >
                   <AlertCircle className="h-4 w-4 mr-1" />
                   {errors.jobTitle}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Work Title <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="text"
+              placeholder="e.g., Senior Developer, Lead Designer"
+              value={data.workTitle}
+              onChange={(e) => setData(prev => ({ ...prev, workTitle: e.target.value }))}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.workTitle 
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.workTitle && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.workTitle}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -670,11 +752,39 @@ const UserManagement = () => {
 
           {/* Users Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredUsers.map((user) => {
+            {isLoading ? (
+              // Loading skeleton
+              Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-pulse">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-12 w-12 rounded-full bg-gray-200"></div>
+                      <div>
+                        <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-32"></div>
+                      </div>
+                    </div>
+                    <div className="h-6 w-16 bg-gray-200 rounded"></div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-200 rounded w-full"></div>
+                    <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                  </div>
+                </div>
+              ))
+            ) : filteredUsers.length === 0 ? (
+              // Empty state
+              <div className="col-span-full text-center py-12">
+                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No users found</h3>
+                <p className="text-gray-500">Try adjusting your search or filter criteria.</p>
+              </div>
+            ) : (
+              filteredUsers.map((user) => {
                 const roleInfo = getRoleInfo(user.role);
                 const statusInfo = getStatusInfo(user.status);
                 return (
-                <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
+                <div key={user._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-all duration-200">
                   {/* User Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
@@ -700,7 +810,7 @@ const UserManagement = () => {
                                    <Edit className="h-4 w-4" />
                                  </button>
                                  <button
-                                   onClick={() => handleDeleteUser(user.id)}
+                                   onClick={() => handleDeleteUser(user._id)}
                         className="p-1 text-gray-400 hover:text-red-600 transition-colors"
                                  >
                                    <Trash2 className="h-4 w-4" />
@@ -737,16 +847,16 @@ const UserManagement = () => {
                       <span className="text-xs font-medium text-gray-700">Password:</span>
                       <div className="flex items-center space-x-1">
                         <span className="text-xs font-mono text-gray-900">
-                          {showCredentials[user.id] ? user.password : '••••••••••••'}
+                          {showCredentials[user._id] ? user.password : '••••••••••••'}
                         </span>
                                <button
                           onClick={() => setShowCredentials(prev => ({
                             ...prev,
-                            [user.id]: !prev[user.id]
+                            [user._id]: !prev[user._id]
                           }))}
                           className="text-gray-400 hover:text-gray-600"
                         >
-                          {showCredentials[user.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          {showCredentials[user._id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                                </button>
                                <button
                           onClick={() => copyToClipboard(user.password)}
@@ -774,20 +884,9 @@ const UserManagement = () => {
                        </div>
                     </div>
                   );
-                })}
-            </div>
-
-          {filteredUsers.length === 0 && (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No users found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || roleFilter !== 'all' || activeTab !== 'all'
-                  ? 'Try adjusting your search or filter criteria.'
-                  : 'Get started by creating a new user.'}
-              </p>
-           </div>
-          )}
+                })
+            )}
+          </div>
          </div>
        </main>
 
@@ -1016,18 +1115,18 @@ const UserManagement = () => {
                 variant="outline"
                 onClick={handleCloseAddUser}
                 className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
-                disabled={isSubmitting}
+                disabled={isCreating}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isCreating}
                 className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
               >
-                {isSubmitting ? (
+                {isCreating ? (
                   <div className="flex items-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Creating...</span>
                   </div>
                 ) : (
@@ -1160,22 +1259,79 @@ const UserManagement = () => {
                  variant="outline"
                  onClick={handleCancelEdit}
                 className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
+                disabled={isUpdating}
                >
                 Cancel
                </Button>
                <Button
                 type="submit"
-                className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+                className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                disabled={isUpdating}
                >
-                <div className="flex items-center space-x-2">
-                 <Save className="h-4 w-4" />
-                 <span>Save Changes</span>
-                </div>
+                {isUpdating ? (
+                  <div className="flex items-center space-x-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Saving...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Save className="h-4 w-4" />
+                    <span>Save Changes</span>
+                  </div>
+                )}
                </Button>
             </motion.div>
           </form>
          </DialogContent>
        </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog.isOpen} onOpenChange={cancelDeleteUser}>
+        <DialogContent className="sm:max-w-sm" onClose={cancelDeleteUser}>
+          <DialogHeader className="text-center">
+            <div className="mx-auto h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-gray-900">
+              Delete User?
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Are you sure you want to delete <strong>{deleteDialog.user?.fullName}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={cancelDeleteUser}
+              className="w-full"
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDeleteUser}
+              className="w-full bg-red-600 hover:bg-red-700 text-white"
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Deleting...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center space-x-2">
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </div>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
      </div>
    );
  };

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Upload, FileText, Calendar, User, Flag, FolderKanban, AlertCircle, Paperclip, CheckCircle } from 'lucide-react';
+import { Save, Upload, FileText, Calendar, User, Flag, FolderKanban, AlertCircle, Paperclip, CheckCircle, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './magicui/dialog';
 import { Button } from './magicui/button';
 import { Input } from './magicui/input';
@@ -8,50 +8,62 @@ import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
 import { MultiSelect } from './magicui/multi-select';
 import { DatePicker } from './magicui/date-picker';
+import { milestoneApi, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
 
 const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     dueDate: '',
     assignees: [],
-    status: 'Not Started',
+    status: 'pending',
     project: projectId || '',
-    priority: 'Medium',
+    priority: 'normal',
+    sequence: 1,
     attachments: []
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
 
-  // Mock data for dropdowns
-  const teamMembers = [
-    { value: 1, label: 'John Doe', subtitle: 'Project Manager', avatar: 'JD' },
-    { value: 2, label: 'Jane Smith', subtitle: 'Frontend Developer', avatar: 'JS' },
-    { value: 3, label: 'Mike Johnson', subtitle: 'Backend Developer', avatar: 'MJ' },
-    { value: 4, label: 'Sarah Wilson', subtitle: 'UI/UX Designer', avatar: 'SW' },
-    { value: 5, label: 'Alex Brown', subtitle: 'QA Engineer', avatar: 'AB' },
-    { value: 6, label: 'Lisa Wang', subtitle: 'DevOps Engineer', avatar: 'LW' }
-  ];
+  // Load team members when component mounts
+  useEffect(() => {
+    if (isOpen && projectId) {
+      loadTeamMembers();
+    }
+  }, [isOpen, projectId]);
 
-  const projects = [
-    { value: 'project-1', label: 'Website Redesign' },
-    { value: 'project-2', label: 'Mobile App Development' },
-    { value: 'project-3', label: 'Database Migration' },
-    { value: 'project-4', label: 'API Integration' }
-  ];
+  const loadTeamMembers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await milestoneApi.getTeamMembersForMilestone(projectId);
+      if (response.success) {
+        setTeamMembers(response.data.teamMembers);
+      }
+    } catch (error) {
+      console.error('Error loading team members:', error);
+      handleApiError(error, toast);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const statusOptions = [
-    { value: 'Not Started', label: 'Not Started' },
-    { value: 'In Progress', label: 'In Progress' },
-    { value: 'Completed', label: 'Completed' },
-    { value: 'On Hold', label: 'On Hold' }
+    { value: 'pending', label: 'Pending' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' }
   ];
 
   const priorityOptions = [
-    { value: 'High', label: 'High' },
-    { value: 'Medium', label: 'Medium' },
-    { value: 'Low', label: 'Low' }
+    { value: 'low', label: 'Low' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' }
   ];
 
   const handleInputChange = (field, value) => {
@@ -107,16 +119,16 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
       newErrors.title = 'Milestone title is required';
     }
 
+    if (!formData.sequence || formData.sequence < 1) {
+      newErrors.sequence = 'Sequence number must be at least 1';
+    }
+
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required';
     }
 
     if (formData.assignees.length === 0) {
       newErrors.assignees = 'At least one team member must be assigned';
-    }
-
-    if (!formData.project) {
-      newErrors.project = 'Project is required';
     }
 
     setErrors(newErrors);
@@ -133,13 +145,38 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare milestone data
+      const milestoneData = {
+        title: formData.title,
+        description: formData.description,
+        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
+        assignedTo: Array.isArray(formData.assignees) ? formData.assignees : [],
+        status: formData.status,
+        priority: formData.priority,
+        sequence: parseInt(formData.sequence),
+        projectId: projectId
+      };
+
+
+      // Get attachment files
+      const attachments = formData.attachments.map(attachment => attachment.file).filter(Boolean);
+      console.log('Sending milestone data:', milestoneData);
+      console.log('Sending attachments:', attachments);
+      console.log('Attachments count:', attachments.length);
+
+      // Create milestone via API
+      const response = await milestoneApi.createMilestone(milestoneData, attachments);
       
-      onSubmit(formData);
-      handleClose();
+      if (response.success) {
+        toast.success('Success', 'Milestone created successfully');
+        onSubmit(response.data);
+        handleClose();
+      } else {
+        toast.error('Error', response.message || 'Failed to create milestone');
+      }
     } catch (error) {
       console.error('Error creating milestone:', error);
+      handleApiError(error, toast);
     } finally {
       setIsSubmitting(false);
     }
@@ -151,9 +188,10 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
       description: '',
       dueDate: '',
       assignees: [],
-      status: 'Not Started',
+      status: 'pending',
       project: projectId || '',
-      priority: 'Medium',
+      priority: 'normal',
+      sequence: 1,
       attachments: []
     });
     setErrors({});
@@ -207,6 +245,43 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
                 >
                   <AlertCircle className="h-4 w-4 mr-1" />
                   {errors.title}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Sequence Number */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="space-y-2"
+          >
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Sequence Number <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="number"
+              placeholder="Enter sequence number (1, 2, 3...)"
+              value={formData.sequence}
+              onChange={(e) => handleInputChange('sequence', parseInt(e.target.value) || 1)}
+              min="1"
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.sequence 
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.sequence && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.sequence}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -334,37 +409,6 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
             </motion.div>
           </div>
 
-          {/* Associated Project */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="space-y-2"
-          >
-            <label className="text-sm font-semibold text-gray-700 flex items-center">
-              Associated Project <span className="text-red-500 ml-1">*</span>
-            </label>
-            <Combobox
-              options={projects}
-              value={formData.project}
-              onChange={(value) => handleInputChange('project', value)}
-              placeholder="Select project"
-              error={!!errors.project}
-            />
-            <AnimatePresence>
-              {errors.project && (
-                <motion.p 
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="text-sm text-red-500 flex items-center"
-                >
-                  <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.project}
-                </motion.p>
-              )}
-            </AnimatePresence>
-          </motion.div>
 
           {/* Attachments */}
           <motion.div 
@@ -443,10 +487,10 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
               className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isSubmitting ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Creating...</span>
-                </div>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating...
+                </>
               ) : (
                 'Create Milestone'
               )}

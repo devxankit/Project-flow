@@ -1,73 +1,123 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Upload, FileText, Calendar, User, CheckSquare, FolderKanban, Flag, AlertCircle, Paperclip, CheckCircle, MessageSquare } from 'lucide-react';
+import { Save, Upload, FileText, Calendar, User, Flag, CheckSquare, AlertCircle, Paperclip, CheckCircle, Loader2, X, Clock, Target, Users } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './magicui/dialog';
 import { Button } from './magicui/button';
 import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
 import { DatePicker } from './magicui/date-picker';
+import { taskApi, projectApi, milestoneApi, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
 
-const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
+const TaskForm = ({ isOpen, onClose, onSubmit, milestoneId, projectId }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    project: projectId || '',
-    milestone: milestoneId || '',
-    assignee: '',
-    priority: 'Normal',
     dueDate: '',
-    status: 'Not Started',
-    attachments: [],
-    comments: ''
+    assignedTo: '',
+    status: 'pending',
+    priority: 'normal',
+    milestone: milestoneId || '',
+    project: projectId || '',
+    attachments: []
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isLoadingMilestones, setIsLoadingMilestones] = useState(false);
+  const [isLoadingTeamMembers, setIsLoadingTeamMembers] = useState(false);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [projects, setProjects] = useState([]);
+  const [milestones, setMilestones] = useState([]);
 
-  // Mock data for dropdowns
-  const projects = [
-    { value: 'project-1', label: 'Website Redesign' },
-    { value: 'project-2', label: 'Mobile App Development' },
-    { value: 'project-3', label: 'Database Migration' },
-    { value: 'project-4', label: 'API Integration' }
-  ];
+  // Load data when component mounts
+  useEffect(() => {
+    if (isOpen) {
+      loadProjects();
+      if (projectId) {
+        loadTeamMembers(projectId);
+        loadMilestones(projectId);
+      }
+    }
+  }, [isOpen, projectId]);
 
-  const milestones = [
-    { value: 'milestone-1', label: 'Design Phase', project: 'project-1' },
-    { value: 'milestone-2', label: 'Development Phase', project: 'project-1' },
-    { value: 'milestone-3', label: 'Testing Phase', project: 'project-1' },
-    { value: 'milestone-4', label: 'Backend Setup', project: 'project-3' },
-    { value: 'milestone-5', label: 'Frontend Development', project: 'project-2' },
-    { value: 'milestone-6', label: 'API Integration', project: 'project-4' }
-  ];
+  // Load milestones when project changes
+  useEffect(() => {
+    if (formData.project) {
+      loadMilestones(formData.project);
+      // Reset milestone selection when project changes
+      setFormData(prev => ({ ...prev, milestone: '', assignedTo: '' }));
+    }
+  }, [formData.project]);
 
-  const teamMembers = [
-    { value: 1, label: 'John Doe', subtitle: 'Project Manager', avatar: 'JD' },
-    { value: 2, label: 'Jane Smith', subtitle: 'Frontend Developer', avatar: 'JS' },
-    { value: 3, label: 'Mike Johnson', subtitle: 'Backend Developer', avatar: 'MJ' },
-    { value: 4, label: 'Sarah Wilson', subtitle: 'UI/UX Designer', avatar: 'SW' },
-    { value: 5, label: 'Alex Brown', subtitle: 'QA Engineer', avatar: 'AB' },
-    { value: 6, label: 'Lisa Wang', subtitle: 'DevOps Engineer', avatar: 'LW' }
-  ];
+  const loadProjects = async () => {
+    try {
+      setIsLoadingProjects(true);
+      const response = await projectApi.getAllProjects();
+      if (response.success) {
+        setProjects(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      handleApiError(error, toast);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  };
 
-  const priorities = [
-    { value: 'Urgent', label: 'Urgent' },
-    { value: 'Medium', label: 'Medium' },
-    { value: 'Normal', label: 'Normal' }
-  ];
+  const loadMilestones = async (projectId) => {
+    if (!projectId) {
+      console.warn('loadMilestones called without projectId');
+      setMilestones([]);
+      return;
+    }
+    
+    try {
+      setIsLoadingMilestones(true);
+      const response = await milestoneApi.getMilestonesByProject(projectId);
+      if (response.success && response.data) {
+        setMilestones(response.data.milestones);
+      } else {
+        console.error('Invalid milestones response structure:', response);
+        setMilestones([]);
+      }
+    } catch (error) {
+      console.error('Error loading milestones:', error);
+      handleApiError(error, toast);
+      setMilestones([]);
+    } finally {
+      setIsLoadingMilestones(false);
+    }
+  };
 
-  const statuses = [
-    { value: 'Not Started', label: 'Not Started' },
-    { value: 'In Progress', label: 'In Progress' },
-    { value: 'Blocked', label: 'Blocked' },
-    { value: 'Done', label: 'Done' }
-  ];
-
-  // Filter milestones based on selected project
-  const filteredMilestones = formData.project 
-    ? milestones.filter(milestone => milestone.project === formData.project)
-    : milestones;
+  const loadTeamMembers = async (projectId) => {
+    if (!projectId) {
+      console.warn('loadTeamMembers called without projectId');
+      setTeamMembers([]);
+      return;
+    }
+    
+    try {
+      setIsLoadingTeamMembers(true);
+      const response = await taskApi.getTeamMembersForTask(projectId);
+      if (response.success && response.data) {
+        setTeamMembers(response.data.teamMembers);
+      } else {
+        console.error('Invalid team members response structure:', response);
+        setTeamMembers([]);
+      }
+    } catch (error) {
+      console.error('Error loading team members:', error);
+      handleApiError(error, toast);
+      setTeamMembers([]);
+    } finally {
+      setIsLoadingTeamMembers(false);
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -83,36 +133,39 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
       }));
     }
 
-    // Reset milestone when project changes
-    if (field === 'project') {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value,
-        milestone: ''
-      }));
+    // Handle project change - load milestones and team members
+    if (field === 'project' && value) {
+      loadMilestones(value);
+      loadTeamMembers(value);
     }
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileChange = (event) => {
     const files = Array.from(event.target.files);
-    const newAttachments = files.map(file => ({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      file: file
-    }));
-    
+    const validFiles = files.filter(file => {
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error('Error', `File ${file.name} is too large. Maximum size is 10MB.`);
+        return false;
+      }
+      return true;
+    });
+
     setFormData(prev => ({
       ...prev,
-      attachments: [...prev.attachments, ...newAttachments]
+      attachments: [...prev.attachments, ...validFiles.map(file => ({
+        file,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }))]
     }));
   };
 
-  const removeAttachment = (attachmentId) => {
+  const removeAttachment = (index) => {
     setFormData(prev => ({
       ...prev,
-      attachments: prev.attachments.filter(att => att.id !== attachmentId)
+      attachments: prev.attachments.filter((_, i) => i !== index)
     }));
   };
 
@@ -124,11 +177,27 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getFileIcon = (mimetype) => {
+    if (mimetype.startsWith('image/')) return '🖼️';
+    if (mimetype.startsWith('video/')) return '🎥';
+    if (mimetype.startsWith('audio/')) return '🎵';
+    if (mimetype.includes('pdf')) return '📄';
+    if (mimetype.includes('word')) return '📝';
+    if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return '📊';
+    if (mimetype.includes('powerpoint') || mimetype.includes('presentation')) return '📽️';
+    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
+    return '📎';
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.title.trim()) {
       newErrors.title = 'Task title is required';
+    }
+
+    if (!formData.dueDate) {
+      newErrors.dueDate = 'Due date is required';
     }
 
     if (!formData.project) {
@@ -137,14 +206,6 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
 
     if (!formData.milestone) {
       newErrors.milestone = 'Milestone is required';
-    }
-
-    if (!formData.assignee) {
-      newErrors.assignee = 'Assignee is required';
-    }
-
-    if (!formData.dueDate) {
-      newErrors.dueDate = 'Due date is required';
     }
 
     setErrors(newErrors);
@@ -159,36 +220,100 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
     }
 
     setIsSubmitting(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const taskData = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        dueDate: new Date(formData.dueDate).toISOString(),
+        assignedTo: formData.assignedTo ? [formData.assignedTo] : [],
+        status: formData.status,
+        priority: formData.priority,
+        milestone: formData.milestone,
+        project: formData.project
+      };
+
+      const attachments = formData.attachments.map(attachment => attachment.file).filter(Boolean);
       
-      onSubmit(formData);
-      handleClose();
+      const response = await taskApi.createTask(taskData, attachments);
+      
+      if (response.success) {
+        toast.success('Success', 'Task created successfully!');
+        onSubmit && onSubmit(response.data.task);
+        onClose();
+        resetForm();
+      } else {
+        toast.error('Error', response.message || 'Failed to create task');
+      }
     } catch (error) {
       console.error('Error creating task:', error);
+      handleApiError(error, toast);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
     setFormData({
       title: '',
       description: '',
-      project: projectId || '',
-      milestone: milestoneId || '',
-      assignee: '',
-      priority: 'Normal',
       dueDate: '',
-      status: 'Not Started',
-      attachments: [],
-      comments: ''
+      assignedTo: '',
+      status: 'pending',
+      priority: 'normal',
+      milestone: milestoneId || '',
+      project: projectId || '',
+      attachments: []
     });
     setErrors({});
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
   };
+
+  const statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'in-progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' }
+  ];
+
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'normal', label: 'Normal' },
+    { value: 'high', label: 'High' },
+    { value: 'urgent', label: 'Urgent' }
+  ];
+
+  const projectOptions = (projects || []).map(project => ({
+    value: project._id,
+    label: project.name
+  }));
+
+  const milestoneOptions = (milestones || []).map(milestone => ({
+    value: milestone._id,
+    label: milestone.title
+  }));
+
+  const teamMemberOptions = (teamMembers || []).map(member => {
+    // Create a descriptive label with name and job title
+    const jobInfo = member.jobTitle || member.workTitle || member.department;
+    const displayLabel = jobInfo ? `${member.fullName} - ${jobInfo}` : member.fullName;
+    
+    return {
+      value: member._id,
+      label: displayLabel,
+      fullName: member.fullName,
+      email: member.email,
+      role: member.role,
+      department: member.department,
+      jobTitle: member.jobTitle,
+      workTitle: member.workTitle
+    };
+  });
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -242,7 +367,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
             </AnimatePresence>
           </motion.div>
 
-          {/* Description - Optional */}
+          {/* Description */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -253,7 +378,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
               Description
             </label>
             <Textarea
-              placeholder="Describe the task requirements and objectives (optional)"
+              placeholder="Enter task description"
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               rows={3}
@@ -261,9 +386,8 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
             />
           </motion.div>
 
-          {/* Project and Milestone Row */}
+          {/* Project and Milestone Selection */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Project */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -273,13 +397,24 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
               <label className="text-sm font-semibold text-gray-700 flex items-center">
                 Project <span className="text-red-500 ml-1">*</span>
               </label>
-              <Combobox
-                options={projects}
-                value={formData.project}
-                onChange={(value) => handleInputChange('project', value)}
-                placeholder="Select project"
-                error={!!errors.project}
-              />
+              {isLoadingProjects ? (
+                <div className="flex items-center space-x-3 text-gray-500 bg-gray-50 p-4 rounded-lg">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading projects...</span>
+                </div>
+              ) : (
+                <>
+                  <Combobox
+                    options={projectOptions}
+                    value={formData.project}
+                    onChange={(value) => handleInputChange('project', value)}
+                    placeholder="Select project"
+                  />
+                  {projectOptions.length === 0 && (
+                    <p className="text-sm text-gray-500">No projects available</p>
+                  )}
+                </>
+              )}
               <AnimatePresence>
                 {errors.project && (
                   <motion.p 
@@ -295,7 +430,6 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
               </AnimatePresence>
             </motion.div>
 
-            {/* Milestone */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -305,14 +439,25 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
               <label className="text-sm font-semibold text-gray-700 flex items-center">
                 Milestone <span className="text-red-500 ml-1">*</span>
               </label>
-              <Combobox
-                options={filteredMilestones}
-                value={formData.milestone}
-                onChange={(value) => handleInputChange('milestone', value)}
-                placeholder="Select milestone"
-                error={!!errors.milestone}
-                disabled={!formData.project}
-              />
+              {isLoadingMilestones ? (
+                <div className="flex items-center space-x-3 text-gray-500 bg-gray-50 p-4 rounded-lg">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading milestones...</span>
+                </div>
+              ) : (
+                <>
+                  <Combobox
+                    options={milestoneOptions}
+                    value={formData.milestone}
+                    onChange={(value) => handleInputChange('milestone', value)}
+                    placeholder="Select milestone"
+                    disabled={!formData.project}
+                  />
+                  {milestoneOptions.length === 0 && formData.project && (
+                    <p className="text-sm text-gray-500">No milestones available for this project</p>
+                  )}
+                </>
+              )}
               <AnimatePresence>
                 {errors.milestone && (
                   <motion.p 
@@ -329,211 +474,209 @@ const TaskForm = ({ isOpen, onClose, onSubmit, projectId, milestoneId }) => {
             </motion.div>
           </div>
 
-          {/* Assignee and Due Date Row */}
+          {/* Status and Priority */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Assignee */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
               className="space-y-2"
             >
-              <label className="text-sm font-semibold text-gray-700 flex items-center">
-                Assignee <span className="text-red-500 ml-1">*</span>
+              <label className="text-sm font-semibold text-gray-700">
+                Status
               </label>
               <Combobox
-                options={teamMembers}
-                value={formData.assignee}
-                onChange={(value) => handleInputChange('assignee', value)}
-                placeholder="Select team member"
-                error={!!errors.assignee}
+                options={statusOptions}
+                value={formData.status}
+                onChange={(value) => handleInputChange('status', value)}
+                placeholder="Select status"
               />
-              <AnimatePresence>
-                {errors.assignee && (
-                  <motion.p 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-sm text-red-500 flex items-center"
-                  >
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.assignee}
-                  </motion.p>
-                )}
-              </AnimatePresence>
             </motion.div>
 
-            {/* Due Date */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
               className="space-y-2"
             >
-              <label className="text-sm font-semibold text-gray-700 flex items-center">
-                Due Date <span className="text-red-500 ml-1">*</span>
+              <label className="text-sm font-semibold text-gray-700">
+                Priority
               </label>
-              <DatePicker
-                value={formData.dueDate}
-                onChange={(date) => handleInputChange('dueDate', date)}
-                placeholder="Select due date"
-                error={!!errors.dueDate}
-                minDate={new Date()}
-              />
-              <AnimatePresence>
-                {errors.dueDate && (
-                  <motion.p 
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="text-sm text-red-500 flex items-center"
-                  >
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    {errors.dueDate}
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </div>
-
-          {/* Priority and Status Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Priority */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="space-y-2"
-            >
-              <label className="text-sm font-semibold text-gray-700">Priority</label>
               <Combobox
-                options={priorities}
+                options={priorityOptions}
                 value={formData.priority}
                 onChange={(value) => handleInputChange('priority', value)}
                 placeholder="Select priority"
               />
             </motion.div>
-
-            {/* Status */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="space-y-2"
-            >
-              <label className="text-sm font-semibold text-gray-700">Status</label>
-              <Combobox
-                options={statuses}
-                value={formData.status}
-                onChange={(value) => handleInputChange('status', value)}
-                placeholder="Select status"
-              />
-            </motion.div>
           </div>
 
-          {/* Comments */}
+          {/* Due Date - Required */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="space-y-2"
+          >
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Due Date <span className="text-red-500 ml-1">*</span>
+            </label>
+            <DatePicker
+              value={formData.dueDate}
+              onChange={(date) => handleInputChange('dueDate', date)}
+              placeholder="Select due date"
+            />
+            <AnimatePresence>
+              {errors.dueDate && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.dueDate}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Assigned Team Member */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="space-y-2"
+          >
+            <label className="text-sm font-semibold text-gray-700">
+              Assign To
+            </label>
+            {isLoadingTeamMembers ? (
+              <div className="flex items-center space-x-3 text-gray-500 bg-gray-50 p-4 rounded-lg">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span>Loading team member...</span>
+              </div>
+            ) : (
+              <>
+                <Combobox
+                  options={teamMemberOptions}
+                  value={formData.assignedTo}
+                  onChange={(value) => handleInputChange('assignedTo', value)}
+                  placeholder="Select team member"
+                />
+                {teamMemberOptions.length === 0 && formData.project && (
+                  <p className="text-sm text-gray-500">No team member available for this project</p>
+                )}
+              </>
+            )}
+          </motion.div>
+
+          {/* File Attachments */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
             className="space-y-2"
           >
-            <label className="text-sm font-semibold text-gray-700 flex items-center">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Initial Comments
+            <label className="text-sm font-semibold text-gray-700">
+              Attachments
             </label>
-            <Textarea
-              placeholder="Add initial notes or comments for this task (optional)"
-              value={formData.comments}
-              onChange={(e) => handleInputChange('comments', e.target.value)}
-              rows={3}
-              className="rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
-            />
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-primary/50 transition-colors duration-200">
+              <input
+                type="file"
+                multiple
+                onChange={handleFileChange}
+                className="hidden"
+                id="task-attachments"
+                accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+              />
+              <label
+                htmlFor="task-attachments"
+                className="cursor-pointer flex flex-col items-center space-y-3 text-gray-500 hover:text-primary transition-colors duration-200"
+              >
+                <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full">
+                  <Upload className="h-8 w-8" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium">Click to upload files or drag and drop</p>
+                  <p className="text-xs text-gray-400 mt-1">Images, videos, documents (max 10MB each)</p>
+                </div>
+              </label>
+            </div>
+
+            {/* File List */}
+            {formData.attachments.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="space-y-3"
+              >
+                <h4 className="text-sm font-semibold text-gray-800 flex items-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <span>Selected Files ({formData.attachments.length})</span>
+                </h4>
+                <div className="space-y-2">
+                  {formData.attachments.map((attachment, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getFileIcon(attachment.type)}</span>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                          <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </motion.div>
 
-          {/* Attachments */}
+          {/* Form Actions */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.0 }}
-            className="space-y-2"
-          >
-            <label className="text-sm font-semibold text-gray-700">
-              Attachments
-            </label>
-            
-            {/* File Upload */}
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-primary/50 transition-colors duration-200">
-              <input
-                type="file"
-                multiple
-                accept="image/*,.pdf,.mp4"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-              />
-              <label htmlFor="file-upload" className="cursor-pointer">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-1">Click to upload files</p>
-                <p className="text-xs text-gray-500">Images, PDFs, short MP4 videos</p>
-              </label>
-            </div>
-
-            {/* Attached Files List */}
-            {formData.attachments.length > 0 && (
-              <div className="space-y-2">
-                {formData.attachments.map((attachment) => (
-                  <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-1 bg-primary/10 rounded">
-                        <FileText className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
-                        <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeAttachment(attachment.id)}
-                      className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
-                    >
-                      <span className="text-sm font-bold">×</span>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-
-          {/* Footer Buttons */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.1 }}
-            className="flex flex-col sm:flex-row gap-3 pt-4"
+            className="flex space-x-3 pt-6 border-t border-gray-200"
           >
             <Button
               type="button"
               variant="outline"
               onClick={handleClose}
-              className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
               disabled={isSubmitting}
+              className="px-6"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white px-6"
             >
               {isSubmitting ? (
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Creating...</span>
-                </div>
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Creating Task...
+                </>
               ) : (
-                'Create Task'
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Create Task
+                </>
               )}
             </Button>
           </motion.div>

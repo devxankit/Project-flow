@@ -8,6 +8,7 @@ import PublicRoute from './components/PublicRoute';
 import PMDashboard from './pages/PM-dashboard';
 import Projects from './pages/Projects';
 import ProjectDetails from './pages/ProjectDetails';
+import ProjectForm from './components/ProjectForm';
 import Tasks from './pages/Tasks';
 import ActivityPage from './pages/Activity';
 import PMProfile from './pages/PM-Profile';
@@ -67,6 +68,16 @@ function App() {
               <Route path="/project/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
                   <ProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/project-details/:id" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <ProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/projects/edit/:id" element={
+                <ProtectedRoute allowedRoles={['pm']}>
+                  <ProjectForm />
                 </ProtectedRoute>
               } />
               <Route path="/tasks" element={

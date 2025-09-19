@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { 
   FolderKanban, 
   CheckSquare, 
   Activity, 
   BarChart3, 
   User,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 
 const CustomerNavbar = () => {
   const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
 
   // Check if screen is mobile
   useEffect(() => {
@@ -34,6 +39,11 @@ const CustomerNavbar = () => {
 
   const handleNavigation = (href) => {
     navigate(href);
+  };
+
+  const handleLogout = () => {
+    toast.success('Logged Out', 'You have been successfully logged out.');
+    logout();
   };
 
 
@@ -73,12 +83,29 @@ const CustomerNavbar = () => {
             </div>
           </div>
 
-          {/* Logo/Title */}
+          {/* Logout & Profile */}
           <div className="flex items-center space-x-4">
-            <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">C</span>
+            <button
+              onClick={handleLogout}
+              className="flex items-center space-x-2 text-gray-700 hover:text-red-600 transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="hidden lg:block text-sm font-medium">Logout</span>
+            </button>
+            <div className="relative">
+              <button 
+                onClick={() => navigate('/customer-profile')}
+                className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm font-medium">
+                    {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
+                  </span>
+                </div>
+                <span className="hidden lg:block text-sm font-medium">{user?.fullName || 'Customer'}</span>
+              </button>
             </div>
-            <span className="hidden lg:block text-sm font-medium text-gray-700">Customer</span>
           </div>
         </div>
       </div>
@@ -98,13 +125,22 @@ const CustomerNavbar = () => {
           />
         </div>
 
-        {/* Profile */}
-        <div className="flex items-center">
+        {/* Logout & Profile */}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleLogout}
+            className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-red-600 transition-colors"
+            title="Logout"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
           <button 
             onClick={() => navigate('/customer-profile')}
             className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
           >
-            <User className="h-4 w-4 text-white" />
+            <span className="text-white text-xs font-medium">
+              {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
+            </span>
           </button>
         </div>
       </div>

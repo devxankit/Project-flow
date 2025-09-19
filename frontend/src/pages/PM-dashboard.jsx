@@ -1,38 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import ProjectForm from '../components/ProjectForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
+import { projectApi, taskApi, getCurrentUser, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
 
 const PMDashboard = () => {
+  const { toast } = useToast();
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
+  const [projectStats, setProjectStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+    onHold: 0,
+    planning: 0,
+    cancelled: 0,
+    urgent: 0,
+    high: 0,
+    normal: 0,
+    low: 0,
+    avgProgress: 0
+  });
+  const [taskStats, setTaskStats] = useState({
+    total: 0,
+    pending: 0,
+    inProgress: 0,
+    completed: 0,
+    cancelled: 0,
+    urgent: 0,
+    high: 0,
+    normal: 0,
+    low: 0
+  });
+  const [recentProjects, setRecentProjects] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   
   // Scroll to top when component mounts
   useScrollToTop();
   
-  // Mock user data - in a real app, this would come from authentication context
-  const currentUser = {
-    fullName: 'John Doe',
-    email: 'john.doe@example.com'
+  // Get current user from localStorage
+  const currentUser = getCurrentUser();
+
+  // Load all dashboard data on component mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Load all data in parallel
+      const [projectStatsResponse, taskStatsResponse, recentProjectsResponse] = await Promise.all([
+        projectApi.getProjectStats(),
+        taskApi.getTaskStats(),
+        projectApi.getAllProjects({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' })
+      ]);
+
+      // Set project stats
+      setProjectStats(projectStatsResponse.data);
+
+      // Set task stats
+      setTaskStats(taskStatsResponse.data);
+
+      // Set recent projects
+      setRecentProjects(recentProjectsResponse.data);
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Error', 'Failed to load dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle task form submission
   const handleTaskSubmit = (taskData) => {
-    console.log('New task created:', taskData);
     // Here you would typically send the data to your backend API
-    // For now, we'll just log it and close the form
+    // For now, we'll just close the form
     setIsTaskFormOpen(false);
   };
 
   // Handle project form submission
   const handleProjectSubmit = (projectData) => {
-    console.log('New project created:', projectData);
-    // Here you would typically send the data to your backend API
-    // For now, we'll just log it and close the form
+    // Refresh dashboard data after creating a new project
+    loadDashboardData();
     setIsProjectFormOpen(false);
   };
 
@@ -48,7 +105,7 @@ const PMDashboard = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Welcome, {currentUser.fullName}!
+                  Welcome, {currentUser?.fullName || 'Project Manager'}!
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
               </div>
@@ -67,7 +124,9 @@ const PMDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">12</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {isLoading ? '...' : projectStats.total}
+              </p>
               <p className="text-xs md:text-sm text-gray-600">Projects</p>
             </button>
 
@@ -81,8 +140,10 @@ const PMDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Done</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">48</p>
-              <p className="text-xs md:text-sm text-gray-600">Tasks</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {isLoading ? '...' : projectStats.completed}
+              </p>
+              <p className="text-xs md:text-sm text-gray-600">Completed</p>
             </button>
 
             <button 
@@ -95,22 +156,26 @@ const PMDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Team</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">24</p>
-              <p className="text-xs md:text-sm text-gray-600">Members</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {isLoading ? '...' : projectStats.active}
+              </p>
+              <p className="text-xs md:text-sm text-gray-600">Active</p>
             </button>
 
             <button 
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/tasks')}
               className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
             >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-purple-100 rounded-xl md:rounded-lg">
                   <Calendar className="h-5 w-5 md:h-6 md:w-6 text-purple-600" />
                 </div>
-                <span className="text-xs md:text-sm text-gray-500">This Week</span>
+                <span className="text-xs md:text-sm text-gray-500">Tasks</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">8</p>
-              <p className="text-xs md:text-sm text-gray-600">Deadlines</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">
+                {isLoading ? '...' : taskStats.total}
+              </p>
+              <p className="text-xs md:text-sm text-gray-600">Total</p>
             </button>
           </div>
 
@@ -119,40 +184,43 @@ const PMDashboard = () => {
             {/* Progress Overview - Responsive */}
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
               <div className="flex items-center justify-between mb-4 md:mb-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Progress Overview</h2>
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Recent Projects</h2>
                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               
               <div className="space-y-4 md:space-y-6">
-                <div>
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Website Redesign</span>
-                    <span className="text-gray-900 font-medium">65%</span>
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="flex justify-between mb-2">
+                          <div className="h-4 bg-gray-200 rounded w-24"></div>
+                          <div className="h-4 bg-gray-200 rounded w-8"></div>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2"></div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full" style={{width: '65%'}}></div>
+                ) : recentProjects.length > 0 ? (
+                  recentProjects.slice(0, 3).map((project) => (
+                    <div key={project._id}>
+                      <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
+                        <span className="text-gray-600 truncate">{project.name}</span>
+                        <span className="text-gray-900 font-medium">{Math.round(project.progress || 0)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
+                        <div 
+                          className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-300" 
+                          style={{width: `${Math.round(project.progress || 0)}%`}}
+                        ></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 text-sm">No projects found</p>
                   </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Mobile App</span>
-                    <span className="text-gray-900 font-medium">20%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full" style={{width: '20%'}}></div>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Database Migration</span>
-                    <span className="text-gray-900 font-medium">100%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-                    <div className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full" style={{width: '100%'}}></div>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
