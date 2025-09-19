@@ -14,15 +14,19 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild',
+    target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
+          ui: ['@radix-ui/react-slot', 'lucide-react'],
+          motion: ['framer-motion', 'motion'],
         },
       },
     },
+    chunkSizeWarningLimit: 1000,
   },
   base: '/',
   server: {
