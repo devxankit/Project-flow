@@ -9,6 +9,10 @@
     "build": "echo 'No build step required'",
     "create-users": "node scripts/createUsers.js",
     "clear-users": "node scripts/clearUsers.js",
+    "setup-profile-tests": "node scripts/setupProfileTestUsers.js",
+    "test-profile": "node scripts/testProfileFunctionality.js",
+    "demo-profile": "node scripts/demoProfileAPI.js",
+    "cleanup-profile-tests": "node scripts/setupProfileTestUsers.js cleanup",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

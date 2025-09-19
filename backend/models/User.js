@@ -57,6 +57,20 @@ const userSchema = new mongoose.Schema({
       }
     }
   },
+  profileImage: {
+    url: {
+      type: String,
+      default: null
+    },
+    cloudinaryId: {
+      type: String,
+      default: null
+    },
+    uploadedAt: {
+      type: Date,
+      default: null
+    }
+  },
   
   // Employee-specific fields
   department: {

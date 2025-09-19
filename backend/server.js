@@ -11,6 +11,7 @@ const connectDB = require('./config/db');
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
 const taskRoutes = require('./routes/taskRoutes');
@@ -84,6 +85,7 @@ app.get('/api/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/profile', profileRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/tasks', taskRoutes);
