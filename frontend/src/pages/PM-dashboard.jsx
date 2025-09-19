@@ -203,9 +203,13 @@ const PMDashboard = () => {
                   </div>
                 ) : recentProjects.length > 0 ? (
                   recentProjects.slice(0, 3).map((project) => (
-                    <div key={project._id}>
+                    <div 
+                      key={project._id}
+                      onClick={() => navigate(`/project/${project._id}`)}
+                      className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200"
+                    >
                       <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                        <span className="text-gray-600 truncate">{project.name}</span>
+                        <span className="text-gray-600 truncate hover:text-primary transition-colors duration-200">{project.name}</span>
                         <span className="text-gray-900 font-medium">{Math.round(project.progress || 0)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">

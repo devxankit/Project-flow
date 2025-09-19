@@ -42,6 +42,7 @@ const PMMilestoneDetail = () => {
   const [newComment, setNewComment] = useState('');
   const [newAttachment, setNewAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [downloadingAttachment, setDownloadingAttachment] = useState(null);
 
   // Scroll to top when component mounts
   useScrollToTop();
@@ -390,6 +391,39 @@ const PMMilestoneDetail = () => {
     }
   };
 
+  const handleDownloadAttachment = async (attachment) => {
+    if (downloadingAttachment === attachment._id) {
+      return; // Prevent multiple downloads of the same file
+    }
+    
+    try {
+      setDownloadingAttachment(attachment._id);
+      
+      // Show loading toast
+      toast.info('Download', 'Preparing download...');
+      
+      // First, let's debug the attachment details
+      console.log('Attempting to download attachment:', attachment);
+      
+      // Try to debug the attachment first
+      try {
+        const debugResult = await milestoneApi.debugAttachment(id, projectId, attachment._id);
+        console.log('Debug result:', debugResult);
+      } catch (debugError) {
+        console.warn('Debug failed:', debugError);
+      }
+      
+      // Now try the download
+      await milestoneApi.downloadAttachment(id, projectId, attachment._id);
+      toast.success('Success', 'File downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading attachment:', error);
+      toast.error('Error', `Failed to download file: ${error.message}`);
+    } finally {
+      setDownloadingAttachment(null);
+    }
+  };
+
   const statusOptions = [
     { value: 'Pending', label: 'Pending', color: 'bg-gray-100 text-gray-800' },
     { value: 'In Progress', label: 'In Progress', color: 'bg-primary/10 text-primary' },
@@ -706,21 +740,29 @@ const PMMilestoneDetail = () => {
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <a 
-                      href={attachment.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                    <button 
+                      onClick={() => handleDownloadAttachment(attachment)}
                       className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      title="View file"
                     >
                       <Eye className="h-4 w-4" />
-                    </a>
-                    <a 
-                      href={attachment.url} 
-                      download={attachment.originalName}
-                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    </button>
+                    <button 
+                      onClick={() => handleDownloadAttachment(attachment)}
+                      disabled={downloadingAttachment === attachment._id}
+                      className={`p-2 rounded-lg transition-colors ${
+                        downloadingAttachment === attachment._id
+                          ? 'text-gray-300 cursor-not-allowed'
+                          : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                      }`}
+                      title={downloadingAttachment === attachment._id ? "Downloading..." : "Download file"}
                     >
-                      <Download className="h-4 w-4" />
-                    </a>
+                      {downloadingAttachment === attachment._id ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
                 </div>
               ))}

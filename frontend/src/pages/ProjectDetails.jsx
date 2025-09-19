@@ -60,6 +60,7 @@ const ProjectDetails = () => {
   // Load project data on component mount
   useEffect(() => {
     if (id) {
+      setIsLoading(true);
       loadProject();
       loadMilestones();
       loadTasks();
@@ -68,12 +69,16 @@ const ProjectDetails = () => {
 
   const loadProject = async () => {
     try {
+      console.log('Loading project with ID:', id);
       setLoadingStates(prev => ({ ...prev, project: true }));
       const response = await projectApi.getProjectById(id);
+      console.log('Project loaded successfully:', response);
       setProject(response.data);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error loading project:', error);
       toast.error('Error', 'Failed to load project details');
+      setIsLoading(false);
       navigate('/projects');
     } finally {
       setLoadingStates(prev => ({ ...prev, project: false }));

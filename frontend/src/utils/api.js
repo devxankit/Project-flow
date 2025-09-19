@@ -1,5 +1,5 @@
 // API utility functions for user management
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Simple request throttling to prevent 429 errors
 const requestQueue = new Map();
@@ -531,5 +531,85 @@ export const milestoneApi = {
     });
     
     return handleApiResponse(response);
+  },
+
+  // Debug milestone attachment details
+  debugAttachment: async (milestoneId, projectId, attachmentId) => {
+    const url = `${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}/attachment/${attachmentId}/debug`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    return handleApiResponse(response);
+  },
+
+  // Download milestone attachment
+  downloadAttachment: async (milestoneId, projectId, attachmentId) => {
+    const url = `${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}/attachment/${attachmentId}/download`;
+    
+    try {
+      console.log('Starting file download...');
+      
+      // Fetch the file directly from our backend (which proxies from Cloudinary)
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      console.log('Download response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('File access denied. Please check your permissions.');
+        } else if (response.status === 404) {
+          throw new Error('File not found. The file may have been moved or deleted.');
+        } else {
+          throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+        }
+      }
+      
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'download';
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      console.log('Downloaded filename:', filename);
+      
+      // Convert response to blob
+      const blob = await response.blob();
+      console.log('File blob created:', blob);
+      
+      // Create download link
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      setTimeout(() => {
+        window.URL.revokeObjectURL(blobUrl);
+        console.log('Blob URL cleaned up');
+      }, 1000);
+      
+      console.log('Download completed successfully');
+      
+    } catch (error) {
+      console.error('Download error:', error);
+      throw error;
+    }
   }
 };
