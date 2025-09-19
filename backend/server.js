@@ -15,6 +15,9 @@ const profileRoutes = require('./routes/profileRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const milestoneRoutes = require('./routes/milestoneRoutes');
 const taskRoutes = require('./routes/taskRoutes');
+const employeeRoutes = require('./routes/employeeRoutes');
+const customerRoutes = require('./routes/customerRoutes');
+const taskRequestRoutes = require('./routes/taskRequestRoutes');
 
 const app = express();
 
@@ -97,6 +100,9 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/milestones', milestoneRoutes);
 app.use('/api/tasks', taskRoutes);
+app.use('/api/employee', employeeRoutes);
+app.use('/api/customer', customerRoutes);
+app.use('/api/task-requests', taskRequestRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
