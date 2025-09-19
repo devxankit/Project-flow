@@ -31,7 +31,7 @@ app.use(helmet({
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://project-flow-gilt.vercel.app',
+  'https://project-flow-vert.vercel.app',
   'https://projectflow-frontend.vercel.app',
   'https://projectflow.vercel.app'
 ];
