@@ -1,26 +1,44 @@
 // API utility functions for user management
+// Build timestamp: 2025-09-19T12:45:00Z - Force Vercel rebuild
+
 // Determine the correct API URL based on environment
 const getApiBaseUrl = () => {
+  const hostname = window.location.hostname;
+  const isVercel = hostname.includes('vercel.app');
+  const isProduction = import.meta.env.PROD;
+  
+  console.log('🔍 Environment check:', {
+    hostname,
+    isVercel,
+    isProduction,
+    mode: import.meta.env.MODE,
+    viteApiUrl: import.meta.env.VITE_API_URL
+  });
+  
   // If environment variable is set, use it
   if (import.meta.env.VITE_API_URL) {
+    console.log('✅ Using VITE_API_URL:', import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
   
-  // If we're in production (deployed on Vercel), use Render backend
-  if (import.meta.env.PROD || window.location.hostname.includes('vercel.app')) {
-    return 'https://project-flow-hyas.onrender.com/api';
+  // If we're on Vercel (production), ALWAYS use Render backend
+  if (isVercel || isProduction) {
+    const renderUrl = 'https://project-flow-hyas.onrender.com/api';
+    console.log('✅ Using Render backend for production:', renderUrl);
+    return renderUrl;
   }
   
   // For local development, use localhost
-  return 'http://localhost:5000/api';
+  const localhostUrl = 'http://localhost:5000/api';
+  console.log('✅ Using localhost for development:', localhostUrl);
+  return localhostUrl;
 };
 
 const API_BASE_URL = getApiBaseUrl();
 
-// Log the API URL for debugging
-console.log('🌐 API Base URL:', API_BASE_URL);
-console.log('🔍 Environment:', import.meta.env.MODE);
-console.log('🏠 Hostname:', window.location.hostname);
+// Log the final API URL for debugging
+console.log('🌐 FINAL API Base URL:', API_BASE_URL);
+console.log('🚀 Build timestamp: 2025-09-19T12:45:00Z');
 
 // Simple request throttling to prevent 429 errors
 const requestQueue = new Map();
