@@ -148,14 +148,7 @@ const CustomerProfile = () => {
       formData.append('profileImage', file);
 
       // Custom API call for image upload to avoid automatic redirect on 401
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/profile/image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
+      const response = await api.post('/profile/image', formData);
 
       const responseData = await response.json();
       const apiResponse = {
