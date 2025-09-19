@@ -1,14 +1,83 @@
 ---
 description: |
+  ## DESIGN & VISUAL ELEMENTS RULES
+  
+  ### 1. THEME & COLORS
   1. All pages and components must use the project's centralized color theme. Use theme variables or utility classes for colors, backgrounds, and gradients. Do not hardcode color values.
-  2. Every new page and component must be fully responsive, with a mobile-first layout as the default. Design for small screens first, then enhance for tablets and desktops.
-  3. The website should look and function like a mobile app on mobile devices, with navigation and UI optimized for touch and small screens.
-  4. Desktop and larger screen layouts must be visually appealing and make good use of available space, but mobile experience is the priority.
-  5. Use CSS variables, Tailwind classes, or theme utilities for all color and spacing decisions.
-  6. Test all new UI on both mobile and desktop breakpoints before merging.
-  7. Do not introduce any new color, font, or spacing outside the theme configuration.
-  8. Navigation and interactive elements must be easily accessible and usable on mobile devices.
-  9. Document any new component’s responsive behavior and color usage in its code comments.
+  2. Use CSS variables, Tailwind classes, or theme utilities for all color and spacing decisions.
+  3. Do not introduce any new color, font, or spacing outside the theme configuration.
+  4. Use gradient backgrounds for icons: `bg-gradient-to-br from-primary/10 to-primary/20`
+  5. Use consistent color schemes for status badges and priority indicators.
+
+  ### 2. RESPONSIVE DESIGN
+  6. Every new page and component must be fully responsive, with a mobile-first layout as the default. Design for small screens first, then enhance for tablets and desktops.
+  7. The website should look and function like a mobile app on mobile devices, with navigation and UI optimized for touch and small screens.
+  8. Desktop and larger screen layouts must be visually appealing and make good use of available space, but mobile experience is the priority.
+  9. Test all new UI on both mobile and desktop breakpoints before merging.
+  10. Navigation and interactive elements must be easily accessible and usable on mobile devices.
+
+  ### 3. ICONS & VISUAL ELEMENTS
+  11. **ALWAYS include appropriate icons** for all UI elements (headers, cards, buttons, tabs, stats)
+  12. **Use consistent icon sizing**: Mobile icons `h-5 w-5` or `h-6 w-6`, Desktop icons `h-8 w-8`
+  13. **Icon backgrounds**: Use gradient backgrounds with rounded corners for all icons
+  14. **Required icons for different sections**:
+     - Project headers: `FolderKanban` icon
+     - Milestone cards: `Target` icon
+     - Task cards: `CheckSquare` icon
+     - Team sections: `Users` icon
+     - Stats cards: `TrendingUp`, `CheckSquare`, `Users` icons
+     - Action buttons: `Flag`, `Plus`, `Edit`, `Trash2` icons
+     - Tabs: `BarChart3`, `Target`, `CheckSquare`, `Users` icons
+  15. **Never remove icons** when converting from mock data to real data
+  16. **Maintain visual hierarchy** with proper icon placement and sizing
+
+  ### 4. CARD & LAYOUT DESIGN
+  17. **Card styling**: Use `rounded-2xl` for mobile, `rounded-xl` for desktop
+  18. **Shadow effects**: Use `shadow-sm` for cards, `shadow-lg` for buttons
+  19. **Hover effects**: Include `hover:shadow-md`, `hover:border-primary/20`, `transform hover:-translate-y-0.5`
+  20. **Progress bars**: Use gradient backgrounds `bg-gradient-to-r from-primary to-primary-dark`
+  21. **Status badges**: Use color-coded badges with proper contrast
+  22. **Spacing**: Use consistent padding (`p-4`, `p-6`, `p-8`) and margins
+
+  ### 5. DATA INTEGRATION
+  23. **When converting from mock to real data**: Preserve ALL visual elements, icons, and styling
+  24. **Real data mapping**: Ensure all mock data fields are properly mapped to real API responses
+  25. **Fallback values**: Provide fallback values for missing data (e.g., 'No description available')
+  26. **Data validation**: Handle cases where data might be null or undefined
+  27. **Loading states**: Include proper loading indicators and error handling
+
+  ### 6. COMPONENT STRUCTURE
+  28. **Header sections**: Always include icons with gradient backgrounds
+  29. **Tab navigation**: Include icons for each tab with proper active/inactive states
+  30. **Action buttons**: Include icons and proper hover/active states
+  31. **Stats cards**: Include icons, numbers, and descriptive text
+  32. **Empty states**: Include icons and helpful messaging
+
+  ### 7. ANIMATION & INTERACTIONS
+  33. **Smooth transitions**: Use `transition-all duration-200` or `duration-300`
+  34. **Hover animations**: Include scale effects `hover:scale-[1.02]` or `hover:scale-105`
+  35. **Active states**: Include `active:scale-[0.98]` or `active:scale-95`
+  36. **Loading animations**: Use `animate-spin` for loading states
+
+  ### 8. CODE QUALITY
+  37. **Document any new component's responsive behavior and color usage in its code comments**
+  38. **Avoid duplicate function declarations** - check for existing functions before creating new ones
+  39. **Use consistent naming conventions** for functions and variables
+  40. **Follow React Hooks rules** - hooks must be called in the same order every time
+  41. **Handle errors gracefully** with proper error messages and fallbacks
+
+  ### 9. TESTING & VALIDATION
+  42. **Visual testing**: Ensure all icons and visual elements are present after data integration
+  43. **Responsive testing**: Test on mobile, tablet, and desktop breakpoints
+  44. **Functionality testing**: Ensure all interactive elements work with real data
+  45. **Error handling**: Test with missing or invalid data scenarios
+
+  ### 10. COMMON MISTAKES TO AVOID
+  46. **Never remove icons** when switching from mock to real data
+  47. **Never hardcode colors** - always use theme variables
+  48. **Never skip responsive design** - mobile-first approach is mandatory
+  49. **Never forget hover effects** - all interactive elements need hover states
+  50. **Never ignore loading states** - always handle async operations properly
 globs:
 alwaysApply: true
 ---
