@@ -27,48 +27,40 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
-// CORS configuration
+// CORS configuration - Simple and robust approach
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:5173',
+  'http://localhost:3000',
   'https://project-flow-gilt.vercel.app',
   'https://projectflow-frontend.vercel.app',
   'https://projectflow.vercel.app'
 ];
 
-// Log allowed origins for debugging
-console.log('Allowed CORS origins:', allowedOrigins);
+console.log('🚀 Server starting with CORS origins:', allowedOrigins);
 
-app.use(cors({
-  origin: function (origin, callback) {
-    console.log('CORS request from origin:', origin);
+// Simple CORS middleware that works reliably
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  console.log('📡 Request from origin:', origin);
+  
+  // Allow requests from allowed origins or no origin (mobile apps, Postman, etc.)
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) {
-      console.log('Allowing request with no origin');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      console.log('CORS allowed for origin:', origin);
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  optionsSuccessStatus: 200
-}));
-
-// Handle preflight requests
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(200);
+    console.log('✅ CORS allowed for origin:', origin || 'no-origin');
+  } else {
+    console.log('❌ CORS blocked origin:', origin);
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
 });
 
 // Rate limiting
