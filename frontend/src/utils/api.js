@@ -1,5 +1,26 @@
 // API utility functions for user management
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-flow-hyas.onrender.com/api';
+// Determine the correct API URL based on environment
+const getApiBaseUrl = () => {
+  // If environment variable is set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  
+  // If we're in production (deployed on Vercel), use Render backend
+  if (import.meta.env.PROD || window.location.hostname.includes('vercel.app')) {
+    return 'https://project-flow-hyas.onrender.com/api';
+  }
+  
+  // For local development, use localhost
+  return 'http://localhost:5000/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
+
+// Log the API URL for debugging
+console.log('🌐 API Base URL:', API_BASE_URL);
+console.log('🔍 Environment:', import.meta.env.MODE);
+console.log('🏠 Hostname:', window.location.hostname);
 
 // Simple request throttling to prevent 429 errors
 const requestQueue = new Map();
