@@ -15,111 +15,57 @@ import {
   BarChart3,
   FileText,
   Flag,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const CustomerProjectDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
   const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [projectData, setProjectData] = useState(null);
 
-  // Mock project data - should match the data from CustomerDashboard
-  const projectsData = [
-    {
-      id: 1,
-      name: 'Website Redesign',
-      description: 'Complete redesign of company website with modern UI/UX and improved user experience',
-      status: 'In Progress',
-      progress: 65,
-      team: 4,
-      dueDate: '2025-10-15',
-      priority: 'High',
-      startDate: '2024-01-01',
-      budget: '$50,000',
-      client: 'Acme Corporation',
-      totalTasks: 24,
-      completedTasks: 16,
-      dueSoonTasks: 3,
-      overdueTasks: 1
-    },
-    {
-      id: 2,
-      name: 'Mobile App Development',
-      description: 'iOS and Android app for customer portal with modern features and intuitive design',
-      status: 'Planning',
-      progress: 20,
-      team: 6,
-      dueDate: '2025-01-15',
-      priority: 'Medium',
-      startDate: '2024-02-01',
-      budget: '$75,000',
-      client: 'TechCorp Inc',
-      totalTasks: 18,
-      completedTasks: 4,
-      dueSoonTasks: 2,
-      overdueTasks: 0
-    },
-    {
-      id: 3,
-      name: 'Database Migration',
-      description: 'Migrate to new database system for better performance and scalability',
-      status: 'Completed',
-      progress: 100,
-      team: 3,
-      dueDate: '2024-01-20',
-      priority: 'High',
-      startDate: '2023-12-01',
-      budget: '$30,000',
-      client: 'DataFlow Systems',
-      totalTasks: 12,
-      completedTasks: 12,
-      dueSoonTasks: 0,
-      overdueTasks: 0
-    },
-    {
-      id: 4,
-      name: 'API Integration',
-      description: 'Integrate third-party APIs for enhanced functionality and seamless user experience',
-      status: 'In Progress',
-      progress: 40,
-      team: 2,
-      dueDate: '2024-12-30',
-      priority: 'Low',
-      startDate: '2024-03-01',
-      budget: '$25,000',
-      client: 'Integration Solutions',
-      totalTasks: 8,
-      completedTasks: 3,
-      dueSoonTasks: 1,
-      overdueTasks: 0
-    }
-  ];
-
-  // Find the project based on the ID parameter
-  const project = projectsData.find(p => p.id === parseInt(id));
-  
-  // If project not found, redirect to customer dashboard
+  // Fetch project data
   useEffect(() => {
-    if (!project) {
-      navigate('/customer-dashboard');
+    const fetchProjectData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/customer/projects/${id}`);
+        if (response.data.success) {
+          setProjectData(response.data.data);
+        } else {
+          toast.error('Error', 'Project not found');
+          navigate('/customer-dashboard');
+        }
+      } catch (error) {
+        console.error('Error fetching project data:', error);
+        toast.error('Error', 'Failed to load project data');
+        navigate('/customer-dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchProjectData();
     }
-  }, [project, navigate]);
+  }, [id, navigate, toast]);
 
-  // Scroll to top when component mounts
-  useScrollToTop();
-  
-  // Return early if project not found
-  if (!project) {
-    return null;
-  }
-
-  // Countdown logic
+  // Countdown logic - moved before early returns to maintain hook order
   useEffect(() => {
+    if (!projectData?.project?.dueDate) return;
+    
     const calculateTimeLeft = () => {
       const now = new Date();
-      const dueDate = new Date(project.dueDate);
+      const dueDate = new Date(projectData.project.dueDate);
       const difference = dueDate.getTime() - now.getTime();
 
       if (difference > 0) {
@@ -153,36 +99,46 @@ const CustomerProjectDetails = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [project.dueDate]);
+  }, [projectData?.project?.dueDate]);
 
-  const milestones = [
-    { id: 1, title: 'Design Phase', status: 'Completed', progress: 100, dueDate: '2024-01-15', value: 'milestone-1', label: 'Design Phase' },
-    { id: 2, title: 'Development Phase', status: 'In Progress', progress: 65, dueDate: '2024-02-15', value: 'milestone-2', label: 'Development Phase' },
-    { id: 3, title: 'Testing Phase', status: 'Pending', progress: 0, dueDate: '2024-02-20', value: 'milestone-3', label: 'Testing Phase' },
-    { id: 4, title: 'Launch Phase', status: 'Pending', progress: 0, dueDate: '2024-02-25', value: 'milestone-4', label: 'Launch Phase' }
-  ];
+  // Scroll to top when component mounts
+  useScrollToTop();
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <CustomerNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading project details...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Return early if no project data
+  if (!projectData) {
+    return null;
+  }
+
+  // Extract project data
+  const { project, milestones, tasks } = projectData;
+
+  // Milestones and tasks are now coming from API data
 
   // Handle task request submission
   const handleTaskRequestSubmit = (requestData) => {
     console.log('Task request submitted:', requestData);
-    // In a real app, this would send the request to the backend
-    // For now, we'll just show a success message
-    alert('Task request submitted successfully! The project manager will review your request.');
+    // The TaskRequestForm component now handles the API call directly
+    // This callback is called after successful submission
   };
 
-  const tasks = [
-    { id: 1, title: 'Create wireframes', description: 'Design initial wireframes for all pages', status: 'Completed', assignee: 'John Doe', dueDate: '2024-01-10' },
-    { id: 2, title: 'Design homepage', description: 'Create modern homepage design with responsive layout', status: 'In Progress', assignee: 'Jane Smith', dueDate: '2024-02-05' },
-    { id: 3, title: 'Implement responsive design', description: 'Ensure all pages work perfectly on mobile devices', status: 'Pending', assignee: 'Mike Johnson', dueDate: '2024-02-12' },
-    { id: 4, title: 'Content integration', description: 'Integrate all content and copy into the new design', status: 'Pending', assignee: 'Sarah Wilson', dueDate: '2024-02-15' }
-  ];
-
-  const team = [
-    { id: 1, name: 'John Doe', role: 'Project Manager', avatar: 'JD', status: 'online' },
-    { id: 2, name: 'Jane Smith', role: 'UI/UX Designer', avatar: 'JS', status: 'online' },
-    { id: 3, name: 'Mike Johnson', role: 'Frontend Developer', avatar: 'MJ', status: 'away' },
-    { id: 4, name: 'Sarah Wilson', role: 'Backend Developer', avatar: 'SW', status: 'offline' }
-  ];
+  // Team data comes from project.assignedTeam
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
@@ -192,19 +148,47 @@ const CustomerProjectDetails = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'active': return 'bg-primary/10 text-primary border-primary/20';
+      case 'planning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'on-hold': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'normal': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatStatus = (status) => {
+    switch (status) {
+      case 'completed': return 'Completed';
+      case 'active': return 'In Progress';
+      case 'planning': return 'Planning';
+      case 'on-hold': return 'On Hold';
+      case 'cancelled': return 'Cancelled';
+      case 'pending': return 'Pending';
+      case 'in-progress': return 'In Progress';
+      default: return status;
+    }
+  };
+
+  const formatPriority = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgent';
+      case 'high': return 'High';
+      case 'normal': return 'Medium';
+      case 'low': return 'Low';
+      default: return priority;
     }
   };
 
@@ -271,12 +255,12 @@ const CustomerProjectDetails = () => {
                 <CheckSquare className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{project.totalTasks}</div>
+                <div className="text-2xl font-bold text-gray-900">{project.totalTasks || 0}</div>
                 <div className="text-xs text-gray-500">Total Tasks</div>
               </div>
             </div>
             <div className="text-xs text-gray-600">
-              {project.completedTasks} completed
+              {project.completedTasks || 0} completed
             </div>
           </div>
 
@@ -287,7 +271,7 @@ const CustomerProjectDetails = () => {
                 <Users className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{project.team}</div>
+                <div className="text-2xl font-bold text-gray-900">{project.assignedTeam?.length || 0}</div>
                 <div className="text-xs text-gray-500">Team Members</div>
               </div>
             </div>
@@ -336,13 +320,13 @@ const CustomerProjectDetails = () => {
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
             <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">
-                {project.client.split(' ').map(word => word[0]).join('').substring(0, 2)}
+                {project.customer?.fullName?.split(' ').map(word => word[0]).join('').substring(0, 2) || 'C'}
               </span>
             </div>
           </div>
           <div>
             <p className="text-sm font-semibold text-primary/80 uppercase tracking-wide mb-1">Client</p>
-            <p className="text-lg font-bold text-gray-900">{project.client}</p>
+            <p className="text-lg font-bold text-gray-900">{project.customer?.fullName || 'Customer'}</p>
           </div>
         </div>
 
@@ -357,7 +341,7 @@ const CustomerProjectDetails = () => {
               <div>
                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Start Date</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {new Date(project.startDate).toLocaleDateString('en-US', { 
+                  {new Date(project.createdAt).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'short', 
                     day: 'numeric' 
@@ -394,14 +378,14 @@ const CustomerProjectDetails = () => {
     <div className="space-y-4">
       {milestones.map((milestone) => (
         <div 
-          key={milestone.id} 
-          onClick={() => navigate(`/customer-milestone/${milestone.id}`)}
+          key={milestone._id} 
+          onClick={() => navigate(`/customer-milestone/${milestone._id}`)}
           className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-base md:text-lg font-semibold text-gray-900 hover:text-primary transition-colors">{milestone.title}</h3>
             <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(milestone.status)}`}>
-              {milestone.status}
+              {formatStatus(milestone.status)}
             </span>
           </div>
           <div className="mb-3">
@@ -442,18 +426,18 @@ const CustomerProjectDetails = () => {
       <div className="space-y-3">
         {tasks.map((task) => (
         <div 
-          key={task.id} 
-          onClick={() => navigate(`/customer-task/${task.id}`)}
+          key={task._id} 
+          onClick={() => navigate(`/customer-task/${task._id}`)}
           className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center space-x-4">
             {/* Checkbox */}
             <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-              task.status === 'Completed' 
+              task.status === 'completed' 
                 ? 'bg-primary border-primary' 
                 : 'border-gray-300 group-hover:border-primary'
             }`}>
-              {task.status === 'Completed' && (
+              {task.status === 'completed' && (
                 <CheckSquare className="h-3 w-3 text-white" />
               )}
             </div>
@@ -462,20 +446,20 @@ const CustomerProjectDetails = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-2">
                 <h3 className={`text-base font-semibold transition-colors duration-200 ${
-                  task.status === 'Completed' 
+                  task.status === 'completed' 
                     ? 'text-gray-500 line-through' 
                     : 'text-gray-900 group-hover:text-primary'
                 }`}>
                   {task.title}
                 </h3>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  task.status === 'Completed' 
+                  task.status === 'completed' 
                     ? 'bg-green-100 text-green-800' 
-                    : task.status === 'In Progress'
+                    : task.status === 'in-progress'
                     ? 'bg-primary/10 text-primary'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {task.status}
+                  {formatStatus(task.status)}
                 </span>
               </div>
               
@@ -486,7 +470,7 @@ const CustomerProjectDetails = () => {
               <div className="flex items-center space-x-4 text-sm text-gray-500">
                 <div className="flex items-center space-x-1.5">
                   <User className="h-3.5 w-3.5" />
-                  <span>{task.assignee}</span>
+                  <span>{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
                 </div>
                 <div className="flex items-center space-x-1.5">
                   <Calendar className="h-3.5 w-3.5" />
@@ -579,10 +563,10 @@ const CustomerProjectDetails = () => {
                     <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
-                        {project.status}
+                        {formatStatus(project.status)}
                       </span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(project.priority)}`}>
-                        {project.priority}
+                        {formatPriority(project.priority)}
                       </span>
                       {/* Show overdue tag only if project is overdue */}
                       {(() => {
@@ -679,7 +663,7 @@ const CustomerProjectDetails = () => {
         isOpen={isTaskRequestFormOpen}
         onClose={() => setIsTaskRequestFormOpen(false)}
         onSubmit={handleTaskRequestSubmit}
-        projectId={project.id}
+        projectId={project._id}
         projectName={project.name}
         milestones={milestones}
       />

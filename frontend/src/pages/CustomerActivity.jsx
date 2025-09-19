@@ -1,94 +1,59 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { Activity, Filter, Calendar, User, Clock, CheckCircle, MessageSquare, BarChart3, FolderPlus, Eye } from 'lucide-react';
+import { Activity, Filter, Calendar, User, Clock, CheckCircle, MessageSquare, BarChart3, FolderPlus, Eye, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const CustomerActivity = () => {
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  const activities = [
-    {
-      id: 1,
-      type: 'task_completed',
-      title: 'Task completed',
-      description: 'John Doe completed "Update homepage design"',
-      timestamp: '2024-02-08T10:30:00Z',
-      user: 'John Doe',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      icon: CheckCircle,
-      color: 'text-green-600',
-      shareable: true
-    },
-    {
-      id: 2,
-      type: 'project_updated',
-      title: 'Project updated',
-      description: 'Project "Website Redesign" progress updated to 65%',
-      timestamp: '2024-02-08T09:15:00Z',
-      user: 'Jane Smith',
-      project: 'Website Redesign',
-      milestone: null,
-      icon: BarChart3,
-      color: 'text-indigo-600',
-      shareable: true
-    },
-    {
-      id: 3,
-      type: 'milestone_reached',
-      title: 'Milestone reached',
-      description: 'Design Phase milestone completed for "Website Redesign"',
-      timestamp: '2024-02-08T08:45:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      icon: FolderPlus,
-      color: 'text-blue-600',
-      shareable: true
-    },
-    {
-      id: 4,
-      type: 'task_created',
-      title: 'Task created',
-      description: 'New task "Review user feedback" was created',
-      timestamp: '2024-02-07T16:20:00Z',
-      user: 'Sarah Wilson',
-      project: 'Mobile App Development',
-      milestone: 'Testing Phase',
-      icon: CheckCircle,
-      color: 'text-orange-600',
-      shareable: true
-    },
-    {
-      id: 5,
-      type: 'project_created',
-      title: 'Project created',
-      description: 'New project "Mobile App Development" was created',
-      timestamp: '2024-02-07T14:10:00Z',
-      user: 'John Doe',
-      project: 'Mobile App Development',
-      milestone: null,
-      icon: FolderPlus,
-      color: 'text-blue-600',
-      shareable: true
-    },
-    {
-      id: 6,
-      type: 'comment_added',
-      title: 'Comment added',
-      description: 'Mike Johnson added a comment to "Database optimization"',
-      timestamp: '2024-02-07T11:30:00Z',
-      user: 'Mike Johnson',
-      project: 'Database Migration',
-      milestone: 'Backend Setup',
-      icon: MessageSquare,
-      color: 'text-purple-600',
-      shareable: false
-    }
-  ];
+  // Fetch activity data
+  useEffect(() => {
+    const fetchActivityData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/customer/activity');
+        if (response.data.success) {
+          setActivities(response.data.data.activities);
+        }
+      } catch (error) {
+        console.error('Error fetching activity data:', error);
+        toast.error('Error', 'Failed to load activity data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivityData();
+  }, [toast]);
+
+  // Activities data is now fetched from API
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <CustomerNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading activity...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const getActivityTypeColor = (type) => {
     switch (type) {

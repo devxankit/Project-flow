@@ -738,6 +738,53 @@ const api = {
       status: response.status,
       statusText: response.statusText
     };
+  },
+
+  // Employee-specific API functions
+  employee: {
+    // Get employee dashboard data
+    getDashboard: async () => {
+      return api.get('/employee/dashboard');
+    },
+
+    // Get employee assigned projects
+    getProjects: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/employee/projects${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get single project details for employee
+    getProjectDetails: async (projectId) => {
+      return api.get(`/employee/projects/${projectId}`);
+    },
+
+    // Get employee assigned tasks
+    getTasks: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/employee/tasks${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get single task for employee
+    getTask: async (taskId) => {
+      return api.get(`/employee/tasks/${taskId}`);
+    },
+
+    // Update task status
+    updateTaskStatus: async (taskId, status) => {
+      return api.put(`/employee/tasks/${taskId}/status`, { status });
+    },
+
+    // Get employee activity feed
+    getActivity: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/employee/activity${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get employee files
+    getFiles: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/employee/files${queryString ? `?${queryString}` : ''}`);
+    }
   }
 };
 

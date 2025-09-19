@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
@@ -15,107 +15,62 @@ import {
   File,
   Archive,
   Video,
-  Music
+  Music,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const CustomerFiles = () => {
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [files, setFiles] = useState([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock files data - only shareable files for customers
-  const files = [
-    {
-      id: 1,
-      name: 'project-requirements.pdf',
-      size: '2.4 MB',
-      type: 'pdf',
-      uploadedBy: 'John Doe',
-      uploadDate: '2024-01-15',
-      project: 'Website Redesign',
-      task: 'Create wireframes',
-      shareable: true
-    },
-    {
-      id: 2,
-      name: 'homepage-mockup.png',
-      size: '1.8 MB',
-      type: 'png',
-      uploadedBy: 'Jane Smith',
-      uploadDate: '2024-01-20',
-      project: 'Website Redesign',
-      task: 'Design homepage',
-      shareable: true
-    },
-    {
-      id: 3,
-      name: 'design-feedback.docx',
-      size: '156 KB',
-      type: 'docx',
-      uploadedBy: 'Mike Johnson',
-      uploadDate: '2024-01-22',
-      project: 'Website Redesign',
-      task: 'Create wireframes',
-      shareable: true
-    },
-    {
-      id: 4,
-      name: 'mobile-app-wireframes.pdf',
-      size: '3.2 MB',
-      type: 'pdf',
-      uploadedBy: 'Sarah Wilson',
-      uploadDate: '2024-01-25',
-      project: 'Mobile App Development',
-      task: 'Create wireframes',
-      shareable: true
-    },
-    {
-      id: 5,
-      name: 'database-schema.sql',
-      size: '45 KB',
-      type: 'sql',
-      uploadedBy: 'Alex Brown',
-      uploadDate: '2024-01-28',
-      project: 'Database Migration',
-      task: 'Database optimization',
-      shareable: true
-    },
-    {
-      id: 6,
-      name: 'api-documentation.pdf',
-      size: '1.2 MB',
-      type: 'pdf',
-      uploadedBy: 'Emma Davis',
-      uploadDate: '2024-01-30',
-      project: 'API Integration',
-      task: 'API documentation',
-      shareable: true
-    },
-    {
-      id: 7,
-      name: 'user-research-report.pdf',
-      size: '4.1 MB',
-      type: 'pdf',
-      uploadedBy: 'John Doe',
-      uploadDate: '2024-02-01',
-      project: 'Mobile App Development',
-      task: 'Review user feedback',
-      shareable: true
-    },
-    {
-      id: 8,
-      name: 'performance-test-results.xlsx',
-      size: '892 KB',
-      type: 'xlsx',
-      uploadedBy: 'Mike Johnson',
-      uploadDate: '2024-02-03',
-      project: 'API Integration',
-      task: 'Performance testing',
-      shareable: true
-    }
-  ];
+  // Fetch files data
+  useEffect(() => {
+    const fetchFilesData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/customer/files');
+        if (response.data.success) {
+          setFiles(response.data.data.files);
+        }
+      } catch (error) {
+        console.error('Error fetching files data:', error);
+        toast.error('Error', 'Failed to load files data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFilesData();
+  }, [toast]);
+
+  // Files data is now fetched from API
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <CustomerNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading files...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const getFileIcon = (type) => {
     switch (type) {

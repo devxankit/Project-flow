@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { Combobox } from '../components/magicui/combobox';
@@ -18,117 +18,71 @@ import {
   Archive,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const EmployeeFiles = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [files, setFiles] = useState([]);
+  const [pagination, setPagination] = useState(null);
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock user data
-  const currentUser = {
-    fullName: 'Mike Johnson',
-    email: 'mike.johnson@company.com',
-    role: 'Frontend Developer'
-  };
+  // Fetch files data
+  useEffect(() => {
+    const fetchFiles = async () => {
+      try {
+        setLoading(true);
+        const response = await api.employee.getFiles({ 
+          type: filterType === 'all' ? undefined : filterType,
+          status: filterStatus === 'all' ? undefined : filterStatus
+        });
+        
+        if (response.data && response.data.success) {
+          setFiles(response.data.data?.files || []);
+          setPagination(response.data.data?.pagination || null);
+        } else {
+          toast.error('Error', 'Failed to load files');
+        }
+      } catch (error) {
+        console.error('Error fetching files:', error);
+        toast.error('Error', 'Failed to load files');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Mock files data - files related to employee's tasks and milestones
-  const files = [
-    {
-      id: 1,
-      name: 'homepage-design-mockup.fig',
-      type: 'design',
-      size: '2.4 MB',
-      uploadedBy: 'Sarah Johnson',
-      uploadedDate: '2024-02-05T10:30:00Z',
-      task: 'Update homepage design',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      status: 'active',
-      description: 'Latest design mockups for homepage redesign',
-      downloadCount: 12,
-      lastAccessed: '2024-02-08T14:20:00Z'
-    },
-    {
-      id: 2,
-      name: 'responsive-guidelines.pdf',
-      type: 'document',
-      size: '1.8 MB',
-      uploadedBy: 'John Doe',
-      uploadedDate: '2024-02-03T09:15:00Z',
-      task: 'Implement responsive design',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      status: 'active',
-      description: 'Responsive design guidelines and best practices',
-      downloadCount: 8,
-      lastAccessed: '2024-02-07T16:45:00Z'
-    },
-    {
-      id: 3,
-      name: 'navigation-bug-report.docx',
-      type: 'document',
-      size: '456 KB',
-      uploadedBy: 'Mike Johnson',
-      uploadedDate: '2024-02-06T11:20:00Z',
-      task: 'Fix navigation bugs',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      status: 'active',
-      description: 'Detailed bug report for navigation issues',
-      downloadCount: 3,
-      lastAccessed: '2024-02-08T09:30:00Z'
-    },
-    {
-      id: 4,
-      name: 'mobile-screenshots.zip',
-      type: 'archive',
-      size: '5.2 MB',
-      uploadedBy: 'Emily Davis',
-      uploadedDate: '2024-02-04T15:45:00Z',
-      task: 'Update homepage design',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      status: 'active',
-      description: 'Screenshots of mobile navigation issues',
-      downloadCount: 5,
-      lastAccessed: '2024-02-07T13:15:00Z'
-    },
-    {
-      id: 5,
-      name: 'api-documentation.pdf',
-      type: 'document',
-      size: '3.1 MB',
-      uploadedBy: 'Alex Rodriguez',
-      uploadedDate: '2024-02-02T14:30:00Z',
-      task: 'API integration setup',
-      project: 'Mobile App Development',
-      milestone: 'Backend Setup',
-      status: 'active',
-      description: 'Complete API documentation for mobile app',
-      downloadCount: 15,
-      lastAccessed: '2024-02-08T10:15:00Z'
-    },
-    {
-      id: 6,
-      name: 'database-schema.sql',
-      type: 'code',
-      size: '892 KB',
-      uploadedBy: 'Lisa Wang',
-      uploadedDate: '2024-02-01T16:20:00Z',
-      task: 'Database optimization',
-      project: 'Database Migration',
-      milestone: 'Migration Phase',
-      status: 'archived',
-      description: 'Updated database schema for migration',
-      downloadCount: 7,
-      lastAccessed: '2024-02-05T11:40:00Z'
-    }
-  ];
+    fetchFiles();
+  }, [filterType, filterStatus, toast]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading files...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
 
   const getFileIcon = (type) => {
     switch (type) {
@@ -174,14 +128,12 @@ const EmployeeFiles = () => {
     }
   };
 
+  // Filter files based on search term (backend handles type and status filtering)
   const filteredFiles = files.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.task.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || file.type === filterType;
-    const matchesStatus = filterStatus === 'all' || file.status === filterStatus;
-    
-    return matchesSearch && matchesType && matchesStatus;
+    if (!searchTerm) return true;
+    return file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           file.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           file.task.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const handleDownload = (file) => {
@@ -258,7 +210,8 @@ const EmployeeFiles = () => {
 
           {/* Files Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredFiles.map((file) => {
+            {files.length > 0 ? (
+              files.map((file) => {
               const FileIcon = getFileIcon(file.type);
               const StatusIcon = getStatusIcon(file.status);
               
@@ -341,21 +294,15 @@ const EmployeeFiles = () => {
                   </div>
                 </div>
               );
-            })}
+              })
+            ) : (
+              <div className="text-center py-12 col-span-full">
+                <FileText className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No files found</h3>
+                <p className="mt-1 text-sm text-gray-500">No files are available for your assigned tasks yet</p>
+              </div>
+            )}
           </div>
-
-          {/* Empty State */}
-          {filteredFiles.length === 0 && (
-            <div className="text-center py-12">
-              <FileText className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No files found</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                {searchTerm || filterType !== 'all' || filterStatus !== 'all'
-                  ? 'Try adjusting your search or filter criteria.'
-                  : 'No files have been shared with your tasks yet.'}
-              </p>
-            </div>
-          )}
         </div>
       </main>
     </div>

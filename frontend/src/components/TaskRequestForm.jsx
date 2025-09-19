@@ -7,8 +7,11 @@ import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
 import { DatePicker } from './magicui/date-picker';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, milestones }) => {
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -105,22 +108,36 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
     setIsSubmitting(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const requestData = {
-        ...formData,
-        id: Date.now(),
-        status: 'Pending',
-        requestedBy: 'Customer', // In real app, this would be current user
-        requestedDate: new Date().toISOString(),
-        projectName: projectName
+        title: formData.title,
+        description: formData.description,
+        project: formData.project,
+        milestone: formData.milestone,
+        priority: formData.priority,
+        dueDate: formData.dueDate,
+        reason: formData.reason
       };
 
-      onSubmit(requestData);
-      handleClose();
+      const response = await api.post('/task-requests/customer', requestData);
+      
+      if (response.data.success) {
+        toast.success(
+          'Task Request Submitted!',
+          'Your task request has been submitted successfully. The project manager will review it soon.'
+        );
+        
+        // Call the onSubmit callback if provided
+        if (onSubmit) {
+          onSubmit(response.data.data);
+        }
+        
+        handleClose();
+      } else {
+        toast.error('Error', response.data.message || 'Failed to submit task request');
+      }
     } catch (error) {
       console.error('Error submitting task request:', error);
+      toast.error('Error', 'Failed to submit task request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

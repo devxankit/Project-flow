@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
@@ -15,129 +15,66 @@ import {
   FolderPlus,
   AlertTriangle,
   FileText,
-  FolderKanban
+  FolderKanban,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const EmployeeActivity = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState([]);
+  const [pagination, setPagination] = useState(null);
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock current user
-  const currentUser = {
-    fullName: 'Mike Johnson',
-    email: 'mike.johnson@company.com',
-    role: 'Frontend Developer'
-  };
+  // Fetch activity data
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        setLoading(true);
+        const response = await api.employee.getActivity({ type: filter === 'all' ? undefined : filter });
+        
+        if (response.data && response.data.success) {
+          setActivities(response.data.data?.activities || []);
+          setPagination(response.data.data?.pagination || null);
+        } else {
+          toast.error('Error', 'Failed to load activity data');
+        }
+      } catch (error) {
+        console.error('Error fetching activity:', error);
+        toast.error('Error', 'Failed to load activity data');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Activities related only to current employee's tasks and milestones
-  const activities = [
-    {
-      id: 1,
-      type: 'task_completed',
-      title: 'Task completed',
-      description: 'You completed "Update homepage design"',
-      timestamp: '2024-02-08T10:30:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      task: 'Update homepage design',
-      icon: CheckCircle,
-      color: 'text-green-600'
-    },
-    {
-      id: 2,
-      type: 'task_assigned',
-      title: 'Task assigned',
-      description: 'You were assigned to "Implement responsive design"',
-      timestamp: '2024-02-08T09:15:00Z',
-      user: 'John Doe',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      task: 'Implement responsive design',
-      icon: UserPlus,
-      color: 'text-yellow-600'
-    },
-    {
-      id: 3,
-      type: 'task_updated',
-      title: 'Task updated',
-      description: 'Task "Fix navigation bugs" status changed to In Progress',
-      timestamp: '2024-02-07T14:20:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      task: 'Fix navigation bugs',
-      icon: BarChart3,
-      color: 'text-purple-600'
-    },
-    {
-      id: 4,
-      type: 'comment_added',
-      title: 'Comment added',
-      description: 'You added a comment to "Update homepage design"',
-      timestamp: '2024-02-07T11:30:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      task: 'Update homepage design',
-      icon: MessageSquare,
-      color: 'text-indigo-600'
-    },
-    {
-      id: 5,
-      type: 'milestone_updated',
-      title: 'Milestone updated',
-      description: 'Milestone "Design Phase" progress updated to 75%',
-      timestamp: '2024-02-06T16:30:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      task: null,
-      icon: FolderPlus,
-      color: 'text-blue-600'
-    },
-    {
-      id: 6,
-      type: 'file_shared',
-      title: 'File shared',
-      description: 'Design mockup shared for "Update homepage design"',
-      timestamp: '2024-02-06T14:15:00Z',
-      user: 'Sarah Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      task: 'Update homepage design',
-      icon: FileText,
-      color: 'text-cyan-600'
-    },
-    {
-      id: 7,
-      type: 'task_created',
-      title: 'Task created',
-      description: 'New task "Mobile navigation testing" created and assigned to you',
-      timestamp: '2024-02-05T10:15:00Z',
-      user: 'John Doe',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      task: 'Mobile navigation testing',
-      icon: Plus,
-      color: 'text-orange-600'
-    },
-    {
-      id: 8,
-      type: 'milestone_completed',
-      title: 'Milestone completed',
-      description: 'Milestone "Design Phase" completed for Website Redesign',
-      timestamp: '2024-02-04T15:45:00Z',
-      user: 'Mike Johnson',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      task: null,
-      icon: CheckCircle,
-      color: 'text-green-600'
-    }
-  ];
+    fetchActivity();
+  }, [filter, toast]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading activity...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
 
   const getActivityTypeColor = (type) => {
     switch (type) {
@@ -265,13 +202,12 @@ const EmployeeActivity = () => {
           {/* Enhanced Activity Feed */}
           <div className="space-y-4">
             {filteredActivities.map((activity, index) => {
-              const IconComponent = activity.icon;
               return (
                 <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
                   <div className="flex items-start space-x-3">
                     {/* Activity Icon - Smaller and more compact */}
                     <div className={`p-2 rounded-lg ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
-                      <IconComponent className="h-4 w-4" />
+                      <CheckCircle className="h-4 w-4" />
                     </div>
 
                     {/* Activity Content - Better space utilization */}

@@ -1,120 +1,128 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Eye } from 'lucide-react';
+import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Eye, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const EmployeeProjects = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
   
-  // Mock user data - in a real app, this would come from authentication context
-  const currentUser = {
-    fullName: 'Mike Johnson',
-    email: 'mike.johnson@company.com',
-    role: 'Frontend Developer'
-  };
+  // State management
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [pagination, setPagination] = useState(null);
 
-  // Mock projects data - only projects assigned to this employee
-  const projects = [
-    {
-      id: 1,
-      name: 'Website Redesign',
-      description: 'Complete redesign of company website with modern UI/UX and improved user experience',
-      status: 'In Progress',
-      progress: 65,
-      team: 4,
-      dueDate: '2025-10-15',
-      priority: 'High',
-      startDate: '2024-01-01',
-      client: 'Acme Corporation',
-      totalTasks: 24,
-      completedTasks: 16,
-      dueSoonTasks: 3,
-      overdueTasks: 1,
-      myTasks: 6,
-      myCompletedTasks: 2
-    },
-    {
-      id: 2,
-      name: 'Mobile App Development',
-      description: 'iOS and Android app for customer portal with modern features and intuitive design',
-      status: 'Planning',
-      progress: 20,
-      team: 6,
-      dueDate: '2025-01-15',
-      priority: 'Medium',
-      startDate: '2024-02-01',
-      client: 'TechCorp Inc',
-      totalTasks: 18,
-      completedTasks: 4,
-      dueSoonTasks: 2,
-      overdueTasks: 0,
-      myTasks: 3,
-      myCompletedTasks: 0
-    },
-    {
-      id: 3,
-      name: 'Database Migration',
-      description: 'Migrate to new database system for better performance and scalability',
-      status: 'Completed',
-      progress: 100,
-      team: 3,
-      dueDate: '2024-01-20',
-      priority: 'High',
-      startDate: '2023-12-01',
-      client: 'DataFlow Systems',
-      totalTasks: 12,
-      completedTasks: 12,
-      dueSoonTasks: 0,
-      overdueTasks: 0,
-      myTasks: 2,
-      myCompletedTasks: 2
-    }
-  ];
+  // Fetch projects data
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setLoading(true);
+        const response = await api.employee.getProjects();
+        
+        if (response.data && response.data.success) {
+          setProjects(response.data.data?.projects || []);
+          setPagination(response.data.data?.pagination || null);
+        } else {
+          toast.error('Error', 'Failed to load projects');
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        toast.error('Error', 'Failed to load projects');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [toast]);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Planning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'active': return 'bg-primary/10 text-primary border-primary/20';
+      case 'planning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'on-hold': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'normal': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   // Calculate overall stats
   const totalProjects = projects.length;
-  const activeProjects = projects.filter(p => p.status === 'In Progress').length;
-  const completedProjects = projects.filter(p => p.status === 'Completed').length;
-  const totalMyTasks = projects.reduce((sum, p) => sum + p.myTasks, 0);
-  const completedMyTasks = projects.reduce((sum, p) => sum + p.myCompletedTasks, 0);
+  const activeProjects = projects.filter(p => p.status === 'active').length;
+  const completedProjects = projects.filter(p => p.status === 'completed').length;
+  
+  // Calculate task counts from real API data
+  const totalMyTasks = projects.reduce((sum, p) => {
+    return sum + (p.myTasks || 0);
+  }, 0);
+  
+  const completedMyTasks = projects.reduce((sum, p) => {
+    return sum + (p.myCompletedTasks || 0);
+  }, 0);
+
+  const inProgressMyTasks = projects.reduce((sum, p) => {
+    return sum + (p.myInProgressTasks || 0);
+  }, 0);
+
+  const pendingMyTasks = projects.reduce((sum, p) => {
+    return sum + (p.myPendingTasks || 0);
+  }, 0);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading projects...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
   
   // Calculate milestone-based progress for employee's projects
   const totalMilestones = projects.reduce((sum, p) => {
-    // Simulate milestones based on project complexity
-    const milestonesPerProject = Math.ceil(p.myTasks / 3); // Rough estimate: 1 milestone per 3 tasks
+    // Estimate milestones based on project complexity and team size
+    const projectTasks = p.myTasks || 0;
+    const milestonesPerProject = Math.max(1, Math.ceil(projectTasks / 2)); // 1 milestone per 2 tasks
     return sum + milestonesPerProject;
   }, 0);
   
   const completedMilestones = projects.reduce((sum, p) => {
-    const milestonesPerProject = Math.ceil(p.myTasks / 3);
-    if (p.status === 'Completed') {
+    const projectTasks = p.myTasks || 0;
+    const projectCompletedTasks = p.myCompletedTasks || 0;
+    const milestonesPerProject = Math.max(1, Math.ceil(projectTasks / 2));
+    
+    if (p.status === 'completed') {
       return sum + milestonesPerProject; // All milestones completed
-    } else if (p.status === 'In Progress') {
-      // Calculate completed milestones based on my task completion
-      const myTaskProgress = p.myTasks > 0 ? (p.myCompletedTasks / p.myTasks) * 100 : 0;
-      const completedMilestonesInProject = Math.floor((myTaskProgress / 100) * milestonesPerProject);
+    } else if (p.status === 'active') {
+      // Calculate completed milestones based on task completion
+      const taskProgress = projectTasks > 0 ? (projectCompletedTasks / projectTasks) * 100 : 0;
+      const completedMilestonesInProject = Math.floor((taskProgress / 100) * milestonesPerProject);
       return sum + completedMilestonesInProject;
     } else {
       // Planning projects have no completed milestones
@@ -304,8 +312,8 @@ const EmployeeProjects = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {projects.map((project) => (
                 <div 
-                  key={project.id} 
-                  onClick={() => navigate(`/employee-project/${project.id}`)}
+                  key={project._id} 
+                  onClick={() => navigate(`/employee-project/${project._id}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -354,11 +362,11 @@ const EmployeeProjects = () => {
                   {/* My Tasks Count */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-gray-50 rounded-lg p-2 text-center">
-                      <div className="text-sm font-bold text-gray-900">{project.myTasks}</div>
+                      <div className="text-sm font-bold text-gray-900">{project.myTasks || 0}</div>
                       <div className="text-xs text-gray-500">My Tasks</div>
                     </div>
                     <div className="bg-green-50 rounded-lg p-2 text-center">
-                      <div className="text-sm font-bold text-green-600">{project.myCompletedTasks}</div>
+                      <div className="text-sm font-bold text-green-600">{project.myCompletedTasks || 0}</div>
                       <div className="text-xs text-gray-500">Done</div>
                     </div>
                   </div>
@@ -368,7 +376,7 @@ const EmployeeProjects = () => {
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Users className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">{project.team}</span>
+                        <span className="text-xs font-medium">{project.assignedTeam?.length || 0}</span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Calendar className="h-3.5 w-3.5" />

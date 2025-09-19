@@ -1,163 +1,139 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, User, FolderKanban } from 'lucide-react';
+import { CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, User, FolderKanban, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
   
-  // Mock user data - in a real app, this would come from authentication context
-  const currentUser = {
-    fullName: 'Mike Johnson',
-    email: 'mike.johnson@company.com',
-    role: 'Frontend Developer'
-  };
-
-  // Mock tasks data - only tasks assigned to this employee
-  const tasks = [
-    {
-      id: 1,
-      title: 'Update homepage design',
-      description: 'Implement new design mockups for homepage with responsive layout',
-      status: 'In Progress',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-10',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      createdDate: '2024-01-15'
-    },
-    {
-      id: 2,
-      title: 'Implement responsive design',
-      description: 'Ensure all pages work perfectly on mobile devices, tablets, and desktop screens',
-      status: 'Not Started',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-12',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      createdDate: '2024-01-20'
-    },
-    {
-      id: 3,
-      title: 'Fix navigation bugs',
-      description: 'Resolve issues with mobile navigation menu and dropdown functionality',
-      status: 'Blocked',
-      priority: 'Medium',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-05',
-      project: 'Website Redesign',
-      milestone: 'Bug Fixes',
-      createdDate: '2024-01-25'
-    },
-    {
-      id: 4,
-      title: 'Optimize page load speed',
-      description: 'Improve website performance by optimizing images and code',
-      status: 'Done',
-      priority: 'Low',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-01-30',
-      project: 'Website Redesign',
-      milestone: 'Performance',
-      createdDate: '2024-01-10'
-    },
-    {
-      id: 5,
-      title: 'Create user dashboard',
-      description: 'Build a new user dashboard with modern UI components',
-      status: 'In Progress',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-15',
-      project: 'Mobile App Development',
-      milestone: 'Frontend Development',
-      createdDate: '2024-01-28'
-    },
-    {
-      id: 6,
-      title: 'Setup testing environment',
-      description: 'Configure Jest and React Testing Library for component testing',
-      status: 'Not Started',
-      priority: 'Medium',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-20',
-      project: 'Mobile App Development',
-      milestone: 'Testing Setup',
-      createdDate: '2024-02-01'
-    }
-  ];
+  // State management
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState(null);
+  const [tasks, setTasks] = useState([]);
 
   const [filter, setFilter] = useState('all');
 
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.employee.getDashboard();
+        
+        if (response.data && response.data.success) {
+          console.log('Dashboard API Response:', response.data.data);
+          setDashboardData(response.data.data);
+          setTasks(response.data.data?.recentTasks || []);
+        } else {
+          console.error('Dashboard API Error:', response.data);
+          toast.error('Error', 'Failed to load dashboard data');
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        toast.error('Error', 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [toast]);
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Done': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Not Started': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'Blocked': return 'bg-red-100 text-red-800 border-red-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'normal': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   // Filter tasks based on selected filter
   const filteredTasks = (() => {
+    if (!tasks || tasks.length === 0) return [];
+    
     switch (filter) {
       case 'due-soon':
         return tasks.filter(task => {
           const now = new Date();
           const dueDate = new Date(task.dueDate);
           const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays <= 3 && diffDays >= 0 && task.status !== 'Done';
+          return diffDays <= 3 && diffDays >= 0 && task.status !== 'completed';
         });
       case 'overdue':
         return tasks.filter(task => {
           const now = new Date();
           const dueDate = new Date(task.dueDate);
           const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays < 0 && task.status !== 'Done';
+          return diffDays < 0 && task.status !== 'completed';
         });
       case 'done':
-        return tasks.filter(task => task.status === 'Done');
+        return tasks.filter(task => task.status === 'completed');
       case 'high-priority':
-        return tasks.filter(task => task.priority === 'High' && task.status !== 'Done');
-      case 'project':
-        return tasks.filter(task => task.project === 'Website Redesign');
+        return tasks.filter(task => (task.priority === 'high' || task.priority === 'urgent') && task.status !== 'completed');
       default:
         return tasks;
     }
   })();
 
-  // Calculate stats
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter(t => t.status === 'Done').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
-  const dueSoonTasks = tasks.filter(task => {
-    const now = new Date();
-    const dueDate = new Date(task.dueDate);
-    const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays <= 3 && diffDays >= 0 && task.status !== 'Done';
-  }).length;
-  const overdueTasks = tasks.filter(task => {
-    const now = new Date();
-    const dueDate = new Date(task.dueDate);
-    const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return diffDays < 0 && task.status !== 'Done';
-  }).length;
+  // Calculate stats from dashboard data
+  const stats = dashboardData?.stats || {
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    pending: 0,
+    dueSoon: 0,
+    overdue: 0,
+    overallProgress: 0
+  };
+
+  // Use real API data for statistics
+  const finalStats = {
+    total: stats.total || 0,
+    completed: stats.completed || 0,
+    inProgress: stats.inProgress || 0,
+    pending: stats.pending || 0,
+    dueSoon: stats.dueSoon || 0,
+    overdue: stats.overdue || 0,
+    overallProgress: stats.overallProgress || 0
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading dashboard...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -171,7 +147,7 @@ const EmployeeDashboard = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Welcome, {currentUser.fullName}!
+                  Welcome, {user?.fullName || 'Employee'}!
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">Here's your task overview</p>
               </div>
@@ -187,7 +163,7 @@ const EmployeeDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Total</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{totalTasks}</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{finalStats.total}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -198,7 +174,7 @@ const EmployeeDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Done</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{doneTasks}</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{finalStats.completed}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -209,7 +185,7 @@ const EmployeeDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Due Soon</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{dueSoonTasks}</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{finalStats.dueSoon}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -220,7 +196,7 @@ const EmployeeDashboard = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Overdue</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{overdueTasks}</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{finalStats.overdue}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
           </div>
@@ -236,17 +212,17 @@ const EmployeeDashboard = () => {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-sm font-medium text-gray-700">Overall Completion</span>
-                <span className="text-sm font-bold text-primary">{totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0}%</span>
+                <span className="text-sm font-bold text-primary">{stats.overallProgress}%</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-4">
                 <div 
                   className="bg-gradient-to-r from-primary to-primary-dark h-4 rounded-full transition-all duration-700"
-                  style={{ width: `${totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0}%` }}
+                  style={{ width: `${stats.overallProgress}%` }}
                 ></div>
               </div>
               <div className="flex justify-between text-xs text-gray-500 mt-2">
-                <span>{doneTasks} completed</span>
-                <span>{totalTasks - doneTasks} remaining</span>
+                <span>{finalStats.completed} completed</span>
+                <span>{finalStats.total - finalStats.completed} remaining</span>
               </div>
             </div>
 
@@ -268,12 +244,12 @@ const EmployeeDashboard = () => {
                       strokeWidth="3"
                       strokeLinecap="round"
                       fill="none"
-                      strokeDasharray={`${totalTasks > 0 ? (doneTasks / totalTasks) * 100 : 0}, 100`}
+                      strokeDasharray={`${finalStats.total > 0 ? (finalStats.completed / finalStats.total) * 100 : 0}, 100`}
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0}%</span>
+                    <span className="text-xs font-bold text-gray-700">{finalStats.total > 0 ? Math.round((finalStats.completed / finalStats.total) * 100) : 0}%</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600">Completed</p>
@@ -295,12 +271,12 @@ const EmployeeDashboard = () => {
                       strokeWidth="3"
                       strokeLinecap="round"
                       fill="none"
-                      strokeDasharray={`${totalTasks > 0 ? (inProgressTasks / totalTasks) * 100 : 0}, 100`}
+                      strokeDasharray={`${finalStats.total > 0 ? (finalStats.inProgress / finalStats.total) * 100 : 0}, 100`}
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((inProgressTasks / totalTasks) * 100) : 0}%</span>
+                    <span className="text-xs font-bold text-gray-700">{finalStats.total > 0 ? Math.round((finalStats.inProgress / finalStats.total) * 100) : 0}%</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600">In Progress</p>
@@ -322,12 +298,12 @@ const EmployeeDashboard = () => {
                       strokeWidth="3"
                       strokeLinecap="round"
                       fill="none"
-                      strokeDasharray={`${totalTasks > 0 ? (dueSoonTasks / totalTasks) * 100 : 0}, 100`}
+                      strokeDasharray={`${finalStats.total > 0 ? (finalStats.dueSoon / finalStats.total) * 100 : 0}, 100`}
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((dueSoonTasks / totalTasks) * 100) : 0}%</span>
+                    <span className="text-xs font-bold text-gray-700">{finalStats.total > 0 ? Math.round((finalStats.dueSoon / finalStats.total) * 100) : 0}%</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600">Due Soon</p>
@@ -349,12 +325,12 @@ const EmployeeDashboard = () => {
                       strokeWidth="3"
                       strokeLinecap="round"
                       fill="none"
-                      strokeDasharray={`${totalTasks > 0 ? (overdueTasks / totalTasks) * 100 : 0}, 100`}
+                      strokeDasharray={`${finalStats.total > 0 ? (finalStats.overdue / finalStats.total) * 100 : 0}, 100`}
                       d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-bold text-gray-700">{totalTasks > 0 ? Math.round((overdueTasks / totalTasks) * 100) : 0}%</span>
+                    <span className="text-xs font-bold text-gray-700">{finalStats.total > 0 ? Math.round((finalStats.overdue / finalStats.total) * 100) : 0}%</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-600">Overdue</p>
@@ -366,10 +342,10 @@ const EmployeeDashboard = () => {
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'all', label: 'All', count: totalTasks },
-                { key: 'done', label: 'Done', count: doneTasks },
-                { key: 'due-soon', label: 'Due Soon', count: dueSoonTasks },
-                { key: 'overdue', label: 'Overdue', count: overdueTasks }
+                { key: 'all', label: 'All', count: finalStats.total },
+                { key: 'done', label: 'Done', count: finalStats.completed },
+                { key: 'due-soon', label: 'Due Soon', count: finalStats.dueSoon },
+                { key: 'overdue', label: 'Overdue', count: finalStats.overdue }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -393,10 +369,10 @@ const EmployeeDashboard = () => {
           <div className="hidden md:block mb-8">
             <div className="flex gap-2 flex-wrap">
               {[
-                { key: 'all', label: 'All', count: totalTasks },
-                { key: 'done', label: 'Done', count: doneTasks },
-                { key: 'due-soon', label: 'Due Soon', count: dueSoonTasks },
-                { key: 'overdue', label: 'Overdue', count: overdueTasks }
+                { key: 'all', label: 'All', count: finalStats.total },
+                { key: 'done', label: 'Done', count: finalStats.completed },
+                { key: 'due-soon', label: 'Due Soon', count: finalStats.dueSoon },
+                { key: 'overdue', label: 'Overdue', count: finalStats.overdue }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -424,8 +400,8 @@ const EmployeeDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {filteredTasks.map((task) => (
                 <div 
-                  key={task.id} 
-                  onClick={() => navigate(`/employee-task/${task.id}`)}
+                  key={task._id} 
+                  onClick={() => navigate(`/employee-task/${task._id}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -462,10 +438,10 @@ const EmployeeDashboard = () => {
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-1 text-gray-600">
                         <FolderKanban className="h-3 w-3" />
-                        <span className="text-primary font-semibold">{task.project}</span>
+                        <span className="text-primary font-semibold">{task.project?.name || 'Unknown Project'}</span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-600">
-                        <span className="text-primary font-semibold">{task.milestone}</span>
+                        <span className="text-primary font-semibold">{task.milestone?.title || 'Unknown Milestone'}</span>
                       </div>
                     </div>
                   </div>
@@ -475,7 +451,7 @@ const EmployeeDashboard = () => {
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-1 text-gray-500">
                         <User className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">{task.assignee}</span>
+                        <span className="text-xs font-medium">{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Calendar className="h-3.5 w-3.5" />

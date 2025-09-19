@@ -16,8 +16,11 @@ import {
   Download,
   Upload,
   Plus,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import api from '../utils/api';
 
 const CustomerTaskDetail = () => {
   const { id } = useParams();
@@ -27,104 +30,44 @@ const CustomerTaskDetail = () => {
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [taskData, setTaskData] = useState(null);
 
-  // Mock task data - read-only for customers
-  const tasksData = [
-    {
-      id: 1,
-      title: 'Create wireframes',
-      description: 'Design initial wireframes for all pages including homepage, about, services, and contact pages. Focus on user experience and modern design principles.',
-      status: 'Completed',
-      priority: 'High',
-      assignee: 'John Doe',
-      dueDate: '2024-01-10',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      createdDate: '2024-01-05',
-      completedDate: '2024-01-10',
-      attachments: [
-        { id: 1, name: 'wireframes-v1.pdf', size: '2.4 MB', type: 'pdf' },
-        { id: 2, name: 'design-feedback.docx', size: '156 KB', type: 'docx' }
-      ],
-      comments: [
-        {
-          id: 1,
-          user: 'John Doe',
-          message: 'Initial wireframes completed. Please review and provide feedback.',
-          timestamp: '2024-01-10T14:30:00Z'
-        },
-        {
-          id: 2,
-          user: 'Jane Smith',
-          message: 'Great work! The layout looks clean and intuitive.',
-          timestamp: '2024-01-10T16:45:00Z'
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Design homepage',
-      description: 'Create modern homepage design with responsive layout, hero section, feature highlights, and call-to-action buttons.',
-      status: 'In Progress',
-      priority: 'High',
-      assignee: 'Jane Smith',
-      dueDate: '2024-02-05',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      createdDate: '2024-01-15',
-      completedDate: null,
-      attachments: [
-        { id: 3, name: 'homepage-mockup.png', size: '1.8 MB', type: 'png' }
-      ],
-      comments: [
-        {
-          id: 3,
-          user: 'Jane Smith',
-          message: 'Working on the hero section design. Will share updates soon.',
-          timestamp: '2024-01-20T10:15:00Z'
-        }
-      ]
-    },
-    {
-      id: 3,
-      title: 'Implement responsive design',
-      description: 'Ensure all pages work perfectly on mobile devices, tablets, and desktop screens with proper breakpoints.',
-      status: 'Pending',
-      priority: 'Medium',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-12',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      createdDate: '2024-01-20',
-      completedDate: null,
-      attachments: [],
-      comments: []
-    }
-  ];
+  // Task data is now fetched from API
 
-  // Find the task based on the ID parameter
-  const task = tasksData.find(t => t.id === parseInt(id));
-  
-  // If task not found, redirect to customer dashboard
+  // Fetch task data
   useEffect(() => {
-    if (!task) {
-      navigate('/customer-dashboard');
+    const fetchTaskData = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get(`/customer/tasks/${id}`);
+        if (response.data.success) {
+          setTaskData(response.data.data);
+        } else {
+          toast.error('Error', 'Task not found');
+          navigate('/customer-dashboard');
+        }
+      } catch (error) {
+        console.error('Error fetching task data:', error);
+        toast.error('Error', 'Failed to load task data');
+        navigate('/customer-dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchTaskData();
     }
-  }, [task, navigate]);
+  }, [id, navigate, toast]);
 
-  // Scroll to top when component mounts
-  useScrollToTop();
-  
-  // Return early if task not found
-  if (!task) {
-    return null;
-  }
-
-  // Countdown logic
+  // Countdown logic - moved before early returns to maintain hook order
   useEffect(() => {
+    if (!taskData?.task?.dueDate) return;
+    
     const calculateTimeLeft = () => {
       const now = new Date();
-      const dueDate = new Date(task.dueDate);
+      const dueDate = new Date(taskData.task.dueDate);
       const difference = dueDate.getTime() - now.getTime();
 
       if (difference > 0) {
@@ -158,23 +101,79 @@ const CustomerTaskDetail = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [task.dueDate]);
+  }, [taskData?.task?.dueDate]);
+
+  // Scroll to top when component mounts
+  useScrollToTop();
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <CustomerNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading task details...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Return early if no task data
+  if (!taskData) {
+    return null;
+  }
+
+  // Extract task data
+  const { task } = taskData;
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'active': return 'bg-primary/10 text-primary border-primary/20';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
+      case 'planning': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'on-hold': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'normal': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const formatStatus = (status) => {
+    switch (status) {
+      case 'completed': return 'Completed';
+      case 'active': return 'In Progress';
+      case 'in-progress': return 'In Progress';
+      case 'planning': return 'Planning';
+      case 'on-hold': return 'On Hold';
+      case 'cancelled': return 'Cancelled';
+      case 'pending': return 'Pending';
+      default: return status;
+    }
+  };
+
+  const formatPriority = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgent';
+      case 'high': return 'High';
+      case 'normal': return 'Medium';
+      case 'low': return 'Low';
+      default: return priority;
     }
   };
 
@@ -217,21 +216,34 @@ const CustomerTaskDetail = () => {
     }
   };
 
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
     
-    const newFiles = files.map(file => ({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: file.name.split('.').pop().toLowerCase(),
-      file: file,
-      uploadedBy: 'Customer',
-      uploadedDate: new Date().toISOString()
-    }));
-    
-    setUploadedFiles(prev => [...prev, ...newFiles]);
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await api.post(`/customer/tasks/${id}/files`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        
+        if (response.data.success) {
+          toast.success('Success', `${file.name} uploaded successfully`);
+          // Refresh task data to show new file
+          const taskResponse = await api.get(`/customer/tasks/${id}`);
+          if (taskResponse.data.success) {
+            setTaskData(taskResponse.data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        toast.error('Error', `Failed to upload ${file.name}`);
+      }
+    }
     
     // Clear the input so the same file can be selected again
     event.target.value = '';
@@ -245,35 +257,67 @@ const CustomerTaskDetail = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const removeUploadedFile = (fileId) => {
-    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
+  const removeUploadedFile = async (fileId) => {
+    if (window.confirm('Are you sure you want to delete this file?')) {
+      try {
+        const response = await api.delete(`/customer/tasks/${id}/files/${fileId}`);
+        if (response.data.success) {
+          toast.success('Success', 'File deleted successfully');
+          // Refresh task data to remove deleted file
+          const taskResponse = await api.get(`/customer/tasks/${id}`);
+          if (taskResponse.data.success) {
+            setTaskData(taskResponse.data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error);
+        toast.error('Error', 'Failed to delete file');
+      }
+    }
   };
 
-  const handleUploadSubmit = () => {
-    // Add uploaded files to task attachments
-    const newAttachments = uploadedFiles.map(file => ({
-      id: Date.now() + Math.random(),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      uploadedBy: file.uploadedBy,
-      uploadedDate: file.uploadedDate
-    }));
+  // Files are now uploaded directly via API, no need for this function
+
+  const handleCommentSubmit = async () => {
+    if (!newComment.trim()) return;
     
-    // Update task with new attachments
-    setTask(prevTask => ({
-      ...prevTask,
-      attachments: [...prevTask.attachments, ...newAttachments]
-    }));
-    
-    // Clear uploaded files and close form
-    setUploadedFiles([]);
-    setShowUploadForm(false);
-    
-    toast.success(
-      'Files Uploaded Successfully!',
-      `${newAttachments.length} file(s) have been added to this task.`
-    );
+    try {
+      const response = await api.post(`/customer/tasks/${id}/comments`, {
+        comment: newComment.trim()
+      });
+      
+      if (response.data.success) {
+        toast.success('Success', 'Comment added successfully');
+        setNewComment('');
+        // Refresh task data to show new comment
+        const taskResponse = await api.get(`/customer/tasks/${id}`);
+        if (taskResponse.data.success) {
+          setTaskData(taskResponse.data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Error', 'Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        const response = await api.delete(`/customer/tasks/${id}/comments/${commentId}`);
+        if (response.data.success) {
+          toast.success('Success', 'Comment deleted successfully');
+          // Refresh task data to remove deleted comment
+          const taskResponse = await api.get(`/customer/tasks/${id}`);
+          if (taskResponse.data.success) {
+            setTaskData(taskResponse.data.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        toast.error('Error', 'Failed to delete comment');
+      }
+    }
   };
 
   return (
@@ -306,10 +350,10 @@ const CustomerTaskDetail = () => {
                 
                 <div className="flex items-center space-x-2 mb-4">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                    {task.status}
+                    {formatStatus(task.status)}
                   </span>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
+                    {formatPriority(task.priority)}
                   </span>
                 </div>
               </div>
@@ -339,7 +383,7 @@ const CustomerTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Assigned to</p>
-                    <p className="text-base font-medium text-gray-900">{task.assignee}</p>
+                    <p className="text-base font-medium text-gray-900">{task.assignedTo?.[0]?.fullName || 'Unassigned'}</p>
                   </div>
                 </div>
 
@@ -363,7 +407,7 @@ const CustomerTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Project</p>
-                    <p className="text-base font-medium text-gray-900">{task.project}</p>
+                    <p className="text-base font-medium text-gray-900">{task.project?.name || 'Unknown Project'}</p>
                   </div>
                 </div>
 
@@ -373,7 +417,7 @@ const CustomerTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Milestone</p>
-                    <p className="text-base font-medium text-gray-900">{task.milestone}</p>
+                    <p className="text-base font-medium text-gray-900">{task.milestone?.title || 'No Milestone'}</p>
                   </div>
                 </div>
               </div>
@@ -389,7 +433,7 @@ const CustomerTaskDetail = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-lg font-semibold text-gray-900">Attachments</h3>
-                  <span className="text-sm text-gray-500">({task.attachments.length + uploadedFiles.length})</span>
+                  <span className="text-sm text-gray-500">({(task.attachments?.length || 0) + uploadedFiles.length})</span>
                 </div>
               </div>
               <button
@@ -445,13 +489,7 @@ const CustomerTaskDetail = () => {
                         </button>
                       </div>
                     ))}
-                    <div className="flex space-x-2 pt-2">
-                      <button
-                        onClick={handleUploadSubmit}
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
-                      >
-                        Upload Files
-                      </button>
+                    <div className="flex justify-end pt-2">
                       <button
                         onClick={() => {
                           setUploadedFiles([]);
@@ -459,7 +497,7 @@ const CustomerTaskDetail = () => {
                         }}
                         className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
                       >
-                        Cancel
+                        Close
                       </button>
                     </div>
                   </div>
@@ -468,9 +506,9 @@ const CustomerTaskDetail = () => {
             )}
 
             {/* Existing Attachments */}
-            {(task.attachments.length > 0 || uploadedFiles.length > 0) && (
+            {((task.attachments || []).length > 0 || uploadedFiles.length > 0) && (
               <div className="space-y-3">
-                {task.attachments.map((attachment) => (
+                {(task.attachments || []).map((attachment) => (
                   <div key={attachment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors">
                     <div className="flex items-center space-x-3">
                       <div className="p-2 bg-white rounded-lg border border-gray-200">
@@ -495,7 +533,7 @@ const CustomerTaskDetail = () => {
             )}
 
             {/* Empty State */}
-            {task.attachments.length === 0 && uploadedFiles.length === 0 && !showUploadForm && (
+            {(task.attachments?.length || 0) === 0 && uploadedFiles.length === 0 && !showUploadForm && (
               <div className="text-center py-8">
                 <Paperclip className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                 <p className="text-gray-500 mb-4">No attachments yet</p>
@@ -510,7 +548,7 @@ const CustomerTaskDetail = () => {
           </div>
 
           {/* Comments Section */}
-          {task.comments.length > 0 && (
+          {task.comments && task.comments.length > 0 && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="p-2 bg-primary/10 rounded-lg">
@@ -518,21 +556,35 @@ const CustomerTaskDetail = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-                  <span className="text-sm text-gray-500">({task.comments.length})</span>
+                  <span className="text-sm text-gray-500">({(task.comments || []).length})</span>
                 </div>
               </div>
 
               <div className="space-y-4">
-                {task.comments.map((comment) => (
-                  <div key={comment.id} className="border-l-4 border-primary/20 pl-4">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                        <User className="h-3 w-3 text-primary" />
+                {(task.comments || []).map((comment) => (
+                  <div key={comment._id || comment.id} className="border-l-4 border-primary/20 pl-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <User className="h-3 w-3 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {comment.user?.fullName || comment.user || 'Unknown User'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatTimestamp(comment.timestamp)}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium text-gray-900">{comment.user}</span>
-                      <span className="text-xs text-gray-500">
-                        {formatTimestamp(comment.timestamp)}
-                      </span>
+                      {/* Show delete button only for current user's comments */}
+                      {comment.user?.toString() === user?.id || comment.user === user?.id && (
+                        <button
+                          onClick={() => handleDeleteComment(comment._id || comment.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete comment"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600">{comment.message}</p>
                   </div>
@@ -542,7 +594,7 @@ const CustomerTaskDetail = () => {
           )}
 
           {/* Empty State for Comments */}
-          {task.comments.length === 0 && (
+          {(!task.comments || task.comments.length === 0) && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
               <div className="text-center py-8">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -553,6 +605,36 @@ const CustomerTaskDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Add Comment Form */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <MessageSquare className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Add Comment</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment to this task..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+              />
+              
+              <div className="flex justify-end">
+                <button
+                  onClick={handleCommentSubmit}
+                  disabled={!newComment.trim()}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Comment
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>

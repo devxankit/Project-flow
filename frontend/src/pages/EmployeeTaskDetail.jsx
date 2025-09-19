@@ -15,117 +15,61 @@ import {
   Download,
   Upload,
   Send,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const EmployeeTaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  
   const [timeLeft, setTimeLeft] = useState('');
   const [newComment, setNewComment] = useState('');
   const [newAttachment, setNewAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  // Mock task data - only tasks assigned to this employee
-  const tasksData = [
-    {
-      id: 1,
-      title: 'Update homepage design',
-      description: 'Implement new design mockups for homepage with responsive layout. Focus on user experience and modern design principles. Ensure all components are accessible and follow WCAG guidelines.',
-      status: 'In Progress',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-10',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      createdDate: '2024-01-15',
-      completedDate: null,
-      attachments: [
-        { id: 1, name: 'homepage-mockup-v2.png', size: '2.1 MB', type: 'png', uploadedBy: 'Mike Johnson', uploadDate: '2024-01-20' },
-        { id: 2, name: 'design-guidelines.pdf', size: '856 KB', type: 'pdf', uploadedBy: 'Jane Smith', uploadDate: '2024-01-18' }
-      ],
-      comments: [
-        {
-          id: 1,
-          user: 'Mike Johnson',
-          message: 'Started working on the hero section. The new design looks great!',
-          timestamp: '2024-01-20T14:30:00Z'
-        },
-        {
-          id: 2,
-          user: 'Jane Smith',
-          message: 'Please make sure to follow the design guidelines I shared. Let me know if you need any clarification.',
-          timestamp: '2024-01-20T16:45:00Z'
-        },
-        {
-          id: 3,
-          user: 'Mike Johnson',
-          message: 'Thanks Jane! I\'ve reviewed the guidelines and will implement accordingly.',
-          timestamp: '2024-01-21T09:15:00Z'
-        }
-      ]
-    },
-    {
-      id: 2,
-      title: 'Implement responsive design',
-      description: 'Ensure all pages work perfectly on mobile devices, tablets, and desktop screens with proper breakpoints. Test on various devices and browsers.',
-      status: 'Not Started',
-      priority: 'High',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-12',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      createdDate: '2024-01-20',
-      completedDate: null,
-      attachments: [],
-      comments: []
-    },
-    {
-      id: 3,
-      title: 'Fix navigation bugs',
-      description: 'Resolve issues with mobile navigation menu and dropdown functionality. The menu is not working properly on iOS devices.',
-      status: 'Blocked',
-      priority: 'Medium',
-      assignee: 'Mike Johnson',
-      dueDate: '2024-02-05',
-      project: 'Website Redesign',
-      milestone: 'Bug Fixes',
-      createdDate: '2024-01-25',
-      completedDate: null,
-      attachments: [
-        { id: 3, name: 'bug-report.md', size: '12 KB', type: 'md', uploadedBy: 'Sarah Wilson', uploadDate: '2024-01-25' }
-      ],
-      comments: [
-        {
-          id: 4,
-          user: 'Sarah Wilson',
-          message: 'I\'ve identified the issue. It seems to be related to the touch event handlers on iOS.',
-          timestamp: '2024-01-25T11:30:00Z'
-        }
-      ]
-    }
-  ];
-
-  // Find the task based on the ID parameter
-  const task = tasksData.find(t => t.id === parseInt(id));
-  
-  // If task not found, redirect to employee dashboard
-  useEffect(() => {
-    if (!task) {
-      navigate('/employee-dashboard');
-    }
-  }, [task, navigate]);
+  const [loading, setLoading] = useState(true);
+  const [task, setTask] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   // Scroll to top when component mounts
   useScrollToTop();
-  
-  // Return early if task not found
-  if (!task) {
-    return null;
-  }
+
+  // Fetch task data
+  useEffect(() => {
+    const fetchTask = async () => {
+      try {
+        setLoading(true);
+        const response = await api.employee.getTask(id);
+        
+        if (response.data && response.data.success) {
+          setTask(response.data.data?.task);
+        } else {
+          toast.error('Error', 'Task not found or access denied');
+          navigate('/employee-dashboard');
+        }
+      } catch (error) {
+        console.error('Error fetching task:', error);
+        toast.error('Error', 'Failed to load task details');
+        navigate('/employee-dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchTask();
+    }
+  }, [id, navigate, toast]);
 
   // Countdown logic
   useEffect(() => {
+    if (!task || !task.dueDate) return;
+
     const calculateTimeLeft = () => {
       const now = new Date();
       const dueDate = new Date(task.dueDate);
@@ -162,23 +106,46 @@ const EmployeeTaskDetail = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [task.dueDate]);
+  }, [task]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading task details...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+  
+  // Return early if task not found
+  if (!task) {
+    return null;
+  }
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Done': return 'bg-green-100 text-green-800 border-green-200';
-      case 'In Progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Not Started': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'Blocked': return 'bg-red-100 text-red-800 border-red-200';
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
+      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800';
-      case 'Low': return 'bg-green-100 text-green-800';
+      case 'urgent': return 'bg-red-100 text-red-800';
+      case 'high': return 'bg-red-100 text-red-800';
+      case 'normal': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -211,23 +178,40 @@ const EmployeeTaskDetail = () => {
     });
   };
 
-  const getFileIcon = (type) => {
-    switch (type) {
-      case 'pdf': return '📄';
-      case 'png': return '🖼️';
-      case 'jpg': return '🖼️';
-      case 'jpeg': return '🖼️';
-      case 'md': return '📝';
-      case 'docx': return '📝';
-      default: return '📎';
-    }
+  const getFileIcon = (mimetype) => {
+    if (mimetype.startsWith('image/')) return '🖼️';
+    if (mimetype.includes('pdf')) return '📄';
+    if (mimetype.includes('word') || mimetype.includes('document')) return '📝';
+    if (mimetype.includes('spreadsheet') || mimetype.includes('excel')) return '📊';
+    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
+    return '📎';
   };
 
-  const handleStatusChange = (newStatus) => {
-    // In a real app, this would update the task status via API
-    console.log('Status changed to:', newStatus);
-    // For demo purposes, we'll just show an alert
-    alert(`Task status updated to: ${newStatus}`);
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const handleStatusChange = async (newStatus) => {
+    try {
+      setUpdatingStatus(true);
+      const response = await api.employee.updateTaskStatus(task._id, newStatus);
+      
+      if (response.data && response.data.success) {
+        setTask(response.data.data?.task);
+        toast.success('Success', `Task status updated to: ${newStatus}`);
+      } else {
+        toast.error('Error', 'Failed to update task status');
+      }
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast.error('Error', 'Failed to update task status');
+    } finally {
+      setUpdatingStatus(false);
+    }
   };
 
   const handleAddComment = () => {
@@ -257,10 +241,10 @@ const EmployeeTaskDetail = () => {
   };
 
   const statusOptions = [
-    { value: 'Not Started', label: 'Not Started', color: 'bg-gray-100 text-gray-800' },
-    { value: 'In Progress', label: 'In Progress', color: 'bg-primary/10 text-primary' },
-    { value: 'Blocked', label: 'Blocked', color: 'bg-red-100 text-red-800' },
-    { value: 'Done', label: 'Done', color: 'bg-green-100 text-green-800' }
+    { value: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-800' },
+    { value: 'in-progress', label: 'In Progress', color: 'bg-primary/10 text-primary' },
+    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' },
+    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' }
   ];
 
   return (
@@ -326,7 +310,9 @@ const EmployeeTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Assigned to</p>
-                    <p className="text-base font-medium text-gray-900">{task.assignee}</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {task.assignedTo?.[0]?.fullName || 'Unassigned'}
+                    </p>
                   </div>
                 </div>
 
@@ -337,7 +323,7 @@ const EmployeeTaskDetail = () => {
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Created</p>
                     <p className="text-base font-medium text-gray-900">
-                      {new Date(task.createdDate).toLocaleDateString()}
+                      {new Date(task.createdAt).toLocaleDateString()}
                     </p>
                   </div>
                 </div>
@@ -350,7 +336,7 @@ const EmployeeTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Project</p>
-                    <p className="text-base font-medium text-gray-900">{task.project}</p>
+                    <p className="text-base font-medium text-gray-900">{task.project?.name || 'Unknown Project'}</p>
                   </div>
                 </div>
 
@@ -360,7 +346,7 @@ const EmployeeTaskDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Milestone</p>
-                    <p className="text-base font-medium text-gray-900">{task.milestone}</p>
+                    <p className="text-base font-medium text-gray-900">{task.milestone?.title || 'Unknown Milestone'}</p>
                   </div>
                 </div>
               </div>
@@ -374,13 +360,21 @@ const EmployeeTaskDetail = () => {
                   <button
                     key={option.value}
                     onClick={() => handleStatusChange(option.value)}
+                    disabled={updatingStatus}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       task.status === option.value
                         ? `${option.color} border-2 border-current`
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                    } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {option.label}
+                    {updatingStatus && task.status === option.value ? (
+                      <div className="flex items-center space-x-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Updating...</span>
+                      </div>
+                    ) : (
+                      option.label
+                    )}
                   </button>
                 ))}
               </div>
@@ -443,20 +437,28 @@ const EmployeeTaskDetail = () => {
             )}
 
             <div className="space-y-3">
-              {task.attachments.map((attachment) => (
-                <div key={attachment.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {task.attachments?.map((attachment) => (
+                <div key={attachment._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{getFileIcon(attachment.type)}</span>
+                    <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
-                      <p className="text-xs text-gray-500">{attachment.size} • {attachment.uploadedBy} • {formatTimestamp(attachment.uploadDate)}</p>
+                      <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(attachment.size)} • {formatTimestamp(attachment.uploadedAt)}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => window.open(attachment.url, '_blank')}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => window.open(attachment.url, '_blank')}
+                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
                       <Download className="h-4 w-4" />
                     </button>
                   </div>
@@ -482,7 +484,7 @@ const EmployeeTaskDetail = () => {
                 <MessageSquare className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-              <span className="text-sm text-gray-500">({task.comments.length})</span>
+              <span className="text-sm text-gray-500">(0)</span>
             </div>
 
             {/* Add Comment Section */}
@@ -507,33 +509,14 @@ const EmployeeTaskDetail = () => {
             </div>
 
             {/* Comments List */}
-            <div className="space-y-4">
-              {task.comments.map((comment) => (
-                <div key={comment.id} className="border-l-4 border-primary/20 pl-4">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
-                      <User className="h-3 w-3 text-primary" />
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{comment.user}</span>
-                    <span className="text-xs text-gray-500">
-                      {formatTimestamp(comment.timestamp)}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600">{comment.message}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Empty State for Comments */}
-            {task.comments.length === 0 && (
-              <div className="text-center py-8">
-                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="h-6 w-6 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
-                <p className="text-gray-600">Start the conversation by adding a comment</p>
+            {/* Comments placeholder - will be implemented when backend supports comments */}
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="h-6 w-6 text-gray-400" />
               </div>
-            )}
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
+              <p className="text-gray-600">Comments functionality will be added soon</p>
+            </div>
           </div>
         </div>
       </main>
