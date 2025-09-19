@@ -81,11 +81,7 @@ const userSchema = new mongoose.Schema({
       return this.role === 'employee' || this.role === 'pm';
     },
     trim: true,
-    maxlength: [100, 'Work title cannot exceed 100 characters'],
-    enum: {
-      values: ['web-developer', 'ui-designer', 'backend-developer', 'mobile-developer', 'ux-designer', 'devops-engineer', 'project-manager', 'qa-engineer', 'data-analyst', 'product-manager'],
-      message: 'Invalid work title'
-    }
+    maxlength: [100, 'Work title cannot exceed 100 characters']
   },
   phone: {
     type: String,
@@ -159,6 +155,20 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  
+  // Project relationships
+  managedProjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  }],
+  assignedProjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  }],
+  customerProjects: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
+  }],
   
   // Timestamps
   createdAt: {
@@ -284,6 +294,30 @@ userSchema.statics.searchUsers = function(searchTerm) {
     $text: { $search: searchTerm },
     status: 'active'
   }).sort({ score: { $meta: 'textScore' } });
+};
+
+// Static method to find users for project assignment (employees and PMs)
+userSchema.statics.findForProjectAssignment = function() {
+  return this.find({ 
+    role: { $in: ['employee', 'pm'] },
+    status: 'active' 
+  }).select('fullName email avatar department jobTitle workTitle skills');
+};
+
+// Static method to find customers for project assignment
+userSchema.statics.findCustomersForProject = function() {
+  return this.find({ 
+    role: 'customer',
+    status: 'active' 
+  }).select('fullName email avatar company address');
+};
+
+// Static method to find project managers
+userSchema.statics.findProjectManagers = function() {
+  return this.find({ 
+    role: 'pm',
+    status: 'active' 
+  }).select('fullName email avatar department jobTitle');
 };
 
 // Transform function to remove sensitive data when converting to JSON

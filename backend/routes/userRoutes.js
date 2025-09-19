@@ -9,11 +9,11 @@ const {
   exportUserCredentials,
   resetUserPassword
 } = require('../controllers/userController');
-const authMiddleware = require('../middlewares/authMiddleware');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 const roleMiddleware = require('../middlewares/roleMiddleware');
 
 // Apply authentication middleware to all routes
-router.use(authMiddleware);
+router.use(protect);
 
 // Apply PM role middleware to all routes
 router.use(roleMiddleware('pm'));

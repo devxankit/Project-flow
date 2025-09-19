@@ -62,11 +62,25 @@ const getAllUsers = async (req, res) => {
     sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
     // Execute query with pagination
+    // For PMs, include password field; for others, exclude it
+    const selectFields = req.user.role === 'pm' 
+      ? '-emailVerificationToken -passwordResetToken -passwordResetExpires'
+      : '-password -emailVerificationToken -passwordResetToken -passwordResetExpires';
+    
     const users = await User.find(query)
-      .select('-password -emailVerificationToken -passwordResetToken -passwordResetExpires')
+      .select(selectFields)
       .sort(sort)
       .limit(limit * 1)
       .skip((page - 1) * limit);
+
+    // For PMs, manually add password field to response
+    const usersWithPasswords = users.map(user => {
+      const userObj = user.toObject();
+      if (req.user.role === 'pm' && user.password) {
+        userObj.password = user.password;
+      }
+      return userObj;
+    });
 
     // Get total count for pagination
     const total = await User.countDocuments(query);
@@ -89,7 +103,7 @@ const getAllUsers = async (req, res) => {
     res.status(200).json({
       status: 'success',
       data: {
-        users,
+        users: usersWithPasswords,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(total / limit),
@@ -119,8 +133,13 @@ const getAllUsers = async (req, res) => {
 // @access  Private (PM only)
 const getUserById = async (req, res) => {
   try {
+    // For PMs, include password field; for others, exclude it
+    const selectFields = req.user.role === 'pm' 
+      ? '-emailVerificationToken -passwordResetToken -passwordResetExpires'
+      : '-password -emailVerificationToken -passwordResetToken -passwordResetExpires';
+    
     const user = await User.findById(req.params.id)
-      .select('-password -emailVerificationToken -passwordResetToken -passwordResetExpires');
+      .select(selectFields);
 
     if (!user) {
       return res.status(404).json({
@@ -129,9 +148,15 @@ const getUserById = async (req, res) => {
       });
     }
 
+    // For PMs, manually add password field to response
+    const userObj = user.toObject();
+    if (req.user.role === 'pm' && user.password) {
+      userObj.password = user.password;
+    }
+
     res.status(200).json({
       status: 'success',
-      data: { user }
+      data: { user: userObj }
     });
   } catch (error) {
     console.error('Get user by ID error:', error);
@@ -155,6 +180,7 @@ const createUser = async (req, res) => {
       status = 'active',
       department,
       jobTitle,
+      workTitle,
       company,
       address
     } = req.body;
@@ -186,6 +212,7 @@ const createUser = async (req, res) => {
     if (role === 'employee' || role === 'pm') {
       userData.department = department;
       userData.jobTitle = jobTitle;
+      userData.workTitle = workTitle;
     }
 
     if (role === 'customer') {
@@ -241,6 +268,7 @@ const updateUser = async (req, res) => {
       status,
       department,
       jobTitle,
+      workTitle,
       company,
       address
     } = req.body;
@@ -262,6 +290,7 @@ const updateUser = async (req, res) => {
     if (role === 'employee' || role === 'pm') {
       if (department) user.department = department;
       if (jobTitle) user.jobTitle = jobTitle;
+      if (workTitle) user.workTitle = workTitle;
       // Clear customer fields
       user.company = undefined;
       user.address = undefined;
@@ -273,6 +302,7 @@ const updateUser = async (req, res) => {
       // Clear employee fields
       user.department = undefined;
       user.jobTitle = undefined;
+      user.workTitle = undefined;
     }
 
     await user.save();

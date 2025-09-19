@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const authMiddleware = async (req, res, next) => {
+// Protect middleware - verify JWT token
+const protect = async (req, res, next) => {
   try {
     // Get token from header
     const authHeader = req.header('Authorization');
@@ -48,4 +49,28 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+// Authorize middleware - check user roles
+const authorize = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'Access denied. No user found.'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        status: 'error',
+        message: `Access denied. Required role: ${roles.join(' or ')}`
+      });
+    }
+
+    next();
+  };
+};
+
+module.exports = {
+  protect,
+  authorize
+};
