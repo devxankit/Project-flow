@@ -641,11 +641,169 @@ const getTeamMembersForMilestone = async (req, res) => {
   }
 };
 
+// @desc    Download milestone attachment
+// @route   GET /api/milestones/:milestoneId/project/:projectId/attachment/:attachmentId/download
+// @access  Private
+const downloadAttachment = async (req, res) => {
+  try {
+    const { milestoneId, projectId, attachmentId } = req.params;
+
+    // Verify project exists and user has permission
+    const permissionCheck = await checkProjectPermission(projectId, req.user.id, req.user.role);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error
+      });
+    }
+
+    // Find the milestone
+    const milestone = await Milestone.findOne({
+      _id: milestoneId,
+      project: projectId
+    });
+
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found'
+      });
+    }
+
+    // Find the attachment
+    const attachment = milestone.attachments.find(att => att._id.toString() === attachmentId);
+    if (!attachment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Attachment not found'
+      });
+    }
+
+    // Standard Cloudinary download approach
+    const cloudinary = require('cloudinary').v2;
+    
+    // Configure Cloudinary if not already configured
+    if (!cloudinary.config().cloud_name) {
+      cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+      });
+    }
+    
+    console.log('Downloading file using standard Cloudinary approach...');
+    console.log('Attachment details:', {
+      cloudinaryId: attachment.cloudinaryId,
+      filename: attachment.filename,
+      originalName: attachment.originalName,
+      url: attachment.url,
+      mimetype: attachment.mimetype
+    });
+    
+    try {
+      // Extract the public ID from the original URL
+      let publicId;
+      if (attachment.url) {
+        // Extract public ID from URL like: https://res.cloudinary.com/dj6z5fgff/image/upload/v1758274475/projectflow/documents/68cc868331c2bb14117c081f/recipet_1758274471231.pdf
+        const urlParts = attachment.url.split('/');
+        const uploadIndex = urlParts.findIndex(part => part === 'upload');
+        if (uploadIndex !== -1 && urlParts[uploadIndex + 2]) {
+          // Get everything after the version number
+          publicId = urlParts.slice(uploadIndex + 2).join('/');
+          // Remove file extension for public ID
+          publicId = publicId.replace(/\.[^/.]+$/, "");
+        }
+      }
+      
+      if (!publicId && attachment.filename) {
+        // Fallback: use filename without extension
+        publicId = attachment.filename.replace(/\.[^/.]+$/, "");
+      }
+      
+      if (!publicId) {
+        throw new Error('Could not determine public ID for file');
+      }
+      
+      console.log('Using public ID:', publicId);
+      
+      // Determine resource type from original URL
+      let resourceType = 'image'; // Default
+      if (attachment.url) {
+        if (attachment.url.includes('/video/upload/')) {
+          resourceType = 'video';
+        } else if (attachment.url.includes('/raw/upload/')) {
+          resourceType = 'raw';
+        } else if (attachment.url.includes('/image/upload/')) {
+          resourceType = 'image';
+        }
+      }
+      
+      console.log('Resource type:', resourceType);
+      
+      // Generate a signed URL for secure download
+      let downloadUrl;
+      
+      if (resourceType === 'raw') {
+        // For raw files (PDFs, documents), use private_download_url
+        downloadUrl = cloudinary.utils.private_download_url(publicId, attachment.originalName?.split('.').pop() || 'pdf', {
+          resource_type: 'raw',
+          expires_at: Math.floor(Date.now() / 1000) + 3600 // 1 hour
+        });
+        console.log('Generated private download URL for raw file:', downloadUrl);
+      } else {
+        // For images and videos, use regular signed URL
+        downloadUrl = cloudinary.url(publicId, {
+          sign_url: true,
+          expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour
+          resource_type: resourceType,
+          secure: true
+        });
+        console.log('Generated signed URL:', downloadUrl);
+      }
+      
+      // Fetch the file using the generated URL
+      const fileResponse = await fetch(downloadUrl);
+      
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file from Cloudinary: ${fileResponse.status} ${fileResponse.statusText}`);
+      }
+      
+      // Get the file content
+      const fileBuffer = await fileResponse.buffer();
+      
+      // Set appropriate headers for download
+      res.setHeader('Content-Type', attachment.mimetype || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${attachment.originalName}"`);
+      res.setHeader('Content-Length', fileBuffer.length);
+      
+      // Send the file
+      res.send(fileBuffer);
+      
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error downloading file',
+        error: error.message
+      });
+    }
+
+  } catch (error) {
+    console.error('Error downloading attachment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error downloading attachment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   createMilestone,
   getMilestonesByProject,
   getMilestone,
   updateMilestone,
   deleteMilestone,
-  getTeamMembersForMilestone
+  getTeamMembersForMilestone,
+  downloadAttachment
 };

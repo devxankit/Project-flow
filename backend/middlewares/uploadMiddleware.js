@@ -104,7 +104,9 @@ const storage = new CloudinaryStorage({
     },
     resource_type: (req, file) => {
       const category = getFileTypeCategory(file.mimetype);
-      return category === 'video' ? 'video' : 'auto';
+      if (category === 'video') return 'video';
+      if (category === 'document') return 'raw'; // PDFs and documents should be raw
+      return 'image'; // Images default to image
     },
     transformation: (req, file) => {
       const category = getFileTypeCategory(file.mimetype);

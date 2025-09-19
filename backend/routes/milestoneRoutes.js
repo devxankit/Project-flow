@@ -6,7 +6,8 @@ const {
   getMilestone,
   updateMilestone,
   deleteMilestone,
-  getTeamMembersForMilestone
+  getTeamMembersForMilestone,
+  downloadAttachment
 } = require('../controllers/milestoneController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { body, param } = require('express-validator');
@@ -136,6 +137,78 @@ router.delete(
   authorize('pm'),
   validateMilestoneId,
   deleteMilestone
+);
+
+// @route   GET /api/milestones/:milestoneId/project/:projectId/attachment/:attachmentId/download
+// @desc    Download milestone attachment
+// @access  Private
+router.get(
+  '/:milestoneId/project/:projectId/attachment/:attachmentId/download',
+  validateMilestoneId,
+  downloadAttachment
+);
+
+// @route   GET /api/milestones/:milestoneId/project/:projectId/attachment/:attachmentId/debug
+// @desc    Debug milestone attachment details
+// @access  Private
+router.get(
+  '/:milestoneId/project/:projectId/attachment/:attachmentId/debug',
+  validateMilestoneId,
+  async (req, res) => {
+    try {
+      const { milestoneId, projectId, attachmentId } = req.params;
+      
+      // Find the milestone and attachment
+      const Milestone = require('../models/Milestone');
+      const milestone = await Milestone.findOne({
+        _id: milestoneId,
+        project: projectId
+      });
+      
+      if (!milestone) {
+        return res.status(404).json({
+          success: false,
+          message: 'Milestone not found'
+        });
+      }
+      
+      const attachment = milestone.attachments.find(att => att._id.toString() === attachmentId);
+      if (!attachment) {
+        return res.status(404).json({
+          success: false,
+          message: 'Attachment not found'
+        });
+      }
+      
+      res.json({
+        success: true,
+        data: {
+          attachment: {
+            _id: attachment._id,
+            cloudinaryId: attachment.cloudinaryId,
+            filename: attachment.filename,
+            url: attachment.url,
+            originalName: attachment.originalName,
+            mimetype: attachment.mimetype,
+            fileType: attachment.fileType,
+            size: attachment.size
+          },
+          milestone: {
+            _id: milestone._id,
+            title: milestone.title
+          }
+        }
+      });
+      
+    } catch (error) {
+      console.error('Debug error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Debug error',
+        error: error.message
+      });
+    }
+  }
 );
 
 module.exports = router;
