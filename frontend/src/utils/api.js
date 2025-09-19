@@ -1,5 +1,5 @@
 // API utility functions for user management
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://project-flow-hyas.onrender.com/api';
 
 // Simple request throttling to prevent 429 errors
 const requestQueue = new Map();
@@ -392,7 +392,6 @@ export const taskApi = {
 
   // Get all tasks with filtering and pagination
   getAllTasks: async (params = {}) => {
-    console.log('getAllTasks function called with params:', params);
     const queryParams = new URLSearchParams();
     
     // Add query parameters
@@ -449,25 +448,18 @@ export const milestoneApi = {
 
   // Create new milestone
   createMilestone: async (milestoneData, attachments = []) => {
-    console.log('API: Creating milestone with data:', milestoneData);
-    console.log('API: Attachments received:', attachments);
-    console.log('API: Attachments length:', attachments.length);
-    
     if (attachments.length > 0) {
       // Use FormData if there are attachments
       const formData = new FormData();
       
       // Add milestone data as JSON string
       formData.append('milestoneData', JSON.stringify(milestoneData));
-      console.log('API: Added milestoneData to FormData');
       
       // Add attachments
-      attachments.forEach((file, index) => {
-        console.log(`API: Adding file ${index}:`, file.name, file.type, file.size);
+      attachments.forEach((file) => {
         formData.append('attachments', file);
       });
       
-      console.log('API: Sending FormData request');
       const response = await fetch(`${API_BASE_URL}/milestones`, {
         method: 'POST',
         headers: getAuthHeadersForUpload(),
@@ -477,7 +469,6 @@ export const milestoneApi = {
       return handleApiResponse(response);
     } else {
       // Use JSON if no attachments
-      console.log('API: Sending JSON request (no attachments)');
       const response = await fetch(`${API_BASE_URL}/milestones`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -550,15 +541,11 @@ export const milestoneApi = {
     const url = `${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}/attachment/${attachmentId}/download`;
     
     try {
-      console.log('Starting file download...');
-      
       // Fetch the file directly from our backend (which proxies from Cloudinary)
       const response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders()
       });
-      
-      console.log('Download response status:', response.status, response.statusText);
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -581,11 +568,8 @@ export const milestoneApi = {
         }
       }
       
-      console.log('Downloaded filename:', filename);
-      
       // Convert response to blob
       const blob = await response.blob();
-      console.log('File blob created:', blob);
       
       // Create download link
       const blobUrl = window.URL.createObjectURL(blob);
@@ -602,10 +586,7 @@ export const milestoneApi = {
       // Clean up blob URL
       setTimeout(() => {
         window.URL.revokeObjectURL(blobUrl);
-        console.log('Blob URL cleaned up');
       }, 1000);
-      
-      console.log('Download completed successfully');
       
     } catch (error) {
       console.error('Download error:', error);
@@ -613,3 +594,112 @@ export const milestoneApi = {
     }
   }
 };
+
+// Default export - axios-like interface for profile API calls
+const api = {
+  get: async (url, config = {}) => {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        ...config.headers
+      },
+      ...config
+    });
+    
+    return {
+      data: await handleApiResponse(response),
+      status: response.status,
+      statusText: response.statusText
+    };
+  },
+
+  post: async (url, data = null, config = {}) => {
+    const token = localStorage.getItem('token');
+    let headers = {};
+    
+    // Handle FormData (for file uploads)
+    if (data instanceof FormData) {
+      // For FormData, only include Authorization header
+      headers = {
+        'Authorization': `Bearer ${token}`
+      };
+    } else {
+      // For JSON data, include both Content-Type and Authorization
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        ...config.headers
+      },
+      body: data instanceof FormData ? data : JSON.stringify(data),
+      ...config
+    });
+    
+    return {
+      data: await handleApiResponse(response),
+      status: response.status,
+      statusText: response.statusText
+    };
+  },
+
+  put: async (url, data = null, config = {}) => {
+    const token = localStorage.getItem('token');
+    let headers = {};
+    
+    // Handle FormData (for file uploads)
+    if (data instanceof FormData) {
+      // For FormData, only include Authorization header
+      headers = {
+        'Authorization': `Bearer ${token}`
+      };
+    } else {
+      // For JSON data, include both Content-Type and Authorization
+      headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+    }
+    
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        ...config.headers
+      },
+      body: data instanceof FormData ? data : JSON.stringify(data),
+      ...config
+    });
+    
+    return {
+      data: await handleApiResponse(response),
+      status: response.status,
+      statusText: response.statusText
+    };
+  },
+
+  delete: async (url, config = {}) => {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'DELETE',
+      headers: {
+        ...getAuthHeaders(),
+        ...config.headers
+      },
+      ...config
+    });
+    
+    return {
+      data: await handleApiResponse(response),
+      status: response.status,
+      statusText: response.statusText
+    };
+  }
+};
+
+export default api;

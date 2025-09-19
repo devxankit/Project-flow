@@ -1,21 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { User, Mail, Lock, Camera, Edit3, Save, X, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Lock, Camera, Edit3, Save, X, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
+import api from '../utils/api';
 
 const PMProfile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  
+  const { user, updateUser } = useAuth();
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
   
   const [profileData, setProfileData] = useState({
-    fullName: 'John Doe',
-    email: 'john.doe@company.com',
-    avatar: 'JD'
+    fullName: '',
+    email: '',
+    avatar: '',
+    profileImage: null,
+    department: '',
+    jobTitle: '',
+    workTitle: '',
+    phone: '',
+    location: '',
+    skills: []
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -23,6 +39,40 @@ const PMProfile = () => {
     newPassword: '',
     confirmPassword: ''
   });
+
+  // Fetch profile data on component mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/profile');
+        
+        if (response.data.status === 'success') {
+          const userData = response.data.data.user;
+          
+          setProfileData({
+            fullName: userData.fullName || '',
+            email: userData.email || '',
+            avatar: userData.avatar || '',
+            profileImage: userData.profileImage || null,
+            department: userData.department || '',
+            jobTitle: userData.jobTitle || '',
+            workTitle: userData.workTitle || '',
+            phone: userData.phone || '',
+            location: userData.location || '',
+            skills: userData.skills || []
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        toast.error('Error', 'Failed to load profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [toast]);
 
   const handleProfileUpdate = (field, value) => {
     setProfileData(prev => ({
@@ -38,21 +88,145 @@ const PMProfile = () => {
     }));
   };
 
-  const handleSaveProfile = () => {
-    // Handle profile save logic here
-    setIsEditing(false);
-    console.log('Profile saved:', profileData);
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      const updateData = {
+        fullName: profileData.fullName,
+        phone: profileData.phone,
+        location: profileData.location,
+        skills: profileData.skills
+      };
+
+      const response = await api.put('/profile', updateData);
+      if (response.data.status === 'success') {
+        toast.success('Success', 'Profile updated successfully');
+        setIsEditing(false);
+        // Update auth context with new data
+        updateUser(response.data.data.user);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+        toast.error('Error', 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleChangePassword = () => {
-    // Handle password change logic here
-    console.log('Password changed');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    });
+  const handleChangePassword = async () => {
+    try {
+      setSaving(true);
+      const response = await api.put('/profile/password', passwordData);
+      if (response.data.status === 'success') {
+        toast.success('Success', 'Password changed successfully');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      }
+    } catch (error) {
+      console.error('Error changing password:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to change password';
+      toast.error('Error', errorMessage);
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Error', 'Please select an image file');
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Error', 'Image size must be less than 5MB');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      formData.append('profileImage', file);
+
+      // Custom API call for image upload to avoid automatic redirect on 401
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/profile/image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const responseData = await response.json();
+      const apiResponse = {
+        data: responseData,
+        status: response.status,
+        statusText: response.statusText
+      };
+
+      if (apiResponse.data.status === 'success') {
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: apiResponse.data.data.user.profileImage
+        }));
+        updateUser(apiResponse.data.data.user);
+        toast.success('Success', 'Profile image uploaded successfully');
+      } else {
+        toast.error('Error', apiResponse.data.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to upload image';
+      toast.error('Error', errorMessage);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    try {
+      setUploading(true);
+      const response = await api.delete('/profile/image');
+      if (response.data.status === 'success') {
+        setProfileData(prev => ({
+          ...prev,
+          profileImage: null
+        }));
+        updateUser(response.data.data.user);
+        toast.success('Success', 'Profile image deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete image';
+      toast.error('Error', errorMessage);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <PMNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading profile...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -87,24 +261,74 @@ const PMProfile = () => {
                 {/* Profile Picture Section */}
                 <div className="flex items-center space-x-3">
                   <div className="relative">
-                    <div className="w-16 h-16 md:w-18 md:h-18 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
-                      <span className="text-lg md:text-xl font-bold text-primary">
-                        {profileData.avatar}
-                      </span>
-                    </div>
+                    {profileData.profileImage && profileData.profileImage.url ? (
+                      <div className="w-16 h-16 md:w-18 md:h-18 rounded-full overflow-hidden">
+                        <img 
+                          src={profileData.profileImage.url} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 md:w-18 md:h-18 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
+                        <span className="text-lg md:text-xl font-bold text-primary">
+                          {profileData.avatar}
+                        </span>
+                      </div>
+                    )}
                     {isEditing && (
-                      <button className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary-dark transition-colors duration-200 shadow-lg">
-                        <Camera className="h-3 w-3" />
-                      </button>
+                      <div className="absolute -bottom-1 -right-1 flex space-x-1">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          id="profile-image-upload"
+                          disabled={uploading}
+                        />
+                        <label
+                          htmlFor="profile-image-upload"
+                          className="w-6 h-6 bg-primary text-white rounded-full flex items-center justify-center hover:bg-primary-dark transition-colors duration-200 shadow-lg cursor-pointer"
+                        >
+                          {uploading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Camera className="h-3 w-3" />
+                          )}
+                        </label>
+                        {profileData.profileImage && profileData.profileImage.url && (
+                          <button
+                            onClick={handleDeleteImage}
+                            disabled={uploading}
+                            className="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors duration-200 shadow-lg"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-gray-900">{profileData.fullName}</h3>
                     <p className="text-xs text-gray-500">Project Manager</p>
                     {isEditing && (
-                      <button className="text-xs text-primary font-medium hover:text-primary-dark transition-colors duration-200 mt-1">
-                        Change Photo
-                      </button>
+                      <div className="flex space-x-2 mt-1">
+                        <label
+                          htmlFor="profile-image-upload"
+                          className="text-xs text-primary font-medium hover:text-primary-dark transition-colors duration-200 cursor-pointer"
+                        >
+                          {uploading ? 'Uploading...' : 'Change Photo'}
+                        </label>
+                        {profileData.profileImage && profileData.profileImage.url && (
+                          <button
+                            onClick={handleDeleteImage}
+                            disabled={uploading}
+                            className="text-xs text-red-500 font-medium hover:text-red-600 transition-colors duration-200"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -156,10 +380,17 @@ const PMProfile = () => {
                 <div className="mt-6 pt-4 border-t border-gray-100 text-center">
                   <button
                     onClick={handleSaveProfile}
-                    className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl mx-auto"
+                    disabled={saving}
+                    className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Save className="h-4 w-4" />
-                    <span className="text-sm font-medium">Save Changes</span>
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </span>
                   </button>
                 </div>
               )}
@@ -248,10 +479,17 @@ const PMProfile = () => {
                  <div className="pt-2">
                    <button
                      onClick={handleChangePassword}
-                     className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl"
+                     disabled={saving}
+                     className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
                    >
-                     <Lock className="h-4 w-4" />
-                     <span className="text-sm font-medium">Change Password</span>
+                     {saving ? (
+                       <Loader2 className="h-4 w-4 animate-spin" />
+                     ) : (
+                       <Lock className="h-4 w-4" />
+                     )}
+                     <span className="text-sm font-medium">
+                       {saving ? 'Changing...' : 'Change Password'}
+                     </span>
                    </button>
                  </div>
                </div>

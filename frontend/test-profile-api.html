@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Profile API Test</h1>
+    
+    <div class="test-section">
+        <h3>Test Profile API</h3>
+        <button onclick="testProfileAPI()">Test Profile API</button>
+        <div id="profile-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Test Image Upload</h3>
+        <input type="file" id="imageFile" accept="image/*">
+        <button onclick="testImageUpload()">Test Image Upload</button>
+        <div id="upload-result"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        async function testProfileAPI() {
+            const resultDiv = document.getElementById('profile-result');
+            resultDiv.innerHTML = '<p>Testing...</p>';
+            
+            try {
+                // First login to get token
+                const loginResponse = await fetch(API_BASE_URL + '/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'pm@test.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                console.log('Login response:', loginData);
+                
+                if (!loginData.token) {
+                    throw new Error('Login failed: ' + JSON.stringify(loginData));
+                }
+                
+                // Test get profile
+                const profileResponse = await fetch(API_BASE_URL + '/profile', {
+                    headers: {
+                        'Authorization': 'Bearer ' + loginData.token
+                    }
+                });
+                
+                const profileData = await profileResponse.json();
+                console.log('Profile response:', profileData);
+                
+                resultDiv.className = 'test-section success';
+                resultDiv.innerHTML = `
+                    <h4>✅ Profile API Test Successful</h4>
+                    <pre>${JSON.stringify(profileData, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Profile API test failed:', error);
+                resultDiv.className = 'test-section error';
+                resultDiv.innerHTML = `
+                    <h4>❌ Profile API Test Failed</h4>
+                    <p>Error: ${error.message}</p>
+                `;
+            }
+        }
+        
+        async function testImageUpload() {
+            const fileInput = document.getElementById('imageFile');
+            const resultDiv = document.getElementById('upload-result');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<p style="color: red;">Please select an image file first.</p>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<p>Uploading...</p>';
+            
+            try {
+                // First login to get token
+                const loginResponse = await fetch(API_BASE_URL + '/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'pm@test.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                
+                if (!loginData.token) {
+                    throw new Error('Login failed: ' + JSON.stringify(loginData));
+                }
+                
+                // Test image upload
+                const formData = new FormData();
+                formData.append('profileImage', fileInput.files[0]);
+                
+                const uploadResponse = await fetch(API_BASE_URL + '/profile/image', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + loginData.token
+                    },
+                    body: formData
+                });
+                
+                const uploadData = await uploadResponse.json();
+                console.log('Upload response:', uploadData);
+                
+                resultDiv.className = 'test-section success';
+                resultDiv.innerHTML = `
+                    <h4>✅ Image Upload Test Successful</h4>
+                    <pre>${JSON.stringify(uploadData, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Image upload test failed:', error);
+                resultDiv.className = 'test-section error';
+                resultDiv.innerHTML = `
+                    <h4>❌ Image Upload Test Failed</h4>
+                    <p>Error: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

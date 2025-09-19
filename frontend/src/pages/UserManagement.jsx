@@ -788,11 +788,19 @@ const UserManagement = () => {
                   {/* User Header */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-primary-dark flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
-                               {user.avatar}
-                             </span>
-                           </div>
+                      {user.profileImage?.url ? (
+                        <img 
+                          src={user.profileImage.url} 
+                          alt={user.fullName} 
+                          className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-r from-primary to-primary-dark flex items-center justify-center">
+                          <span className="text-sm font-medium text-white">
+                            {user.avatar}
+                          </span>
+                        </div>
+                      )}
                       <div>
                         <h3 className="text-sm font-semibold text-gray-900">
                           {user.fullName}

@@ -98,11 +98,19 @@ const CustomerNavbar = () => {
                 onClick={() => navigate('/customer-profile')}
                 className="flex items-center space-x-2 text-gray-700 hover:text-gray-900 transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">
-                    {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
-                  </span>
-                </div>
+                {user?.profileImage?.url ? (
+                  <img 
+                    src={user.profileImage.url} 
+                    alt={user.fullName || 'Customer'} 
+                    className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+                    <span className="text-white text-sm font-medium">
+                      {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
+                    </span>
+                  </div>
+                )}
                 <span className="hidden lg:block text-sm font-medium">{user?.fullName || 'Customer'}</span>
               </button>
             </div>
@@ -136,11 +144,21 @@ const CustomerNavbar = () => {
           </button>
           <button 
             onClick={() => navigate('/customer-profile')}
-            className="w-8 h-8 bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200"
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:scale-105 transition-transform duration-200 overflow-hidden"
           >
-            <span className="text-white text-xs font-medium">
-              {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
-            </span>
+            {user?.profileImage?.url ? (
+              <img 
+                src={user.profileImage.url} 
+                alt={user.fullName || 'Customer'} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-primary to-primary-dark rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-medium">
+                  {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').toUpperCase() : 'C'}
+                </span>
+              </div>
+            )}
           </button>
         </div>
       </div>

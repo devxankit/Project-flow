@@ -217,6 +217,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Update user data
+  const updateUser = (newUserData) => {
+    setUser(newUserData);
+    localStorage.setItem('user', JSON.stringify(newUserData));
+  };
+
   // Check if user has specific role
   const hasRole = (role) => {
     const userRole = user?.role || 'pm'; // Default to pm if no role
@@ -260,6 +266,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     refreshToken,
     validateToken,
+    updateUser,
     hasRole,
     hasAnyRole,
     getDashboardRoute,
