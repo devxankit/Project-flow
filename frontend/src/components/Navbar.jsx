@@ -20,12 +20,15 @@ const Navbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <img 
                 src="/images/logo.png" 
-                alt="TaskFlow Logo" 
+                alt="RS Management Logo" 
                 className="h-10 w-auto"
               />
+              <span className="text-base font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent hidden sm:block">
+                RS Management
+              </span>
             </div>
           </div>
 
@@ -93,6 +96,17 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-gray-100">
+            {/* Mobile Logo with Text */}
+            <div className="flex items-center space-x-2 px-3 py-2 mb-2">
+              <img 
+                src="/images/logo.png" 
+                alt="RS Management Logo" 
+                className="h-6 w-auto"
+              />
+              <span className="text-sm font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">
+                RS Management
+              </span>
+            </div>
             <a
               href="#"
               className="text-gray-700 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium"

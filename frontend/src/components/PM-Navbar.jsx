@@ -55,12 +55,15 @@ const PMNavbar = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
               <img 
                 src="/images/logo.png" 
-                alt="TaskFlow Logo" 
+                alt="RS Management Logo" 
                 className="h-10 w-auto"
               />
+              <span className="text-base font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent hidden sm:block">
+                RS Management
+              </span>
             </div>
           </div>
 
@@ -126,12 +129,15 @@ const PMNavbar = () => {
     <div className="md:hidden bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
       <div className="flex justify-between items-center h-14 px-4">
         {/* Logo */}
-        <div className="flex items-center">
+        <div className="flex items-center space-x-2">
           <img 
             src="/images/logo.png" 
-            alt="TaskFlow Logo" 
+            alt="RS Management Logo" 
             className="h-8 w-auto"
           />
+          <span className="text-sm font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">
+            RS Management
+          </span>
         </div>
 
         {/* Logout & Profile */}

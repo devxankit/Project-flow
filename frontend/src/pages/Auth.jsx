@@ -102,7 +102,30 @@ const Auth = () => {
 
   try {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="min-h-screen bg-background">
+        {/* Auth Navbar */}
+        <nav className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-start items-center h-16">
+              {/* Logo */}
+              <div className="flex-shrink-0">
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src="/images/logo.png" 
+                    alt="RS Management Logo" 
+                    className="h-10 w-auto"
+                  />
+                  <span className="text-base font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">
+                    RS Management
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Auth Form */}
+        <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 64px)' }}>
         <div className="w-full max-w-sm">
           <Card className="shadow-lg">
           <CardHeader className="border-b border-border/50">
@@ -176,16 +199,41 @@ const Auth = () => {
           </form>
           </Card>
         </div>
+        </div>
       </div>
     );
   } catch (error) {
     console.error('Auth component error:', error);
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Auth Component Error</h1>
-          <p className="text-gray-600">There was an error loading the authentication page.</p>
-          <p className="text-sm text-gray-500 mt-2">Error: {error.message}</p>
+      <div className="min-h-screen bg-background">
+        {/* Auth Navbar */}
+        <nav className="bg-white/95 backdrop-blur-md border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-start items-center h-16">
+              {/* Logo */}
+              <div className="flex-shrink-0">
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src="/images/logo.png" 
+                    alt="RS Management Logo" 
+                    className="h-10 w-auto"
+                  />
+                  <span className="text-base font-semibold bg-gradient-to-r from-teal-600 to-teal-800 bg-clip-text text-transparent">
+                    RS Management
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Error Content */}
+        <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 64px)' }}>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Auth Component Error</h1>
+            <p className="text-gray-600">There was an error loading the authentication page.</p>
+            <p className="text-sm text-gray-500 mt-2">Error: {error.message}</p>
+          </div>
         </div>
       </div>
     );

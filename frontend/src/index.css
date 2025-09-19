@@ -57,6 +57,7 @@
     --animate-marquee: marquee var(--duration) infinite linear;
     --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
     --animate-rippling: rippling var(--duration) ease-out;
+    --animate-shiny-text: shiny-text 8s infinite;
   }
 }
 
@@ -116,6 +117,14 @@
   100% {
     transform: scale(2);
     opacity: 0;
+    }
+  }
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;
     }
   }
 }
