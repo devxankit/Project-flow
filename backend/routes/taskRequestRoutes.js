@@ -97,7 +97,7 @@ router.put('/customer/:id', protect, authorize('customer'), validateTaskRequestU
 router.delete('/customer/:id', protect, authorize('customer'), cancelTaskRequest);
 
 // PM routes
-router.get('/pm', protect, authorize('project-manager'), getPMTaskRequests);
-router.post('/pm/:id/review', protect, authorize('project-manager'), validateTaskRequestReview, reviewTaskRequest);
+router.get('/pm', protect, authorize('pm'), getPMTaskRequests);
+router.post('/pm/:id/review', protect, authorize('pm'), validateTaskRequestReview, reviewTaskRequest);
 
 module.exports = router;

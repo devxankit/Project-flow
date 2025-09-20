@@ -374,16 +374,23 @@ const reviewTaskRequest = async (req, res) => {
 
     // If approved, create a task
     if (action === 'approve') {
+      // Map TaskRequest priority to Task priority
+      const priorityMap = {
+        'Low': 'low',
+        'Medium': 'normal',
+        'High': 'high',
+        'Urgent': 'urgent'
+      };
+
       const newTask = new Task({
         title: taskRequest.title,
         description: taskRequest.description,
         project: taskRequest.project._id,
         milestone: taskRequest.milestone,
-        priority: taskRequest.priority,
+        priority: priorityMap[taskRequest.priority] || 'normal',
         dueDate: taskRequest.dueDate,
         status: 'pending',
-        requestedBy: taskRequest.requestedBy,
-        createdFromRequest: true
+        createdBy: taskRequest.requestedBy
       });
 
       await newTask.save();
