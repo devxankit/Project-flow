@@ -805,6 +805,37 @@ const api = {
       const queryString = new URLSearchParams(params).toString();
       return api.get(`/employee/files${queryString ? `?${queryString}` : ''}`);
     }
+  },
+
+  // Customer-specific API functions
+  customer: {
+    // Get customer dashboard data
+    getDashboard: async () => {
+      return api.get('/customer/dashboard');
+    },
+
+    // Get customer projects
+    getProjects: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/customer/projects${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get single project details for customer
+    getProjectDetails: async (projectId) => {
+      return api.get(`/customer/projects/${projectId}`);
+    },
+
+    // Get customer activity feed
+    getActivity: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/customer/activity${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get customer files
+    getFiles: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/customer/files${queryString ? `?${queryString}` : ''}`);
+    }
   }
 };
 
@@ -868,6 +899,37 @@ export const commentApi = {
   // Delete comment from milestone (for Customer)
   deleteCustomerMilestoneComment: async (milestoneId, commentId) => {
     return api.delete(`/customer/milestones/${milestoneId}/comments/${commentId}`);
+  }
+};
+
+// Activity API functions
+export const activityApi = {
+  // Get activities for current user based on their role
+  getActivities: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/activities${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get activity statistics
+  getStats: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/activities/stats${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get activities for a specific project
+  getProjectActivities: async (projectId, params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/activities/project/${projectId}${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Get a specific activity by ID
+  getActivityById: async (activityId) => {
+    return api.get(`/activities/${activityId}`);
+  },
+
+  // Create a new activity (PM only)
+  createActivity: async (activityData) => {
+    return api.post('/activities', activityData);
   }
 };
 

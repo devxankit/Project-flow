@@ -6,16 +6,12 @@ import {
   Filter, 
   Calendar, 
   User, 
-  Clock, 
   CheckCircle, 
   Plus, 
   MessageSquare, 
   UserPlus, 
   BarChart3, 
   FolderPlus,
-  AlertTriangle,
-  FileText,
-  FolderKanban,
   Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,21 +24,21 @@ const EmployeeActivity = () => {
   
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [activities, setActivities] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
   const [pagination, setPagination] = useState(null);
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Fetch activity data
+  // Fetch all activity data (unfiltered)
   useEffect(() => {
     const fetchActivity = async () => {
       try {
         setLoading(true);
-        const response = await api.employee.getActivity({ type: filter === 'all' ? undefined : filter });
+        const response = await api.employee.getActivity({ page: 1, limit: 100 });
         
         if (response.data && response.data.success) {
-          setActivities(response.data.data?.activities || []);
+          setAllActivities(response.data.data?.activities || []);
           setPagination(response.data.data?.pagination || null);
         } else {
           toast.error('Error', 'Failed to load activity data');
@@ -56,7 +52,12 @@ const EmployeeActivity = () => {
     };
 
     fetchActivity();
-  }, [filter]);
+  }, [toast]);
+
+  // Filter activities based on selected filter
+  const filteredActivities = filter === 'all' 
+    ? allActivities 
+    : allActivities.filter(activity => activity.type === filter);
 
   // Show loading state
   if (loading) {
@@ -88,6 +89,23 @@ const EmployeeActivity = () => {
     }
   };
 
+  // Helper function to get activity icon
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'task_completed': return CheckCircle;
+      case 'project_created': return FolderPlus;
+      case 'comment_added': return MessageSquare;
+      case 'task_assigned': return UserPlus;
+      case 'project_updated': return BarChart3;
+      case 'task_created': return Plus;
+      case 'milestone_created': return BarChart3;
+      case 'milestone_completed': return CheckCircle;
+      case 'team_member_added': return UserPlus;
+      case 'file_uploaded': return Plus;
+      default: return Activity;
+    }
+  };
+
   const formatTimestamp = (timestamp) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -99,9 +117,6 @@ const EmployeeActivity = () => {
     return date.toLocaleDateString();
   };
 
-  const filteredActivities = filter === 'all' 
-    ? activities 
-    : activities.filter(activity => activity.type === filter);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -151,10 +166,10 @@ const EmployeeActivity = () => {
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'all', label: 'All', count: activities.length },
-                { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
-                { key: 'task_assigned', label: 'Assigned', count: activities.filter(a => a.type === 'task_assigned').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length }
+                { key: 'all', label: 'All', count: allActivities.length },
+                { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
+                { key: 'task_assigned', label: 'Assigned', count: allActivities.filter(a => a.type === 'task_assigned').length },
+                { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -178,11 +193,11 @@ const EmployeeActivity = () => {
           <div className="hidden md:block mb-8">
             <div className="flex gap-2 flex-wrap">
               {[
-                { key: 'all', label: 'All', count: activities.length },
-                { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
-                { key: 'task_assigned', label: 'Assigned', count: activities.filter(a => a.type === 'task_assigned').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length },
-                { key: 'task_overdue', label: 'Overdue', count: activities.filter(a => a.type === 'task_overdue').length }
+                { key: 'all', label: 'All', count: allActivities.length },
+                { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
+                { key: 'task_assigned', label: 'Assigned', count: allActivities.filter(a => a.type === 'task_assigned').length },
+                { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length },
+                { key: 'task_overdue', label: 'Overdue', count: allActivities.filter(a => a.type === 'task_overdue').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -202,12 +217,13 @@ const EmployeeActivity = () => {
           {/* Enhanced Activity Feed */}
           <div className="space-y-4">
             {filteredActivities.map((activity, index) => {
+              const IconComponent = getActivityIcon(activity.type);
               return (
                 <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
                   <div className="flex items-start space-x-3">
                     {/* Activity Icon - Smaller and more compact */}
                     <div className={`p-2 rounded-lg ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
-                      <CheckCircle className="h-4 w-4" />
+                      <IconComponent className="h-4 w-4" />
                     </div>
 
                     {/* Activity Content - Better space utilization */}
@@ -233,7 +249,7 @@ const EmployeeActivity = () => {
                           <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
                             <User className="h-3 w-3 text-primary" />
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{activity.user}</span>
+                          <span className="text-xs font-medium text-gray-700">{activity.actor?.fullName || 'Unknown'}</span>
                         </div>
                         
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
@@ -243,14 +259,18 @@ const EmployeeActivity = () => {
 
                       {/* Project and Milestone Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1.5">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                          <span className="text-xs font-semibold text-primary">{activity.project}</span>
-                        </div>
-                        {activity.milestone && (
+                        {activity.project && (
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                            <span className="text-xs font-semibold text-primary">
+                              {typeof activity.project === 'string' ? activity.project : activity.project.name}
+                            </span>
+                          </div>
+                        )}
+                        {activity.target && activity.target.title && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                            <span className="text-xs font-medium text-orange-600">{activity.milestone}</span>
+                            <span className="text-xs font-medium text-orange-600">{activity.target.title}</span>
                           </div>
                         )}
                       </div>

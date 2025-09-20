@@ -1,88 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { Activity, Filter, Calendar, User, Clock, CheckCircle, Plus, MessageSquare, UserPlus, BarChart3, FolderPlus } from 'lucide-react';
+import { Activity, Filter, Calendar, User, CheckCircle, Plus, MessageSquare, UserPlus, BarChart3, FolderPlus, Loader2 } from 'lucide-react';
+import { activityApi } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
 
 const ActivityPage = () => {
   const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+  const [allActivities, setAllActivities] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  const activities = [
-    {
-      id: 1,
-      type: 'task_completed',
-      title: 'Task completed',
-      description: 'John Doe completed "Update homepage design"',
-      timestamp: '2024-02-08T10:30:00Z',
-      user: 'John Doe',
-      project: 'Website Redesign',
-      milestone: 'Design Phase',
-      icon: CheckCircle,
-      color: 'text-green-600'
-    },
-    {
-      id: 2,
-      type: 'project_created',
-      title: 'Project created',
-      description: 'New project "Mobile App Development" was created',
-      timestamp: '2024-02-08T09:15:00Z',
-      user: 'Jane Smith',
-      project: 'Mobile App Development',
-      milestone: null,
-      icon: FolderPlus,
-      color: 'text-blue-600'
-    },
-    {
-      id: 3,
-      type: 'comment_added',
-      title: 'Comment added',
-      description: 'Mike Johnson added a comment to "Database optimization"',
-      timestamp: '2024-02-08T08:45:00Z',
-      user: 'Mike Johnson',
-      project: 'Database Migration',
-      milestone: 'Backend Setup',
-      icon: MessageSquare,
-      color: 'text-purple-600'
-    },
-    {
-      id: 4,
-      type: 'task_assigned',
-      title: 'Task assigned',
-      description: 'Sarah Wilson was assigned to "API documentation"',
-      timestamp: '2024-02-07T16:20:00Z',
-      user: 'Sarah Wilson',
-      project: 'Website Redesign',
-      milestone: 'Development Phase',
-      icon: UserPlus,
-      color: 'text-yellow-600'
-    },
-    {
-      id: 5,
-      type: 'project_updated',
-      title: 'Project updated',
-      description: 'Project "Website Redesign" progress updated to 65%',
-      timestamp: '2024-02-07T14:10:00Z',
-      user: 'John Doe',
-      project: 'Website Redesign',
-      milestone: null,
-      icon: BarChart3,
-      color: 'text-indigo-600'
-    },
-    {
-      id: 6,
-      type: 'task_created',
-      title: 'Task created',
-      description: 'New task "Review user feedback" was created',
-      timestamp: '2024-02-07T11:30:00Z',
-      user: 'Jane Smith',
-      project: 'Mobile App Development',
-      milestone: 'Testing Phase',
-      icon: Plus,
-      color: 'text-orange-600'
+  // Fetch all activity data (unfiltered)
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        setLoading(true);
+        const response = await activityApi.getActivities({ 
+          page: 1,
+          limit: 100 // Get more activities to ensure we have all for counting
+        });
+        
+        if (response.data && response.data.success) {
+          setAllActivities(response.data.data?.activities || []);
+          setPagination(response.data.data?.pagination || null);
+        } else {
+          toast.error('Error', 'Failed to load activity data');
+        }
+      } catch (error) {
+        console.error('Error fetching activities:', error);
+        toast.error('Error', 'Failed to load activity data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchActivities();
+  }, [toast]);
+
+  // Filter activities based on selected filter
+  const filteredActivities = filter === 'all' 
+    ? allActivities 
+    : allActivities.filter(activity => activity.type === filter);
+
+  // Helper function to get activity icon
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'task_completed': return CheckCircle;
+      case 'project_created': return FolderPlus;
+      case 'comment_added': return MessageSquare;
+      case 'task_assigned': return UserPlus;
+      case 'project_updated': return BarChart3;
+      case 'task_created': return Plus;
+      case 'milestone_created': return BarChart3;
+      case 'milestone_completed': return CheckCircle;
+      case 'team_member_added': return UserPlus;
+      case 'file_uploaded': return Plus;
+      default: return Activity;
     }
-  ];
+  };
 
   const getActivityTypeColor = (type) => {
     switch (type) {
@@ -107,9 +87,24 @@ const ActivityPage = () => {
     return date.toLocaleDateString();
   };
 
-  const filteredActivities = filter === 'all' 
-    ? activities 
-    : activities.filter(activity => activity.type === filter);
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <PMNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                <span className="text-gray-600">Loading activities...</span>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -159,10 +154,10 @@ const ActivityPage = () => {
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'all', label: 'All', count: activities.length },
-                { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_created', label: 'Projects', count: activities.filter(a => a.type === 'project_created').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length }
+                { key: 'all', label: 'All', count: allActivities.length },
+                { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
+                { key: 'project_created', label: 'Projects', count: allActivities.filter(a => a.type === 'project_created').length },
+                { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -186,10 +181,10 @@ const ActivityPage = () => {
           <div className="hidden md:block mb-8">
             <div className="flex gap-2 flex-wrap">
               {[
-                { key: 'all', label: 'All', count: activities.length },
-                { key: 'task_completed', label: 'Done', count: activities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_created', label: 'Projects', count: activities.filter(a => a.type === 'project_created').length },
-                { key: 'comment_added', label: 'Comments', count: activities.filter(a => a.type === 'comment_added').length }
+                { key: 'all', label: 'All', count: allActivities.length },
+                { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
+                { key: 'project_created', label: 'Projects', count: allActivities.filter(a => a.type === 'project_created').length },
+                { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -209,7 +204,7 @@ const ActivityPage = () => {
           {/* Enhanced Activity Feed */}
           <div className="space-y-4">
             {filteredActivities.map((activity, index) => {
-              const IconComponent = activity.icon;
+              const IconComponent = getActivityIcon(activity.type);
               return (
                 <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
                   <div className="flex items-start space-x-3">
@@ -241,7 +236,7 @@ const ActivityPage = () => {
                           <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
                             <User className="h-3 w-3 text-primary" />
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{activity.user}</span>
+                          <span className="text-xs font-medium text-gray-700">{activity.actor?.fullName || 'Unknown'}</span>
                         </div>
                         
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
@@ -251,14 +246,16 @@ const ActivityPage = () => {
 
                       {/* Project and Milestone Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1.5">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                          <span className="text-xs font-semibold text-primary">{activity.project}</span>
-                        </div>
-                        {activity.milestone && (
+                        {activity.project && (
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                            <span className="text-xs font-semibold text-primary">{activity.project.name}</span>
+                          </div>
+                        )}
+                        {activity.target && activity.target.title && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                            <span className="text-xs font-medium text-orange-600">{activity.milestone}</span>
+                            <span className="text-xs font-medium text-orange-600">{activity.target.title}</span>
                           </div>
                         )}
                       </div>
@@ -281,7 +278,7 @@ const ActivityPage = () => {
           )}
 
           {/* Load More Button - Mobile App Style */}
-          {filteredActivities.length > 0 && (
+          {filteredActivities.length > 0 && pagination && pagination.pages > 1 && (
             <div className="mt-6 text-center">
               <button className="bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-full text-sm font-medium hover:bg-gray-50 transition-colors">
                 Load More Activity

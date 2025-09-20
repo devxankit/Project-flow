@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { Activity, Filter, Calendar, User, Clock, CheckCircle, MessageSquare, BarChart3, FolderPlus, Eye, Loader2 } from 'lucide-react';
+import { Activity, Filter, Calendar, User, CheckCircle, MessageSquare, BarChart3, FolderPlus, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
@@ -9,21 +9,21 @@ import api from '../utils/api';
 const CustomerActivity = () => {
   const [filter, setFilter] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [activities, setActivities] = useState([]);
+  const [allActivities, setAllActivities] = useState([]);
   const { user } = useAuth();
   const { toast } = useToast();
   
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Fetch activity data
+  // Fetch all activity data (unfiltered)
   useEffect(() => {
     const fetchActivityData = async () => {
       try {
         setLoading(true);
         const response = await api.get('/customer/activity');
         if (response.data.success) {
-          setActivities(response.data.data.activities);
+          setAllActivities(response.data.data.activities);
         }
       } catch (error) {
         console.error('Error fetching activity data:', error);
@@ -55,6 +55,23 @@ const CustomerActivity = () => {
     );
   }
 
+  // Helper function to get activity icon
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'task_completed': return CheckCircle;
+      case 'project_created': return FolderPlus;
+      case 'comment_added': return MessageSquare;
+      case 'task_assigned': return UserPlus;
+      case 'project_updated': return BarChart3;
+      case 'task_created': return Plus;
+      case 'milestone_created': return BarChart3;
+      case 'milestone_completed': return CheckCircle;
+      case 'team_member_added': return UserPlus;
+      case 'file_uploaded': return Plus;
+      default: return Activity;
+    }
+  };
+
   const getActivityTypeColor = (type) => {
     switch (type) {
       case 'task_completed': return 'bg-green-100 text-green-800 border-green-200';
@@ -79,7 +96,7 @@ const CustomerActivity = () => {
   };
 
   // Filter activities to show only shareable ones for customers
-  const shareableActivities = activities.filter(activity => activity.shareable);
+  const shareableActivities = allActivities.filter(activity => activity.shareable);
   const filteredActivities = filter === 'all' 
     ? shareableActivities 
     : shareableActivities.filter(activity => activity.type === filter);
@@ -182,7 +199,7 @@ const CustomerActivity = () => {
           {/* Enhanced Activity Feed */}
           <div className="space-y-4">
             {filteredActivities.map((activity, index) => {
-              const IconComponent = activity.icon;
+              const IconComponent = getActivityIcon(activity.type);
               return (
                 <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
                   <div className="flex items-start space-x-3">
@@ -214,7 +231,7 @@ const CustomerActivity = () => {
                           <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
                             <User className="h-3 w-3 text-primary" />
                           </div>
-                          <span className="text-xs font-medium text-gray-700">{activity.user}</span>
+                          <span className="text-xs font-medium text-gray-700">{activity.actor?.fullName || 'Unknown'}</span>
                         </div>
                         
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActivityTypeColor(activity.type)}`}>
@@ -224,14 +241,18 @@ const CustomerActivity = () => {
 
                       {/* Project and Milestone Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-1.5">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                          <span className="text-xs font-semibold text-primary">{activity.project}</span>
-                        </div>
-                        {activity.milestone && (
+                        {activity.project && (
+                          <div className="flex items-center space-x-1.5">
+                            <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
+                            <span className="text-xs font-semibold text-primary">
+                              {typeof activity.project === 'string' ? activity.project : activity.project.name}
+                            </span>
+                          </div>
+                        )}
+                        {activity.target && activity.target.title && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                            <span className="text-xs font-medium text-orange-600">{activity.milestone}</span>
+                            <span className="text-xs font-medium text-orange-600">{activity.target.title}</span>
                           </div>
                         )}
                       </div>
