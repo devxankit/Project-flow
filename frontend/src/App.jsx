@@ -31,6 +31,7 @@ import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeTaskDetail from './pages/EmployeeTaskDetail';
 import EmployeeProjects from './pages/EmployeeProjects';
 import EmployeeProjectDetails from './pages/EmployeeProjectDetails';
+import EmployeeMilestoneDetail from './pages/EmployeeMilestoneDetail';
 import EmployeeActivity from './pages/EmployeeActivity';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EmployeeFiles from './pages/EmployeeFiles';
@@ -178,6 +179,11 @@ function App() {
               <Route path="/employee-project/:id" element={
                 <ProtectedRoute allowedRoles={['employee']}>
                   <EmployeeProjectDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/employee/milestone-details/:id" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeMilestoneDetail />
                 </ProtectedRoute>
               } />
               <Route path="/employee-activity" element={

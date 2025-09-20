@@ -51,7 +51,7 @@ const CustomerFiles = () => {
     };
 
     fetchFilesData();
-  }, [toast]);
+  }, []);
 
   // Files data is now fetched from API
 

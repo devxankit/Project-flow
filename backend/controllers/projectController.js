@@ -1,4 +1,7 @@
+const mongoose = require('mongoose');
 const Project = require('../models/Project');
+const Milestone = require('../models/Milestone');
+const Task = require('../models/Task');
 const User = require('../models/User');
 const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
 const { validationResult } = require('express-validator');
@@ -623,6 +626,238 @@ const getUsersForProject = async (req, res) => {
   }
 };
 
+// Add comment to task
+const addTaskComment = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { comment } = req.body;
+    const pmId = new mongoose.Types.ObjectId(req.user.id);
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Check if PM has access to this task's project
+    const task = await Task.findById(taskId).populate('project', 'projectManager');
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Check if PM is the project manager of this task's project
+    if (task.project.projectManager.toString() !== pmId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this task'
+      });
+    }
+
+    // Add comment to task
+    const newComment = {
+      user: pmId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    task.comments.push(newComment);
+    await task.save();
+
+    // Populate the comment with user details
+    await task.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: task.comments[task.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Add comment to milestone
+const addMilestoneComment = async (req, res) => {
+  try {
+    const { milestoneId } = req.params;
+    const { comment } = req.body;
+    const pmId = new mongoose.Types.ObjectId(req.user.id);
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Check if PM has access to this milestone's project
+    const milestone = await Milestone.findById(milestoneId).populate('project', 'projectManager');
+    
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found'
+      });
+    }
+
+    // Check if PM is the project manager of this milestone's project
+    if (milestone.project.projectManager.toString() !== pmId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this milestone'
+      });
+    }
+
+    // Add comment to milestone
+    const newComment = {
+      user: pmId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    milestone.comments.push(newComment);
+    await milestone.save();
+
+    // Populate the comment with user details
+    await milestone.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: milestone.comments[milestone.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding milestone comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from task
+const deleteTaskComment = async (req, res) => {
+  try {
+    const { taskId, commentId } = req.params;
+    const pmId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Check if PM has access to this task's project
+    const task = await Task.findById(taskId).populate('project', 'projectManager');
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Check if PM is the project manager of this task's project
+    if (task.project.projectManager.toString() !== pmId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this task'
+      });
+    }
+
+    // Find the comment
+    const commentIndex = task.comments.findIndex(
+      comment => comment._id.toString() === commentId && comment.user.toString() === pmId.toString()
+    );
+
+    if (commentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found or access denied'
+      });
+    }
+
+    // Remove comment
+    task.comments.splice(commentIndex, 1);
+    await task.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from milestone
+const deleteMilestoneComment = async (req, res) => {
+  try {
+    const { milestoneId, commentId } = req.params;
+    const pmId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Check if PM has access to this milestone's project
+    const milestone = await Milestone.findById(milestoneId).populate('project', 'projectManager');
+    
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found'
+      });
+    }
+
+    // Check if PM is the project manager of this milestone's project
+    if (milestone.project.projectManager.toString() !== pmId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this milestone'
+      });
+    }
+
+    // Find the comment
+    const commentIndex = milestone.comments.findIndex(
+      comment => comment._id.toString() === commentId && comment.user.toString() === pmId.toString()
+    );
+
+    if (commentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found or access denied'
+      });
+    }
+
+    // Remove comment
+    milestone.comments.splice(commentIndex, 1);
+    await milestone.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting milestone comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
@@ -630,5 +865,9 @@ module.exports = {
   updateProject,
   deleteProject,
   getProjectStats,
-  getUsersForProject
+  getUsersForProject,
+  addTaskComment,
+  addMilestoneComment,
+  deleteTaskComment,
+  deleteMilestoneComment
 };

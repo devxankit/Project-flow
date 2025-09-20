@@ -202,6 +202,7 @@ const getTasksByMilestone = async (req, res) => {
       .populate('assignedTo', 'fullName email avatar')
       .populate('createdBy', 'fullName email avatar')
       .populate('completedBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -241,7 +242,8 @@ const getTask = async (req, res) => {
       .populate('createdBy', 'fullName email avatar')
       .populate('completedBy', 'fullName email avatar')
       .populate('milestone', 'title')
-      .populate('project', 'name');
+      .populate('project', 'name')
+      .populate('comments.user', 'fullName email');
 
     if (!task) {
       return res.status(404).json({

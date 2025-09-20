@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import api, { commentApi } from '../utils/api';
 
 const EmployeeTaskDetail = () => {
   const { id } = useParams();
@@ -40,31 +40,31 @@ const EmployeeTaskDetail = () => {
   useScrollToTop();
 
   // Fetch task data
-  useEffect(() => {
-    const fetchTask = async () => {
-      try {
-        setLoading(true);
-        const response = await api.employee.getTask(id);
-        
-        if (response.data && response.data.success) {
-          setTask(response.data.data?.task);
-        } else {
-          toast.error('Error', 'Task not found or access denied');
-          navigate('/employee-dashboard');
-        }
-      } catch (error) {
-        console.error('Error fetching task:', error);
-        toast.error('Error', 'Failed to load task details');
+  const fetchTask = async () => {
+    try {
+      setLoading(true);
+      const response = await api.employee.getTask(id);
+      
+      if (response.data && response.data.success) {
+        setTask(response.data.data?.task);
+      } else {
+        toast.error('Error', 'Task not found or access denied');
         navigate('/employee-dashboard');
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching task:', error);
+      toast.error('Error', 'Failed to load task details');
+      navigate('/employee-dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (id) {
       fetchTask();
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   // Countdown logic
   useEffect(() => {
@@ -203,6 +203,11 @@ const EmployeeTaskDetail = () => {
       if (response.data && response.data.success) {
         setTask(response.data.data?.task);
         toast.success('Success', `Task status updated to: ${newStatus}`);
+        
+        // Show additional info about milestone progress update
+        if (newStatus === 'completed') {
+          toast.success('Milestone Progress', 'Milestone progress has been updated. Navigate back to milestone details to see the updated progress bar.');
+        }
       } else {
         toast.error('Error', 'Failed to update task status');
       }
@@ -214,13 +219,53 @@ const EmployeeTaskDetail = () => {
     }
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      // In a real app, this would add the comment via API
-      console.log('New comment:', newComment);
-      setNewComment('');
-      alert('Comment added successfully!');
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      const response = await commentApi.addEmployeeTaskComment(id, newComment.trim());
+      
+      if (response.data.success) {
+        toast.success('Success', 'Comment added successfully');
+        setNewComment('');
+        // Reload task to show new comment
+        fetchTask();
+      } else {
+        toast.error('Error', response.data.message || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Error', 'Failed to add comment');
     }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        const response = await commentApi.deleteEmployeeTaskComment(id, commentId);
+        
+        if (response.data.success) {
+          toast.success('Success', 'Comment deleted successfully');
+          // Reload task to remove deleted comment
+          fetchTask();
+        } else {
+          toast.error('Error', response.data.message || 'Failed to delete comment');
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        toast.error('Error', 'Failed to delete comment');
+      }
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const handleFileUpload = (event) => {
@@ -484,38 +529,75 @@ const EmployeeTaskDetail = () => {
                 <MessageSquare className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-              <span className="text-sm text-gray-500">(0)</span>
+              <span className="text-sm text-gray-500">({task?.comments?.length || 0})</span>
             </div>
 
-            {/* Add Comment Section */}
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 resize-none"
-                rows={3}
-              />
-              <div className="flex justify-end mt-3">
-                <button
-                  onClick={handleAddComment}
-                  disabled={!newComment.trim()}
-                  className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="h-4 w-4" />
-                  <span className="text-sm font-medium">Add Comment</span>
-                </button>
+            {/* Existing Comments */}
+            {task?.comments && task.comments.length > 0 && (
+              <div className="space-y-4 mb-6">
+                {task.comments.map((comment) => (
+                  <div key={comment._id || comment.id} className="border-l-4 border-primary/20 pl-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <User className="h-3 w-3 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {comment.user?.fullName || comment.user || 'Unknown User'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(comment.timestamp)}
+                        </span>
+                      </div>
+                      {/* Show delete button only for current user's comments */}
+                      {(comment.user?._id || comment.user?.id || comment.user) === user?.id && (
+                        <button
+                          onClick={() => handleDeleteComment(comment._id || comment.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete comment"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">{comment.message}</p>
+                  </div>
+                ))}
               </div>
-            </div>
+            )}
 
-            {/* Comments List */}
-            {/* Comments placeholder - will be implemented when backend supports comments */}
-            <div className="text-center py-8">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-6 w-6 text-gray-400" />
+            {/* Empty State for Comments */}
+            {(!task?.comments || task.comments.length === 0) && (
+              <div className="text-center py-8 mb-6">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="h-6 w-6 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
+                <p className="text-gray-600">Comments from team members will appear here</p>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
-              <p className="text-gray-600">Comments functionality will be added soon</p>
+            )}
+
+            {/* Add Comment Form */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="space-y-4">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment to this task..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                />
+                
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim()}
+                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Comment
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

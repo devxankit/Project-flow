@@ -46,7 +46,7 @@ const EmployeeDashboard = () => {
     };
 
     fetchDashboardData();
-  }, [toast]);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {

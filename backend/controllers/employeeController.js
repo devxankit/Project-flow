@@ -328,7 +328,8 @@ const getEmployeeTask = async (req, res) => {
       .populate('milestone', 'title description status')
       .populate('assignedTo', 'fullName email avatar')
       .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar');
+      .populate('completedBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email');
 
     if (!task) {
       return res.status(404).json({
@@ -399,16 +400,18 @@ const updateTaskStatus = async (req, res) => {
       updateData.completedBy = null;
     }
 
-    const updatedTask = await Task.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate('project', 'name')
-      .populate('milestone', 'title')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar');
+    // Update the task using save() to trigger middleware
+    Object.assign(task, updateData);
+    const updatedTask = await task.save();
+    
+    // Populate the updated task
+    await updatedTask.populate([
+      { path: 'project', select: 'name' },
+      { path: 'milestone', select: 'title' },
+      { path: 'assignedTo', select: 'fullName email avatar' },
+      { path: 'createdBy', select: 'fullName email avatar' },
+      { path: 'completedBy', select: 'fullName email avatar' }
+    ]);
 
     res.json({
       success: true,
@@ -541,8 +544,9 @@ const getEmployeeProjectDetails = async (req, res) => {
       });
     }
 
-    // Get milestones for this project
+    // Get milestones for this project with progress field
     const milestones = await Milestone.find({ project: id })
+      .select('title description status progress dueDate assignedTo createdAt sequence')
       .sort({ createdAt: 1 });
 
     // Get task counts for each milestone
@@ -748,13 +752,448 @@ const formatFileSize = (bytes) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Add comment to task
+const addTaskComment = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { comment } = req.body;
+    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Check if employee has access to this task
+    const task = await Task.findOne({
+      _id: taskId,
+      $or: [
+        { assignedTo: employeeId },
+        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
+      ]
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or access denied'
+      });
+    }
+
+    // Add comment to task
+    const newComment = {
+      user: employeeId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    task.comments.push(newComment);
+    await task.save();
+
+    // Populate the comment with user details
+    await task.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: task.comments[task.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Add comment to milestone
+const addMilestoneComment = async (req, res) => {
+  try {
+    const { milestoneId } = req.params;
+    const { comment } = req.body;
+    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Check if employee has access to this milestone
+    const milestone = await Milestone.findOne({
+      _id: milestoneId,
+      $or: [
+        { assignedTo: employeeId },
+        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
+      ]
+    });
+
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found or access denied'
+      });
+    }
+
+    // Add comment to milestone
+    const newComment = {
+      user: employeeId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    milestone.comments.push(newComment);
+    await milestone.save();
+
+    // Populate the comment with user details
+    await milestone.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: milestone.comments[milestone.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding milestone comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from task
+const deleteTaskComment = async (req, res) => {
+  try {
+    const { taskId, commentId } = req.params;
+    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Check if employee has access to this task
+    const task = await Task.findOne({
+      _id: taskId,
+      $or: [
+        { assignedTo: employeeId },
+        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
+      ]
+    });
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or access denied'
+      });
+    }
+
+    // Find the comment
+    const commentIndex = task.comments.findIndex(
+      comment => comment._id.toString() === commentId && comment.user.toString() === employeeId.toString()
+    );
+
+    if (commentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found or access denied'
+      });
+    }
+
+    // Remove comment
+    task.comments.splice(commentIndex, 1);
+    await task.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from milestone
+const deleteMilestoneComment = async (req, res) => {
+  try {
+    const { milestoneId, commentId } = req.params;
+    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Check if employee has access to this milestone
+    const milestone = await Milestone.findOne({
+      _id: milestoneId,
+      $or: [
+        { assignedTo: employeeId },
+        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
+      ]
+    });
+
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found or access denied'
+      });
+    }
+
+    // Find the comment
+    const commentIndex = milestone.comments.findIndex(
+      comment => comment._id.toString() === commentId && comment.user.toString() === employeeId.toString()
+    );
+
+    if (commentIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found or access denied'
+      });
+    }
+
+    // Remove comment
+    milestone.comments.splice(commentIndex, 1);
+    await milestone.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting milestone comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get single milestone for employee
+// @route   GET /api/employee/milestones/:milestoneId/project/:projectId
+// @access  Private (Employee only)
+const getEmployeeMilestone = async (req, res) => {
+  try {
+    const { milestoneId, projectId } = req.params;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Check if employee has access to this project
+    const project = await Project.findOne({
+      _id: projectId,
+      assignedTeam: { $in: [userId] }
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found or access denied'
+      });
+    }
+
+    // Get milestone with populated data
+    const milestone = await Milestone.findOne({ 
+      _id: milestoneId, 
+      project: projectId 
+    })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email');
+
+    if (!milestone) {
+      return res.status(404).json({
+        success: false,
+        message: 'Milestone not found or access denied'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { 
+        milestone,
+        project: {
+          _id: project._id,
+          name: project.name,
+          description: project.description
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching employee milestone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get tasks by milestone for employee
+// @route   GET /api/employee/tasks/milestone/:milestoneId/project/:projectId
+// @access  Private (Employee only)
+const getEmployeeTasksByMilestone = async (req, res) => {
+  try {
+    const { milestoneId, projectId } = req.params;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    // Verify employee has access to this project
+    const project = await Project.findOne({
+      _id: projectId,
+      assignedTeam: { $in: [userId] }
+    });
+
+    if (!project) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Project not found or access denied' 
+      });
+    }
+
+    // Verify milestone belongs to this project
+    const milestone = await Milestone.findOne({
+      _id: milestoneId,
+      project: projectId
+    });
+
+    if (!milestone) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Milestone not found or access denied' 
+      });
+    }
+
+    // Get tasks for this milestone
+    const tasks = await Task.find({ 
+      milestone: milestoneId,
+      project: projectId
+    })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      data: {
+        tasks,
+        milestone: {
+          _id: milestone._id,
+          title: milestone.title,
+          description: milestone.description,
+          status: milestone.status,
+          progress: milestone.progress
+        },
+        project: {
+          _id: project._id,
+          name: project.name,
+          description: project.description
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching employee tasks by milestone:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Recalculate milestone progress
+// @route   POST /api/employee/milestones/:milestoneId/recalculate-progress
+// @access  Private (Employee only)
+const recalculateMilestoneProgress = async (req, res) => {
+  try {
+    const { milestoneId } = req.params;
+    
+    // Basic validation
+    if (!milestoneId || !mongoose.Types.ObjectId.isValid(milestoneId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid milestone ID is required'
+      });
+    }
+    
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+
+    console.log(`Recalculating progress for milestone: ${milestoneId}, user: ${userId}`);
+
+    // Get the milestone
+    const milestone = await Milestone.findById(milestoneId);
+    if (!milestone) {
+      console.log(`Milestone not found: ${milestoneId}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Milestone not found' 
+      });
+    }
+
+    // Verify employee has access to this project
+    const project = await Project.findOne({
+      _id: milestone.project,
+      assignedTeam: { $in: [userId] }
+    });
+
+    if (!project) {
+      console.log(`Access denied for user ${userId} to project ${milestone.project}`);
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied to this milestone' 
+      });
+    }
+
+    console.log(`Recalculating progress for milestone: ${milestone.title}`);
+
+    // Recalculate progress
+    const newProgress = await milestone.calculateProgress();
+
+    console.log(`Progress recalculated: ${newProgress}%`);
+
+    res.json({
+      success: true,
+      message: 'Milestone progress recalculated successfully',
+      data: {
+        milestoneId: milestone._id,
+        title: milestone.title,
+        progress: newProgress
+      }
+    });
+
+  } catch (error) {
+    console.error('Error recalculating milestone progress:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getEmployeeDashboard,
   getEmployeeProjects,
   getEmployeeProjectDetails,
   getEmployeeTasks,
   getEmployeeTask,
+  getEmployeeMilestone,
+  getEmployeeTasksByMilestone,
+  recalculateMilestoneProgress,
   updateTaskStatus,
   getEmployeeActivity,
-  getEmployeeFiles
+  getEmployeeFiles,
+  addTaskComment,
+  addMilestoneComment,
+  deleteTaskComment,
+  deleteMilestoneComment
 };

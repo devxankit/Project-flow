@@ -8,9 +8,16 @@ const {
   getEmployeeProjectDetails,
   getEmployeeTasks,
   getEmployeeTask,
+  getEmployeeMilestone,
+  getEmployeeTasksByMilestone,
+  recalculateMilestoneProgress,
   updateTaskStatus,
   getEmployeeActivity,
-  getEmployeeFiles
+  getEmployeeFiles,
+  addTaskComment,
+  addMilestoneComment,
+  deleteTaskComment,
+  deleteMilestoneComment
 } = require('../controllers/employeeController');
 
 // Validation middleware
@@ -38,6 +45,25 @@ const validateTaskId = [
     .withMessage('Valid task ID is required')
 ];
 
+const validateTaskIdParam = [
+  param('taskId')
+    .isMongoId()
+    .withMessage('Valid task ID is required')
+];
+
+const validateMilestoneId = [
+  param('milestoneId')
+    .isMongoId()
+    .withMessage('Valid milestone ID is required')
+];
+
+const validateComment = [
+  body('comment')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Comment must be between 1 and 1000 characters')
+];
+
 const validateProjectId = [
   param('id')
     .isMongoId()
@@ -63,6 +89,21 @@ router.get('/projects', validatePagination, getEmployeeProjects);
 // @access  Private (Employee only)
 router.get('/projects/:id', validateProjectId, getEmployeeProjectDetails);
 
+// @route   GET /api/employee/milestones/:milestoneId/project/:projectId
+// @desc    Get single milestone for employee
+// @access  Private (Employee only)
+router.get('/milestones/:milestoneId/project/:projectId', validateMilestoneId, getEmployeeMilestone);
+
+// @route   POST /api/employee/milestones/:milestoneId/recalculate-progress
+// @desc    Recalculate milestone progress
+// @access  Private (Employee only)
+router.post('/milestones/:milestoneId/recalculate-progress', recalculateMilestoneProgress);
+
+// @route   GET /api/employee/tasks/milestone/:milestoneId/project/:projectId
+// @desc    Get tasks by milestone for employee
+// @access  Private (Employee only)
+router.get('/tasks/milestone/:milestoneId/project/:projectId', validateMilestoneId, getEmployeeTasksByMilestone);
+
 // @route   GET /api/employee/tasks
 // @desc    Get employee assigned tasks
 // @access  Private (Employee only)
@@ -87,5 +128,25 @@ router.get('/activity', validatePagination, getEmployeeActivity);
 // @desc    Get employee files
 // @access  Private (Employee only)
 router.get('/files', validatePagination, getEmployeeFiles);
+
+// @route   POST /api/employee/tasks/:taskId/comments
+// @desc    Add comment to task
+// @access  Private (Employee only)
+router.post('/tasks/:taskId/comments', validateTaskIdParam, validateComment, addTaskComment);
+
+// @route   DELETE /api/employee/tasks/:taskId/comments/:commentId
+// @desc    Delete comment from task
+// @access  Private (Employee only)
+router.delete('/tasks/:taskId/comments/:commentId', validateTaskIdParam, deleteTaskComment);
+
+// @route   POST /api/employee/milestones/:milestoneId/comments
+// @desc    Add comment to milestone
+// @access  Private (Employee only)
+router.post('/milestones/:milestoneId/comments', validateMilestoneId, validateComment, addMilestoneComment);
+
+// @route   DELETE /api/employee/milestones/:milestoneId/comments/:commentId
+// @desc    Delete comment from milestone
+// @access  Private (Employee only)
+router.delete('/milestones/:milestoneId/comments/:commentId', validateMilestoneId, deleteMilestoneComment);
 
 module.exports = router;

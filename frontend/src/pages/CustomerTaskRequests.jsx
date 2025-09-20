@@ -51,7 +51,7 @@ const CustomerTaskRequests = () => {
     };
 
     fetchTaskRequests();
-  }, [toast]);
+  }, []);
 
   // Filter and search
   useEffect(() => {

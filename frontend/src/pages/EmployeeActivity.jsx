@@ -56,7 +56,7 @@ const EmployeeActivity = () => {
     };
 
     fetchActivity();
-  }, [filter, toast]);
+  }, [filter]);
 
   // Show loading state
   if (loading) {

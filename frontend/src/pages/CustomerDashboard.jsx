@@ -35,7 +35,7 @@ const CustomerDashboard = () => {
     };
 
     fetchDashboardData();
-  }, [toast]);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {

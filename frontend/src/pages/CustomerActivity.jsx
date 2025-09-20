@@ -34,7 +34,7 @@ const CustomerActivity = () => {
     };
 
     fetchActivityData();
-  }, [toast]);
+  }, []);
 
   // Activities data is now fetched from API
 

@@ -66,7 +66,7 @@ const CustomerProfile = () => {
     };
 
     fetchProfile();
-  }, [toast]);
+  }, []);
 
   const handleProfileUpdate = (field, value) => {
     setProfileData(prev => ({

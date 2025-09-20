@@ -25,6 +25,7 @@ import api from '../utils/api';
 const CustomerTaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [timeLeft, setTimeLeft] = useState('');
   const [showUploadForm, setShowUploadForm] = useState(false);
@@ -59,7 +60,7 @@ const CustomerTaskDetail = () => {
     if (id) {
       fetchTaskData();
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   // Countdown logic - moved before early returns to maintain hook order
   useEffect(() => {
@@ -576,7 +577,7 @@ const CustomerTaskDetail = () => {
                         </span>
                       </div>
                       {/* Show delete button only for current user's comments */}
-                      {comment.user?.toString() === user?.id || comment.user === user?.id && (
+                      {(comment.user?._id || comment.user?.id || comment.user) === user?.id && (
                         <button
                           onClick={() => handleDeleteComment(comment._id || comment.id)}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"

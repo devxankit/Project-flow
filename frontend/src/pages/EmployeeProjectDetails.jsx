@@ -62,7 +62,7 @@ const EmployeeProjectDetails = () => {
     if (id) {
       fetchProjectDetails();
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   // Countdown logic
   useEffect(() => {
@@ -316,7 +316,11 @@ const EmployeeProjectDetails = () => {
     <div className="space-y-4">
       {milestones.length > 0 ? (
         milestones.map((milestone) => (
-          <div key={milestone._id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
+          <div 
+            key={milestone._id} 
+            className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow duration-200"
+            onClick={() => navigate(`/employee/milestone-details/${milestone._id}?projectId=${id}`)}
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base md:text-lg font-semibold text-gray-900">{milestone.title}</h3>
               <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(milestone.status)}`}>

@@ -57,7 +57,7 @@ const CustomerProjectDetails = () => {
     if (id) {
       fetchProjectData();
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   // Countdown logic - moved before early returns to maintain hook order
   useEffect(() => {

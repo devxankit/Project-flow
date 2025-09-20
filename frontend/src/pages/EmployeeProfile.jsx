@@ -74,7 +74,7 @@ const EmployeeProfile = () => {
     };
 
     fetchProfile();
-  }, [toast]);
+  }, []);
 
   const handleProfileUpdate = (field, value) => {
     setProfileData(prev => ({

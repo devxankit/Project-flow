@@ -328,7 +328,8 @@ const getMilestone = async (req, res) => {
     const milestone = await Milestone.findById(milestoneId)
       .populate('assignedTo', 'fullName email avatar')
       .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar');
+      .populate('completedBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email');
 
     if (!milestone) {
       return res.status(404).json({

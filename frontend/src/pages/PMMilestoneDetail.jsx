@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { milestoneApi, taskApi, handleApiError } from '../utils/api';
+import { milestoneApi, taskApi, commentApi, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Target, 
   Calendar, 
@@ -30,6 +31,7 @@ import {
 
 const PMMilestoneDetail = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useState(() => new URLSearchParams(window.location.search));
@@ -365,13 +367,53 @@ const PMMilestoneDetail = () => {
     alert(`Milestone status updated to: ${newStatus}`);
   };
 
-  const handleAddComment = () => {
-    if (newComment.trim()) {
-      // In a real app, this would add the comment via API
-      console.log('New comment:', newComment);
-      setNewComment('');
-      alert('Comment added successfully!');
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    
+    try {
+      const response = await commentApi.addMilestoneComment(id, newComment.trim());
+      
+      if (response.data.success) {
+        toast.success('Success', 'Comment added successfully');
+        setNewComment('');
+        // Reload milestone to show new comment
+        loadMilestone();
+      } else {
+        toast.error('Error', response.data.message || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Error', 'Failed to add comment');
     }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        const response = await commentApi.deleteMilestoneComment(id, commentId);
+        
+        if (response.data.success) {
+          toast.success('Success', 'Comment deleted successfully');
+          // Reload milestone to remove deleted comment
+          loadMilestone();
+        } else {
+          toast.error('Error', response.data.message || 'Failed to delete comment');
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        toast.error('Error', 'Failed to delete comment');
+      }
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const handleFileUpload = (event) => {
@@ -777,6 +819,87 @@ const PMMilestoneDetail = () => {
                 <p className="text-gray-600">Upload files to share with your team</p>
               </div>
             )}
+          </div>
+
+          {/* Comments Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <MessageSquare className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
+                <span className="text-sm text-gray-500">({currentMilestone.comments?.length || 0})</span>
+              </div>
+            </div>
+
+            {/* Existing Comments */}
+            {currentMilestone.comments && currentMilestone.comments.length > 0 && (
+              <div className="space-y-4 mb-6">
+                {currentMilestone.comments.map((comment) => (
+                  <div key={comment._id || comment.id} className="border-l-4 border-primary/20 pl-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                          <User className="h-3 w-3 text-primary" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">
+                          {comment.user?.fullName || comment.user || 'Unknown User'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(comment.timestamp)}
+                        </span>
+                      </div>
+                      {/* Show delete button only for current user's comments */}
+                      {(comment.user?._id || comment.user?.id || comment.user) === user?.id && (
+                        <button
+                          onClick={() => handleDeleteComment(comment._id || comment.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete comment"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">{comment.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State for Comments */}
+            {(!currentMilestone.comments || currentMilestone.comments.length === 0) && (
+              <div className="text-center py-8 mb-6">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="h-6 w-6 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
+                <p className="text-gray-600">Comments from team members will appear here</p>
+              </div>
+            )}
+
+            {/* Add Comment Form */}
+            <div className="border-t border-gray-200 pt-6">
+              <div className="space-y-4">
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment to this milestone..."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+                />
+                
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!newComment.trim()}
+                    className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Add Comment
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
         </div>

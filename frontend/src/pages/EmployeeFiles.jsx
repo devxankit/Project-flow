@@ -64,7 +64,7 @@ const EmployeeFiles = () => {
     };
 
     fetchFiles();
-  }, [filterType, filterStatus, toast]);
+  }, [filterType, filterStatus]);
 
   // Show loading state
   if (loading) {

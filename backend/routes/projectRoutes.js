@@ -7,7 +7,11 @@ const {
   updateProject,
   deleteProject,
   getProjectStats,
-  getUsersForProject
+  getUsersForProject,
+  addTaskComment,
+  addMilestoneComment,
+  deleteTaskComment,
+  deleteMilestoneComment
 } = require('../controllers/projectController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { body, param, query } = require('express-validator');
@@ -77,6 +81,25 @@ const validateProjectId = [
   param('id')
     .isMongoId()
     .withMessage('Valid project ID is required')
+];
+
+const validateTaskId = [
+  param('taskId')
+    .isMongoId()
+    .withMessage('Valid task ID is required')
+];
+
+const validateMilestoneId = [
+  param('milestoneId')
+    .isMongoId()
+    .withMessage('Valid milestone ID is required')
+];
+
+const validateComment = [
+  body('comment')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Comment must be between 1 and 1000 characters')
 ];
 
 const validateQueryParams = [
@@ -189,5 +212,25 @@ router.delete(
   validateProjectId,
   deleteProject
 );
+
+// @route   POST /api/projects/tasks/:taskId/comments
+// @desc    Add comment to task
+// @access  Private (PM only)
+router.post('/tasks/:taskId/comments', authorize('pm'), validateTaskId, validateComment, addTaskComment);
+
+// @route   DELETE /api/projects/tasks/:taskId/comments/:commentId
+// @desc    Delete comment from task
+// @access  Private (PM only)
+router.delete('/tasks/:taskId/comments/:commentId', authorize('pm'), validateTaskId, deleteTaskComment);
+
+// @route   POST /api/projects/milestones/:milestoneId/comments
+// @desc    Add comment to milestone
+// @access  Private (PM only)
+router.post('/milestones/:milestoneId/comments', authorize('pm'), validateMilestoneId, validateComment, addMilestoneComment);
+
+// @route   DELETE /api/projects/milestones/:milestoneId/comments/:commentId
+// @desc    Delete comment from milestone
+// @access  Private (PM only)
+router.delete('/milestones/:milestoneId/comments/:commentId', authorize('pm'), validateMilestoneId, deleteMilestoneComment);
 
 module.exports = router;

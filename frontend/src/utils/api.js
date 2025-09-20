@@ -84,7 +84,21 @@ const handleApiResponse = async (response) => {
     throw new Error('Too many requests. Please wait a moment and try again.');
   }
   
-  const data = await response.json();
+  // Get response text first to handle non-JSON responses
+  const responseText = await response.text();
+  
+  // Try to parse as JSON, but handle cases where response is not valid JSON
+  let data;
+  try {
+    data = responseText ? JSON.parse(responseText) : {};
+  } catch (parseError) {
+    console.error('Failed to parse response as JSON:', responseText);
+    // If response is not valid JSON, create a generic error object
+    data = {
+      message: responseText || 'Invalid response from server',
+      error: 'Invalid JSON response'
+    };
+  }
   
   if (!response.ok) {
     // Handle authentication errors
@@ -94,6 +108,12 @@ const handleApiResponse = async (response) => {
       localStorage.removeItem('user');
       window.location.href = '/auth';
       throw new Error('Authentication failed. Please login again.');
+    }
+    
+    // Handle validation errors (400 Bad Request)
+    if (response.status === 400) {
+      const errorMessage = data.message || data.error || 'Bad request. Please check your input.';
+      throw new Error(errorMessage);
     }
     
     throw new Error(data.message || data.error || 'API request failed');
@@ -785,6 +805,69 @@ const api = {
       const queryString = new URLSearchParams(params).toString();
       return api.get(`/employee/files${queryString ? `?${queryString}` : ''}`);
     }
+  }
+};
+
+// Comment API functions
+export const commentApi = {
+  // Add comment to task (for PM)
+  addTaskComment: async (taskId, comment) => {
+    return api.post(`/projects/tasks/${taskId}/comments`, { comment });
+  },
+
+  // Delete comment from task (for PM)
+  deleteTaskComment: async (taskId, commentId) => {
+    return api.delete(`/projects/tasks/${taskId}/comments/${commentId}`);
+  },
+
+  // Add comment to milestone (for PM)
+  addMilestoneComment: async (milestoneId, comment) => {
+    return api.post(`/projects/milestones/${milestoneId}/comments`, { comment });
+  },
+
+  // Delete comment from milestone (for PM)
+  deleteMilestoneComment: async (milestoneId, commentId) => {
+    return api.delete(`/projects/milestones/${milestoneId}/comments/${commentId}`);
+  },
+
+  // Add comment to task (for Employee)
+  addEmployeeTaskComment: async (taskId, comment) => {
+    return api.post(`/employee/tasks/${taskId}/comments`, { comment });
+  },
+
+  // Delete comment from task (for Employee)
+  deleteEmployeeTaskComment: async (taskId, commentId) => {
+    return api.delete(`/employee/tasks/${taskId}/comments/${commentId}`);
+  },
+
+  // Add comment to milestone (for Employee)
+  addEmployeeMilestoneComment: async (milestoneId, comment) => {
+    return api.post(`/employee/milestones/${milestoneId}/comments`, { comment });
+  },
+
+  // Delete comment from milestone (for Employee)
+  deleteEmployeeMilestoneComment: async (milestoneId, commentId) => {
+    return api.delete(`/employee/milestones/${milestoneId}/comments/${commentId}`);
+  },
+
+  // Add comment to task (for Customer)
+  addCustomerTaskComment: async (taskId, comment) => {
+    return api.post(`/customer/tasks/${taskId}/comments`, { comment });
+  },
+
+  // Delete comment from task (for Customer)
+  deleteCustomerTaskComment: async (taskId, commentId) => {
+    return api.delete(`/customer/tasks/${taskId}/comments/${commentId}`);
+  },
+
+  // Add comment to milestone (for Customer)
+  addCustomerMilestoneComment: async (milestoneId, comment) => {
+    return api.post(`/customer/milestones/${milestoneId}/comments`, { comment });
+  },
+
+  // Delete comment from milestone (for Customer)
+  deleteCustomerMilestoneComment: async (milestoneId, commentId) => {
+    return api.delete(`/customer/milestones/${milestoneId}/comments/${commentId}`);
   }
 };
 

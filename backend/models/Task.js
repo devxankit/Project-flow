@@ -104,6 +104,24 @@ const taskSchema = new mongoose.Schema({
     default: null
   },
   
+  comments: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [1000, 'Comment cannot exceed 1000 characters']
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   attachments: [attachmentSchema]
 }, {
   timestamps: true,
@@ -123,10 +141,82 @@ taskSchema.virtual('daysRemaining').get(function() {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
+// Pre-save middleware to ensure milestone progress is updated
+taskSchema.pre('save', async function(next) {
+  // Only proceed if status is being modified
+  if (this.isModified('status')) {
+    try {
+      const Milestone = mongoose.model('Milestone');
+      const milestoneId = this.milestone;
+
+      if (milestoneId) {
+        // Count total and completed tasks for this milestone
+        const totalTasks = await mongoose.model('Task').countDocuments({ milestone: milestoneId });
+        const completedTasks = await mongoose.model('Task').countDocuments({ 
+          milestone: milestoneId, 
+          status: 'completed' 
+        });
+
+        // Calculate progress percentage
+        let progress = 0;
+        if (totalTasks > 0) {
+          progress = Math.round((completedTasks / totalTasks) * 100);
+        }
+
+        // Update milestone progress
+        await Milestone.findByIdAndUpdate(milestoneId, { progress });
+        console.log(`Updated milestone ${milestoneId} progress to ${progress}% (${completedTasks}/${totalTasks} tasks completed)`);
+      }
+    } catch (error) {
+      console.error('Error updating milestone progress in pre-save:', error);
+    }
+  }
+  next();
+});
+
+// Post-update middleware to handle findOneAndUpdate operations
+taskSchema.post(['findOneAndUpdate', 'updateOne', 'updateMany'], async function(doc) {
+  try {
+    const update = this.getUpdate();
+    
+    // Check if status was updated
+    if (update && (update.status || (update.$set && update.$set.status))) {
+      const milestoneId = doc?.milestone;
+      
+      if (milestoneId) {
+        // Count total and completed tasks for this milestone
+        const totalTasks = await mongoose.model('Task').countDocuments({ milestone: milestoneId });
+        const completedTasks = await mongoose.model('Task').countDocuments({ 
+          milestone: milestoneId, 
+          status: 'completed' 
+        });
+
+        // Calculate progress percentage
+        let progress = 0;
+        if (totalTasks > 0) {
+          progress = Math.round((completedTasks / totalTasks) * 100);
+        }
+
+        // Update milestone progress and trigger post-save middleware
+        const milestone = await mongoose.model('Milestone').findById(milestoneId);
+        if (milestone) {
+          milestone.progress = progress;
+          await milestone.save(); // This will trigger the milestone's post-save middleware
+          console.log(`Updated milestone ${milestoneId} progress to ${progress}% (${completedTasks}/${totalTasks} tasks completed) via post-update`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error updating milestone progress in post-update:', error);
+  }
+});
+
 // Post-save middleware to update milestone progress
 taskSchema.post('save', async function() {
   const Milestone = mongoose.model('Milestone');
   const milestoneId = this.milestone;
+
+  if (!milestoneId) return;
 
   // Count total and completed tasks for this milestone
   const totalTasks = await mongoose.model('Task').countDocuments({ milestone: milestoneId });
@@ -141,8 +231,12 @@ taskSchema.post('save', async function() {
     progress = Math.round((completedTasks / totalTasks) * 100);
   }
 
-  // Update milestone progress
-  await Milestone.findByIdAndUpdate(milestoneId, { progress }, { new: true });
+  // Update milestone progress and trigger post-save middleware
+  const milestone = await Milestone.findById(milestoneId);
+  if (milestone) {
+    milestone.progress = progress;
+    await milestone.save(); // This will trigger the milestone's post-save middleware
+  }
 });
 
 // Post-remove middleware to update milestone progress when task is deleted
@@ -150,6 +244,8 @@ taskSchema.post('findOneAndDelete', async function() {
   const Milestone = mongoose.model('Milestone');
   const milestoneId = this.milestone;
 
+  if (!milestoneId) return;
+
   // Count total and completed tasks for this milestone
   const totalTasks = await mongoose.model('Task').countDocuments({ milestone: milestoneId });
   const completedTasks = await mongoose.model('Task').countDocuments({ 
@@ -163,8 +259,12 @@ taskSchema.post('findOneAndDelete', async function() {
     progress = Math.round((completedTasks / totalTasks) * 100);
   }
 
-  // Update milestone progress
-  await Milestone.findByIdAndUpdate(milestoneId, { progress }, { new: true });
+  // Update milestone progress and trigger post-save middleware
+  const milestone = await Milestone.findById(milestoneId);
+  if (milestone) {
+    milestone.progress = progress;
+    await milestone.save(); // This will trigger the milestone's post-save middleware
+  }
 });
 
 module.exports = mongoose.model('Task', taskSchema);

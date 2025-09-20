@@ -338,15 +338,18 @@ const getCustomerProjectDetails = async (req, res) => {
       .populate('projectManager', 'fullName email avatar')
       .populate('assignedTeam', 'fullName email avatar role');
 
-    // Get milestones for this project
+    // Get milestones for this project with progress field
     const milestones = await Milestone.find({ project: id })
+      .select('title description status progress dueDate assignedTo createdAt sequence')
       .populate('assignedTo', 'fullName email avatar')
+      .populate('comments.user', 'fullName email')
       .sort({ sequence: 1 });
 
     // Get tasks for this project
     const tasks = await Task.find({ project: id })
       .populate('assignedTo', 'fullName email avatar')
       .populate('milestone', 'title sequence')
+      .populate('comments.user', 'fullName email')
       .sort({ createdAt: -1 });
 
     // Get task counts for each milestone
@@ -450,19 +453,20 @@ const getCustomerProjectDetails = async (req, res) => {
 };
 
 // @desc    Get customer task details
-// @route   GET /api/customer/tasks/:id
+// @route   GET /api/customer/tasks/:taskId
 // @access  Private (Customer only)
 const getCustomerTaskDetails = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { taskId } = req.params;
     const customerId = new mongoose.Types.ObjectId(req.user.id);
 
     // Get task with project information
-    const task = await Task.findById(id)
+    const task = await Task.findById(taskId)
       .populate('project', 'name customer')
       .populate('milestone', 'title description')
       .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar');
+      .populate('createdBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email');
 
     if (!task) {
       return res.status(404).json({
@@ -497,18 +501,19 @@ const getCustomerTaskDetails = async (req, res) => {
 };
 
 // @desc    Get customer milestone details
-// @route   GET /api/customer/milestones/:id
+// @route   GET /api/customer/milestones/:milestoneId
 // @access  Private (Customer only)
 const getCustomerMilestoneDetails = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { milestoneId } = req.params;
     const customerId = new mongoose.Types.ObjectId(req.user.id);
 
     // Get milestone with project information
-    const milestone = await Milestone.findById(id)
+    const milestone = await Milestone.findById(milestoneId)
       .populate('project', 'name customer')
       .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar');
+      .populate('createdBy', 'fullName email avatar')
+      .populate('comments.user', 'fullName email');
 
     if (!milestone) {
       return res.status(404).json({
@@ -526,7 +531,7 @@ const getCustomerMilestoneDetails = async (req, res) => {
     }
 
     // Get tasks for this milestone
-    const tasks = await Task.find({ milestone: id })
+    const tasks = await Task.find({ milestone: milestoneId })
       .populate('assignedTo', 'fullName email avatar')
       .sort({ createdAt: -1 });
 

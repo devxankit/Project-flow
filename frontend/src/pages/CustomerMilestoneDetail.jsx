@@ -62,7 +62,7 @@ const CustomerMilestoneDetail = () => {
     if (id) {
       fetchMilestoneData();
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   // Calculate time left until due date - moved before early returns to maintain hook order
   useEffect(() => {
@@ -345,7 +345,7 @@ const CustomerMilestoneDetail = () => {
                 <User className="h-5 w-5 text-gray-500" />
                 <div>
                   <p className="text-xs text-gray-500">Assigned To</p>
-                  <p className="text-sm font-medium text-gray-900">{milestone.assignee}</p>
+                  <p className="text-sm font-medium text-gray-900">{milestone.assignee?.fullName || milestone.assignee?.name || 'Unassigned'}</p>
                 </div>
               </div>
 
@@ -353,7 +353,7 @@ const CustomerMilestoneDetail = () => {
                 <FileText className="h-5 w-5 text-gray-500" />
                 <div>
                   <p className="text-xs text-gray-500">Project</p>
-                  <p className="text-sm font-medium text-gray-900">{milestone.project}</p>
+                  <p className="text-sm font-medium text-gray-900">{milestone.project?.name || milestone.project?.title || 'Unknown Project'}</p>
                 </div>
               </div>
 
@@ -525,7 +525,7 @@ const CustomerMilestoneDetail = () => {
                         </span>
                       </div>
                       {/* Show delete button only for current user's comments */}
-                      {comment.user?.toString() === user?.id || comment.user === user?.id && (
+                      {(comment.user?._id || comment.user?.id || comment.user) === user?.id && (
                         <button
                           onClick={() => handleDeleteComment(comment._id || comment.id)}
                           className="p-1 text-gray-400 hover:text-red-600 transition-colors"

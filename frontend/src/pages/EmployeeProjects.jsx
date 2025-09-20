@@ -42,7 +42,7 @@ const EmployeeProjects = () => {
     };
 
     fetchProjects();
-  }, [toast]);
+  }, []);
 
   const getStatusColor = (status) => {
     switch (status) {

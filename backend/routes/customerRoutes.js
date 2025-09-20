@@ -73,13 +73,13 @@ const validateProjectId = [
 ];
 
 const validateTaskId = [
-  param('id')
+  param('taskId')
     .isMongoId()
     .withMessage('Valid task ID is required')
 ];
 
 const validateMilestoneId = [
-  param('id')
+  param('milestoneId')
     .isMongoId()
     .withMessage('Valid milestone ID is required')
 ];
@@ -135,15 +135,15 @@ router.get('/projects', validateQueryParams, getCustomerProjects);
 // @access  Private (Customer only)
 router.get('/projects/:id', validateProjectId, getCustomerProjectDetails);
 
-// @route   GET /api/customer/tasks/:id
+// @route   GET /api/customer/tasks/:taskId
 // @desc    Get customer task details
 // @access  Private (Customer only)
-router.get('/tasks/:id', validateTaskId, getCustomerTaskDetails);
+router.get('/tasks/:taskId', validateTaskId, getCustomerTaskDetails);
 
-// @route   GET /api/customer/milestones/:id
+// @route   GET /api/customer/milestones/:milestoneId
 // @desc    Get customer milestone details
 // @access  Private (Customer only)
-router.get('/milestones/:id', validateMilestoneId, getCustomerMilestoneDetails);
+router.get('/milestones/:milestoneId', validateMilestoneId, getCustomerMilestoneDetails);
 
 // @route   GET /api/customer/files
 // @desc    Get customer files

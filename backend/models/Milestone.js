@@ -95,6 +95,24 @@ const milestoneSchema = new mongoose.Schema({
   
   attachments: [attachmentSchema],
   
+  comments: [{
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [1000, 'Comment cannot exceed 1000 characters']
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -156,7 +174,20 @@ milestoneSchema.methods.calculateProgress = async function() {
   this.progress = progress;
   await this.save();
 
+  console.log(`Recalculated milestone ${this._id} progress: ${progress}% (${completedTasks}/${totalTasks} tasks completed)`);
   return progress;
+};
+
+// Static method to recalculate progress for all milestones
+milestoneSchema.statics.recalculateAllProgress = async function() {
+  const milestones = await this.find({});
+  console.log(`Recalculating progress for ${milestones.length} milestones...`);
+  
+  for (const milestone of milestones) {
+    await milestone.calculateProgress();
+  }
+  
+  console.log('All milestone progress recalculated!');
 };
 
 // Pre-save middleware to ensure sequence uniqueness within project
@@ -190,6 +221,7 @@ milestoneSchema.pre('save', async function(next) {
 milestoneSchema.post('save', async function() {
   try {
     const Project = mongoose.model('Project');
+    const Task = mongoose.model('Task');
     const project = await Project.findById(this.project);
     
     if (project) {
@@ -197,15 +229,13 @@ milestoneSchema.post('save', async function() {
       const milestones = await this.constructor.find({ project: this.project });
       const completedMilestones = milestones.filter(m => m.status === 'completed');
       
-      // Calculate progress based on milestones and tasks
-      let totalItems = milestones.length;
-      let completedItems = completedMilestones.length;
+      // Get all tasks for this project
+      const tasks = await Task.find({ project: this.project });
+      const completedTasks = tasks.filter(task => task.status === 'completed');
       
-      // Add tasks count if project has tasks
-      if (project.tasks && project.tasks.length > 0) {
-        totalItems += project.tasks.length;
-        completedItems += project.tasks.filter(task => task.status === 'completed').length;
-      }
+      // Calculate progress based on milestones and tasks
+      let totalItems = milestones.length + tasks.length;
+      let completedItems = completedMilestones.length + completedTasks.length;
       
       // Update project progress
       if (totalItems > 0) {
@@ -214,7 +244,7 @@ milestoneSchema.post('save', async function() {
         project.progress = 0;
       }
       
-      await project.save();
+      await project.save({ validateBeforeSave: false });
     }
   } catch (error) {
     console.error('Error updating project progress:', error);
@@ -225,6 +255,7 @@ milestoneSchema.post('save', async function() {
 milestoneSchema.post('remove', async function() {
   try {
     const Project = mongoose.model('Project');
+    const Task = mongoose.model('Task');
     const project = await Project.findById(this.project);
     
     if (project) {
@@ -232,15 +263,13 @@ milestoneSchema.post('remove', async function() {
       const milestones = await this.constructor.find({ project: this.project });
       const completedMilestones = milestones.filter(m => m.status === 'completed');
       
-      // Calculate progress based on remaining milestones and tasks
-      let totalItems = milestones.length;
-      let completedItems = completedMilestones.length;
+      // Get all tasks for this project
+      const tasks = await Task.find({ project: this.project });
+      const completedTasks = tasks.filter(task => task.status === 'completed');
       
-      // Add tasks count if project has tasks
-      if (project.tasks && project.tasks.length > 0) {
-        totalItems += project.tasks.length;
-        completedItems += project.tasks.filter(task => task.status === 'completed').length;
-      }
+      // Calculate progress based on remaining milestones and tasks
+      let totalItems = milestones.length + tasks.length;
+      let completedItems = completedMilestones.length + completedTasks.length;
       
       // Update project progress
       if (totalItems > 0) {
@@ -249,7 +278,7 @@ milestoneSchema.post('remove', async function() {
         project.progress = 0;
       }
       
-      await project.save();
+      await project.save({ validateBeforeSave: false });
     }
   } catch (error) {
     console.error('Error updating project progress after milestone deletion:', error);
@@ -272,6 +301,7 @@ milestoneSchema.statics.getByProject = function(projectId, options = {}) {
     .populate('assignedTo', 'fullName email avatar')
     .populate('createdBy', 'fullName email avatar')
     .populate('completedBy', 'fullName email avatar')
+    .populate('comments.user', 'fullName email')
     .sort({ sequence: 1 });
 };
 

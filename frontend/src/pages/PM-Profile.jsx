@@ -72,7 +72,7 @@ const PMProfile = () => {
     };
 
     fetchProfile();
-  }, [toast]);
+  }, []);
 
   const handleProfileUpdate = (field, value) => {
     setProfileData(prev => ({
