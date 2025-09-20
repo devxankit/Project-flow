@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import PMNavbar from '../components/PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { useToast } from '../contexts/ToastContext';
@@ -23,11 +23,15 @@ import {
   FileText,
   AlertCircle,
   Building2,
-  X
+  X,
+  Loader2
 } from 'lucide-react';
+import api from '../utils/api';
 
 const TaskRequests = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [taskRequests, setTaskRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -37,94 +41,44 @@ const TaskRequests = () => {
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [requestToReject, setRequestToReject] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Mock task requests data
-  const taskRequests = [
-    {
-      id: 1,
-      title: 'Add user authentication to mobile app',
-      description: 'We need to implement secure user authentication for the mobile app to ensure only authorized users can access the system.',
-      project: 'Mobile App Development',
-      projectId: 2,
-      milestone: 'Development Phase',
-      milestoneId: 'milestone-2',
-      priority: 'High',
-      dueDate: '2024-02-20',
-      reason: 'feature-request',
-      status: 'Pending',
-      requestedBy: 'Acme Corporation',
-      requestedDate: '2024-01-15',
-      customerContact: 'john.smith@acme.com'
-    },
-    {
-      id: 2,
-      title: 'Fix responsive design issues on homepage',
-      description: 'The homepage is not displaying correctly on mobile devices. Images are overlapping and text is cut off.',
-      project: 'Website Redesign',
-      projectId: 1,
-      milestone: 'Development Phase',
-      milestoneId: 'milestone-2',
-      priority: 'Urgent',
-      dueDate: '2024-02-10',
-      reason: 'bug-fix',
-      status: 'Pending',
-      requestedBy: 'TechCorp Inc',
-      requestedDate: '2024-01-14',
-      customerContact: 'sarah.johnson@techcorp.com'
-    },
-    {
-      id: 3,
-      title: 'Add dark mode toggle',
-      description: 'Users have requested a dark mode option for better user experience during night time usage.',
-      project: 'Website Redesign',
-      projectId: 1,
-      milestone: 'Design Phase',
-      milestoneId: 'milestone-1',
-      priority: 'Medium',
-      dueDate: '2024-02-25',
-      reason: 'improvement',
-      status: 'Approved',
-      requestedBy: 'Global Solutions',
-      requestedDate: '2024-01-12',
-      customerContact: 'mike.davis@global.com'
-    },
-    {
-      id: 4,
-      title: 'Implement real-time notifications',
-      description: 'We need push notifications to alert users about important updates and changes in the system.',
-      project: 'Mobile App Development',
-      projectId: 2,
-      milestone: 'Development Phase',
-      milestoneId: 'milestone-2',
-      priority: 'High',
-      dueDate: '2024-02-18',
-      reason: 'feature-request',
-      status: 'Rejected',
-      requestedBy: 'Innovation Labs',
-      requestedDate: '2024-01-10',
-      customerContact: 'lisa.wang@innovation.com',
-      rejectionReason: 'Feature is out of scope for current project timeline'
-    },
-    {
-      id: 5,
-      title: 'Add multi-language support',
-      description: 'Our international users need support for Spanish, French, and German languages.',
-      project: 'API Integration',
-      projectId: 4,
-      milestone: 'Development Phase',
-      milestoneId: 'milestone-2',
-      priority: 'Medium',
-      dueDate: '2024-03-01',
-      reason: 'feature-request',
-      status: 'Pending',
-      requestedBy: 'Digital Dynamics',
-      requestedDate: '2024-01-16',
-      customerContact: 'alex.rodriguez@digital.com'
-    }
-  ];
+  // Fetch task requests from API
+  useEffect(() => {
+    const fetchTaskRequests = async () => {
+      try {
+        setLoading(true);
+        const response = await api.get('/task-requests/pm');
+        if (response.data.success) {
+          setTaskRequests(response.data.data);
+        } else {
+          toast.error('Error', 'Failed to load task requests');
+        }
+      } catch (error) {
+        console.error('Error fetching task requests:', error);
+        toast.error('Error', 'Failed to load task requests');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTaskRequests();
+  }, [toast]);
+
+  // Get unique projects for filter
+  const projects = useMemo(() => {
+    const uniqueProjects = [...new Set(taskRequests.map(req => {
+      return typeof req.project === 'string' ? req.project : req.project?.name;
+    }).filter(Boolean))];
+    return uniqueProjects.map(project => ({
+      value: project,
+      label: project,
+      icon: Building2
+    }));
+  }, [taskRequests]);
 
   // Filter options
   const statusOptions = [
@@ -144,22 +98,22 @@ const TaskRequests = () => {
 
   const projectOptions = [
     { value: 'all', label: 'All Projects', icon: Building2 },
-    { value: 'Website Redesign', label: 'Website Redesign', icon: Building2 },
-    { value: 'Mobile App Development', label: 'Mobile App Development', icon: Building2 },
-    { value: 'API Integration', label: 'API Integration', icon: Building2 },
-    { value: 'Database Migration', label: 'Database Migration', icon: Building2 }
+    ...projects
   ];
 
   // Filter and search logic
   const filteredRequests = useMemo(() => {
     return taskRequests.filter(request => {
+      const projectName = typeof request.project === 'string' ? request.project : request.project?.name || '';
+      const requestedByName = typeof request.requestedBy === 'string' ? request.requestedBy : request.requestedBy?.fullName || '';
+      
       const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           request.requestedBy.toLowerCase().includes(searchTerm.toLowerCase());
+                           requestedByName.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || request.priority === priorityFilter;
-      const matchesProject = projectFilter === 'all' || request.project === projectFilter;
+      const matchesProject = projectFilter === 'all' || projectName === projectFilter;
 
       return matchesSearch && matchesStatus && matchesPriority && matchesProject;
     });
@@ -200,43 +154,89 @@ const TaskRequests = () => {
   };
 
   // Handle request approval
-  const handleApprove = (requestId) => {
-    const request = taskRequests.find(r => r.id === requestId);
-    console.log('Approving request:', requestId);
-    // In a real app, this would update the request status and create a task
-    
-    toast.success(
-      'Request Approved!',
-      `Task request from ${request?.customerName} has been approved and a new task has been created.`
-    );
+  const handleApprove = async (requestId) => {
+    try {
+      setIsProcessing(true);
+      const response = await api.post(`/task-requests/pm/${requestId}/review`, {
+        action: 'approve',
+        reviewComments: 'Task request approved and task created successfully.'
+      });
+      
+      if (response.data.success) {
+        toast.success(
+          'Request Approved!',
+          `Task request has been approved and a new task has been created.`
+        );
+        
+        // Update the local state
+        setTaskRequests(prev => 
+          prev.map(req => 
+            req._id === requestId 
+              ? { ...req, status: 'Approved', reviewedBy: response.data.data.reviewedBy, reviewedAt: response.data.data.reviewedAt }
+              : req
+          )
+        );
+      } else {
+        toast.error('Error', response.data.message || 'Failed to approve request');
+      }
+    } catch (error) {
+      console.error('Error approving request:', error);
+      toast.error('Error', 'Failed to approve request');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Handle request rejection
   const handleReject = (requestId) => {
-    const request = taskRequests.find(r => r.id === requestId);
+    const request = taskRequests.find(r => r._id === requestId);
     setRequestToReject(request);
     setShowRejectionDialog(true);
   };
 
   // Handle rejection confirmation
-  const handleRejectConfirm = () => {
-    if (rejectionReason.trim()) {
-      console.log('Rejecting request:', requestToReject.id, 'Reason:', rejectionReason);
-      // In a real app, this would update the request status with rejection reason
-      
-      toast.success(
-        'Request Rejected',
-        `Task request from ${requestToReject?.customerName} has been rejected.`
-      );
-      
-      setShowRejectionDialog(false);
-      setRejectionReason('');
-      setRequestToReject(null);
-    } else {
+  const handleRejectConfirm = async () => {
+    if (!rejectionReason.trim()) {
       toast.error(
         'Rejection Reason Required',
         'Please provide a reason for rejecting this request.'
       );
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      const response = await api.post(`/task-requests/pm/${requestToReject._id}/review`, {
+        action: 'reject',
+        reviewComments: rejectionReason
+      });
+      
+      if (response.data.success) {
+        toast.success(
+          'Request Rejected',
+          `Task request has been rejected.`
+        );
+        
+        // Update the local state
+        setTaskRequests(prev => 
+          prev.map(req => 
+            req._id === requestToReject._id 
+              ? { ...req, status: 'Rejected', reviewedBy: response.data.data.reviewedBy, reviewedAt: response.data.data.reviewedAt, reviewComments: rejectionReason }
+              : req
+          )
+        );
+        
+        setShowRejectionDialog(false);
+        setRejectionReason('');
+        setRequestToReject(null);
+      } else {
+        toast.error('Error', response.data.message || 'Failed to reject request');
+      }
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      toast.error('Error', 'Failed to reject request');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -256,6 +256,23 @@ const TaskRequests = () => {
     
     return { total, pending, approved, rejected };
   }, [taskRequests]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <PMNavbar />
+        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+          <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-gray-600">Loading task requests...</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -394,7 +411,7 @@ const TaskRequests = () => {
               </div>
             ) : (
               filteredRequests.map((request) => (
-                <div key={request.id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div key={request._id} className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     {/* Request Info */}
                     <div className="flex-1">
@@ -420,19 +437,19 @@ const TaskRequests = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Building2 className="h-4 w-4" />
-                          <span>{request.project}</span>
+                          <span>{typeof request.project === 'string' ? request.project : request.project?.name || 'Unknown Project'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Target className="h-4 w-4" />
-                          <span>{request.milestone}</span>
+                          <span>{typeof request.milestone === 'string' ? request.milestone : request.milestone?.title || 'Unknown Milestone'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <User className="h-4 w-4" />
-                          <span>{request.requestedBy}</span>
+                          <span>{typeof request.requestedBy === 'string' ? request.requestedBy : request.requestedBy?.fullName || 'Unknown User'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Calendar className="h-4 w-4" />
-                          <span>Due: {new Date(request.dueDate).toLocaleDateString()}</span>
+                          <span>Due: {request.dueDate ? new Date(request.dueDate).toLocaleDateString() : 'No due date'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <FileText className="h-4 w-4" />
@@ -440,34 +457,52 @@ const TaskRequests = () => {
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Clock className="h-4 w-4" />
-                          <span>Requested: {new Date(request.requestedDate).toLocaleDateString()}</span>
+                          <span>Requested: {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Unknown date'}</span>
                         </div>
                       </div>
 
-                       {request.rejectionReason && (
-                         <div className="mt-3 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                           <div className="flex items-center space-x-2 text-primary">
-                             <AlertCircle className="h-4 w-4" />
-                             <span className="text-sm font-medium">Rejection Reason:</span>
-                           </div>
-                           <p className="text-sm text-primary/80 mt-1">{request.rejectionReason}</p>
-                         </div>
-                       )}
+                      {request.reviewComments && request.status === 'Rejected' && (
+                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                          <div className="flex items-center space-x-2 text-red-600">
+                            <AlertCircle className="h-4 w-4" />
+                            <span className="text-sm font-medium">Rejection Reason:</span>
+                          </div>
+                          <p className="text-sm text-red-700 mt-1">{request.reviewComments}</p>
+                        </div>
+                      )}
+
+                      {request.reviewedBy && (
+                        <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center space-x-2 text-green-600">
+                            <CheckCircle className="h-4 w-4" />
+                            <span className="text-sm font-medium">Reviewed by: {typeof request.reviewedBy === 'string' ? request.reviewedBy : request.reviewedBy?.fullName || 'Unknown User'}</span>
+                          </div>
+                          <p className="text-sm text-green-700 mt-1">
+                            {request.reviewedAt ? new Date(request.reviewedAt).toLocaleDateString() : 'Unknown date'}
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                      {/* Actions */}
                      {request.status === 'Pending' && (
                        <div className="flex flex-col space-y-2 md:ml-4">
                          <button
-                           onClick={() => handleApprove(request.id)}
-                           className="flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+                           onClick={() => handleApprove(request._id)}
+                           disabled={isProcessing}
+                           className="flex items-center justify-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                          >
-                           <CheckCircle className="h-4 w-4" />
+                           {isProcessing ? (
+                             <Loader2 className="h-4 w-4 animate-spin" />
+                           ) : (
+                             <CheckCircle className="h-4 w-4" />
+                           )}
                            <span>Approve</span>
                          </button>
                          <button
-                           onClick={() => handleReject(request.id)}
-                           className="flex items-center justify-center space-x-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+                           onClick={() => handleReject(request._id)}
+                           disabled={isProcessing}
+                           className="flex items-center justify-center space-x-2 px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                          >
                            <XCircle className="h-4 w-4" />
                            <span>Reject</span>
@@ -491,7 +526,7 @@ const TaskRequests = () => {
               <span>Reject Task Request</span>
             </DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this task request from {requestToReject?.requestedBy}.
+              Please provide a reason for rejecting this task request from {requestToReject?.requestedBy?.fullName}.
             </DialogDescription>
           </DialogHeader>
 
@@ -522,10 +557,17 @@ const TaskRequests = () => {
             <Button
               type="button"
               onClick={handleRejectConfirm}
-              disabled={!rejectionReason.trim()}
-              className="flex-1 h-10 rounded-xl bg-primary text-white hover:bg-primary-dark transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!rejectionReason.trim() || isProcessing}
+              className="flex-1 h-10 rounded-xl bg-red-600 text-white hover:bg-red-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Reject Request
+              {isProcessing ? (
+                <div className="flex items-center">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Rejecting...
+                </div>
+              ) : (
+                'Reject Request'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

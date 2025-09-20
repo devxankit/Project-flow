@@ -71,10 +71,16 @@ const throttleRequest = async (key, requestFn) => {
 // Helper function to get auth headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+  const headers = {
+    'Content-Type': 'application/json'
   };
+  
+  // Only add Authorization header if token exists and is not null/undefined
+  if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 // Helper function to handle API responses
@@ -249,9 +255,14 @@ export const getAuthToken = () => {
 // Helper function to get auth headers for file uploads
 const getAuthHeadersForUpload = () => {
   const token = localStorage.getItem('token');
-  return {
-    'Authorization': `Bearer ${token}`
-  };
+  const headers = {};
+  
+  // Only add Authorization header if token exists and is not null/undefined
+  if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
 };
 
 // Project Management API functions
@@ -358,11 +369,15 @@ export const taskApi = {
         formData.append('attachments', file);
       });
       
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/tasks`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
+        headers,
         body: formData
       });
       
@@ -409,11 +424,15 @@ export const taskApi = {
         formData.append('attachments', file);
       });
       
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/project/${projectId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
+        headers,
         body: formData
       });
       
@@ -679,16 +698,16 @@ const api = {
     
     // Handle FormData (for file uploads)
     if (data instanceof FormData) {
-      // For FormData, only include Authorization header
-      headers = {
-        'Authorization': `Bearer ${token}`
-      };
+      // For FormData, only include Authorization header if token exists
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     } else {
-      // For JSON data, include both Content-Type and Authorization
-      headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
+      // For JSON data, include Content-Type and Authorization if token exists
+      headers['Content-Type'] = 'application/json';
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     
     const response = await fetch(`${API_BASE_URL}${url}`, {
@@ -714,16 +733,16 @@ const api = {
     
     // Handle FormData (for file uploads)
     if (data instanceof FormData) {
-      // For FormData, only include Authorization header
-      headers = {
-        'Authorization': `Bearer ${token}`
-      };
+      // For FormData, only include Authorization header if token exists
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     } else {
-      // For JSON data, include both Content-Type and Authorization
-      headers = {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      };
+      // For JSON data, include Content-Type and Authorization if token exists
+      headers['Content-Type'] = 'application/json';
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
     }
     
     const response = await fetch(`${API_BASE_URL}${url}`, {

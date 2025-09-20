@@ -117,12 +117,6 @@ const CustomerDashboard = () => {
   const { statistics, recentProjects } = dashboardData;
   const projects = recentProjects || [];
   
-  // Debug: Log the projects data to see the structure
-  console.log('Projects data:', projects);
-  if (projects.length > 0) {
-    console.log('First project structure:', projects[0]);
-    console.log('First project keys:', Object.keys(projects[0]));
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">

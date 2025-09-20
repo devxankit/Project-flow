@@ -69,10 +69,8 @@ const ProjectDetails = () => {
 
   const loadProject = async () => {
     try {
-      console.log('Loading project with ID:', id);
       setLoadingStates(prev => ({ ...prev, project: true }));
       const response = await projectApi.getProjectById(id);
-      console.log('Project loaded successfully:', response);
       setProject(response.data);
       setIsLoading(false);
     } catch (error) {

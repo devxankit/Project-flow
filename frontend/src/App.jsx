@@ -26,6 +26,9 @@ import CustomerTaskDetail from './pages/CustomerTaskDetail';
 import CustomerMilestoneDetail from './pages/CustomerMilestoneDetail';
 import CustomerFiles from './pages/CustomerFiles';
 import CustomerProfile from './pages/CustomerProfile';
+import CustomerTaskRequests from './pages/CustomerTaskRequests';
+import CustomerTaskRequestDetail from './pages/CustomerTaskRequestDetail';
+import CustomerTaskRequestEdit from './pages/CustomerTaskRequestEdit';
 // Employee Module imports
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeTaskDetail from './pages/EmployeeTaskDetail';
@@ -157,6 +160,21 @@ function App() {
               <Route path="/customer-profile" element={
                 <ProtectedRoute allowedRoles={['customer']}>
                   <CustomerProfile />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-task-requests" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerTaskRequests />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-task-request/:id" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerTaskRequestDetail />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-task-request/:id/edit" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerTaskRequestEdit />
                 </ProtectedRoute>
               } />
           

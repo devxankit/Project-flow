@@ -30,7 +30,6 @@ const EmployeeDashboard = () => {
         const response = await api.employee.getDashboard();
         
         if (response.data && response.data.success) {
-          console.log('Dashboard API Response:', response.data.data);
           setDashboardData(response.data.data);
           setTasks(response.data.data?.recentTasks || []);
         } else {

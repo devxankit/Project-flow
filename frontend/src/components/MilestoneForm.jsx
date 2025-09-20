@@ -160,9 +160,6 @@ const MilestoneForm = ({ isOpen, onClose, onSubmit, projectId }) => {
 
       // Get attachment files
       const attachments = formData.attachments.map(attachment => attachment.file).filter(Boolean);
-      console.log('Sending milestone data:', milestoneData);
-      console.log('Sending attachments:', attachments);
-      console.log('Attachments count:', attachments.length);
 
       // Create milestone via API
       const response = await milestoneApi.createMilestone(milestoneData, attachments);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomerNavbar from '../components/Customer-Navbar';
+import TaskRequestForm from '../components/TaskRequestForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   CheckSquare, 
@@ -31,6 +32,10 @@ const CustomerTaskRequests = () => {
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
+  const [projects, setProjects] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [milestones, setMilestones] = useState([]);
 
   // Fetch task requests
   useEffect(() => {
@@ -53,6 +58,23 @@ const CustomerTaskRequests = () => {
     fetchTaskRequests();
   }, []);
 
+  // Fetch projects data for the task request form
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const response = await api.get('/customer/projects');
+        if (response.data.success) {
+          setProjects(response.data.data.projects || []);
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+        // Don't show error toast as this is not critical for the main functionality
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
   // Filter and search
   useEffect(() => {
     let filtered = taskRequests;
@@ -64,11 +86,12 @@ const CustomerTaskRequests = () => {
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(request => 
-        request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        request.project?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(request => {
+        const projectName = typeof request.project === 'string' ? request.project : request.project?.name || '';
+        return request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+               projectName.toLowerCase().includes(searchTerm.toLowerCase());
+      });
     }
 
     setFilteredRequests(filtered);
@@ -146,6 +169,56 @@ const CustomerTaskRequests = () => {
     }
   };
 
+  // Handle opening the task request form
+  const handleNewRequest = () => {
+    setIsTaskRequestFormOpen(true);
+  };
+
+  // Handle closing the task request form
+  const handleCloseForm = () => {
+    setIsTaskRequestFormOpen(false);
+    setSelectedProject(null);
+    setMilestones([]);
+  };
+
+  // Handle task request form submission
+  const handleTaskRequestSubmit = async (requestData) => {
+    try {
+      // Refresh the task requests list
+      const response = await api.get('/task-requests/customer');
+      if (response.data.success) {
+        setTaskRequests(response.data.data);
+        setFilteredRequests(response.data.data);
+      }
+      
+      // Close the form
+      handleCloseForm();
+      
+      toast.success('Success', 'Task request submitted successfully!');
+    } catch (error) {
+      console.error('Error refreshing task requests:', error);
+      // Still close the form even if refresh fails
+      handleCloseForm();
+    }
+  };
+
+  // Fetch milestones for a specific project
+  const fetchMilestonesForProject = async (projectId) => {
+    try {
+      const response = await api.get(`/milestones/project/${projectId}`);
+      if (response.data.success) {
+        setMilestones(response.data.data || []);
+        // Close the project selection dialog and open the task request form
+        setIsTaskRequestFormOpen(false);
+      } else {
+        toast.error('Error', 'Failed to load milestones for this project');
+      }
+    } catch (error) {
+      console.error('Error fetching milestones:', error);
+      toast.error('Error', 'Failed to load milestones for this project');
+    }
+  };
+
   const statusOptions = [
     { value: 'all', label: 'All Status' },
     { value: 'pending', label: 'Pending' },
@@ -182,11 +255,11 @@ const CustomerTaskRequests = () => {
           <div className="mb-8">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Task Requests</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Requests</h1>
                 <p className="text-gray-600 mt-1">Manage your submitted task requests</p>
               </div>
               <button
-                onClick={() => navigate('/customer-dashboard')}
+                onClick={handleNewRequest}
                 className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
               >
                 <Plus className="h-4 w-4" />
@@ -279,37 +352,27 @@ const CustomerTaskRequests = () => {
               filteredRequests.map((request) => {
                 const StatusIcon = getStatusIcon(request.status);
                 return (
-                  <div key={request._id} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{request.title}</h3>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
-                            {request.status}
-                          </span>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
-                            {request.priority}
-                          </span>
+                  <div key={request._id} className="task-request-card bg-white rounded-xl p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                    {/* Header Section */}
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                      {/* Title and Status Section */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900 truncate">{request.title}</h3>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(request.status)}`}>
+                              {request.status}
+                            </span>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(request.priority)}`}>
+                              {request.priority}
+                            </span>
+                          </div>
                         </div>
                         <p className="text-gray-600 mb-3 line-clamp-2">{request.description}</p>
-                        
-                        <div className="flex items-center space-x-4 text-sm text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Target className="h-4 w-4" />
-                            <span>{request.project?.name}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>Due: {formatDate(request.dueDate)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Clock className="h-4 w-4" />
-                            <span>Submitted: {formatDate(request.createdAt)}</span>
-                          </div>
-                        </div>
                       </div>
 
-                      <div className="flex items-center space-x-2 ml-4">
+                      {/* Action Buttons */}
+                      <div className="flex items-center justify-end sm:justify-start gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleViewRequest(request._id)}
                           className="p-2 text-gray-400 hover:text-primary transition-colors"
@@ -339,6 +402,22 @@ const CustomerTaskRequests = () => {
                       </div>
                     </div>
 
+                    {/* Details Section */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-500">
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Target className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{typeof request.project === 'string' ? request.project : request.project?.name || 'Unknown Project'}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <Calendar className="h-4 w-4 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Due: {formatDate(request.dueDate)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2 min-w-0 sm:col-span-2 lg:col-span-1">
+                        <Clock className="h-4 w-4 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Submitted: {formatDate(request.createdAt)}</span>
+                      </div>
+                    </div>
+
                     {/* Review Comments */}
                     {request.reviewComments && (
                       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
@@ -349,7 +428,7 @@ const CustomerTaskRequests = () => {
                         <p className="text-sm text-gray-600">{request.reviewComments}</p>
                         {request.reviewedBy && (
                           <p className="text-xs text-gray-500 mt-1">
-                            By {request.reviewedBy.fullName} on {formatDate(request.reviewedAt)}
+                            By {typeof request.reviewedBy === 'string' ? request.reviewedBy : request.reviewedBy.fullName || 'Unknown User'} on {formatDate(request.reviewedAt)}
                           </p>
                         )}
                       </div>
@@ -361,6 +440,64 @@ const CustomerTaskRequests = () => {
           </div>
         </div>
       </main>
+
+      {/* Task Request Form */}
+      {isTaskRequestFormOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Select Project</h2>
+                <button
+                  onClick={handleCloseForm}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              {!projects || !Array.isArray(projects) || projects.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No projects available for task requests.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {projects.map((project) => (
+                    <button
+                      key={project._id}
+                      onClick={() => {
+                        setSelectedProject(project);
+                        // Fetch milestones for the selected project
+                        fetchMilestonesForProject(project._id);
+                      }}
+                      className="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
+                    >
+                      <h3 className="font-medium text-gray-900">{project.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Task Request Form Dialog */}
+      {selectedProject && (
+        <TaskRequestForm
+          isOpen={!!selectedProject}
+          onClose={() => {
+            setSelectedProject(null);
+            setMilestones([]);
+          }}
+          onSubmit={handleTaskRequestSubmit}
+          projectId={selectedProject._id}
+          projectName={selectedProject.name}
+          milestones={milestones}
+        />
+      )}
     </div>
   );
 };

@@ -138,12 +138,12 @@ const EmployeeFiles = () => {
 
   const handleDownload = (file) => {
     // In a real app, this would trigger a download
-    console.log('Downloading file:', file.name);
+    // TODO: Implement actual download functionality
   };
 
   const handlePreview = (file) => {
     // In a real app, this would open a preview modal
-    console.log('Previewing file:', file.name);
+    // TODO: Implement actual preview functionality
   };
 
   return (

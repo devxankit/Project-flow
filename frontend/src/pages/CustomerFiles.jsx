@@ -40,7 +40,7 @@ const CustomerFiles = () => {
         setLoading(true);
         const response = await api.get('/customer/files');
         if (response.data.success) {
-          setFiles(response.data.data.files);
+          setFiles(response.data.data.files || []);
         }
       } catch (error) {
         console.error('Error fetching files data:', error);
@@ -118,19 +118,24 @@ const CustomerFiles = () => {
 
   // Filter files based on search term and filter
   const filteredFiles = files.filter(file => {
-    const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.project.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         file.task.toLowerCase().includes(searchTerm.toLowerCase());
+    // Safe string conversion with fallbacks - handle different possible property names
+    const fileName = file.name || file.originalName || '';
+    const projectName = file.project || file.projectName || '';
+    const taskName = file.task || file.taskTitle || '';
+    
+    const matchesSearch = fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         taskName.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filter === 'all') return matchesSearch;
-    return matchesSearch && file.type === filter;
+    return matchesSearch && (file.type || file.mimetype) === filter;
   });
 
   const fileTypes = [
     { key: 'all', label: 'All Files', count: files.length },
-    { key: 'pdf', label: 'PDF', count: files.filter(f => f.type === 'pdf').length },
-    { key: 'png', label: 'Images', count: files.filter(f => ['png', 'jpg', 'jpeg'].includes(f.type)).length },
-    { key: 'docx', label: 'Documents', count: files.filter(f => ['docx', 'xlsx'].includes(f.type)).length }
+    { key: 'pdf', label: 'PDF', count: files.filter(f => (f.type || f.mimetype) === 'pdf').length },
+    { key: 'png', label: 'Images', count: files.filter(f => ['png', 'jpg', 'jpeg'].includes(f.type || f.mimetype)).length },
+    { key: 'docx', label: 'Documents', count: files.filter(f => ['docx', 'xlsx'].includes(f.type || f.mimetype)).length }
   ];
 
   return (
@@ -195,9 +200,9 @@ const CustomerFiles = () => {
           {/* Mobile Filter Tabs - Tiles Layout */}
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
-              {fileTypes.map(({ key, label, count }) => (
+              {fileTypes.map(({ key, label, count }, index) => (
                 <button
-                  key={key}
+                  key={key || `filter-mobile-${index}`}
                   onClick={() => setFilter(key)}
                   className={`p-4 rounded-2xl shadow-sm border transition-all ${
                     filter === key
@@ -217,9 +222,9 @@ const CustomerFiles = () => {
           {/* Desktop Filter Tabs - Website Layout */}
           <div className="hidden md:block mb-8">
             <div className="flex gap-2 flex-wrap">
-              {fileTypes.map(({ key, label, count }) => (
+              {fileTypes.map(({ key, label, count }, index) => (
                 <button
-                  key={key}
+                  key={key || `filter-desktop-${index}`}
                   onClick={() => setFilter(key)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     filter === key
@@ -235,27 +240,27 @@ const CustomerFiles = () => {
 
           {/* Files Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-            {filteredFiles.map((file) => (
-              <div key={file.id} className="group bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300">
+            {filteredFiles.map((file, index) => (
+              <div key={file.id || file._id || file.originalName || `file-${index}`} className="group bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300">
                 {/* File Header */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-3 flex-1 min-w-0">
                     <div className="p-2 bg-gray-50 rounded-lg group-hover:bg-primary/10 transition-colors duration-200">
-                      {getFileIcon(file.type)}
+                      {getFileIcon(file.type || file.mimetype)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
-                        {file.name}
+                        {file.name || file.originalName || 'Untitled File'}
                       </h3>
-                      <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(file.size || 0)}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* File Type Badge */}
                 <div className="mb-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getFileTypeColor(file.type)}`}>
-                    {file.type.toUpperCase()}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getFileTypeColor(file.type || file.mimetype || 'unknown')}`}>
+                    {(file.type || file.mimetype || 'unknown').toUpperCase()}
                   </span>
                 </div>
 
@@ -263,19 +268,19 @@ const CustomerFiles = () => {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <User className="h-3 w-3" />
-                    <span>{file.uploadedBy}</span>
+                    <span>{file.uploadedBy || file.uploadedByName || 'Unknown User'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <Calendar className="h-3 w-3" />
-                    <span>{formatDate(file.uploadDate)}</span>
+                    <span>{formatDate(file.uploadDate || file.uploadedAt || new Date())}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <FolderKanban className="h-3 w-3" />
-                    <span>{file.project}</span>
+                    <span>{file.project || file.projectName || 'Unknown Project'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <CheckSquare className="h-3 w-3" />
-                    <span>{file.task}</span>
+                    <span>{file.task || file.taskTitle || 'Unknown Task'}</span>
                   </div>
                 </div>
 

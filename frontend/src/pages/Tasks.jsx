@@ -6,9 +6,6 @@ import useScrollToTop from '../hooks/useScrollToTop';
 import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical, Loader2 } from 'lucide-react';
 import { taskApi, handleApiError } from '../utils/api';
 
-// Debug: Check if taskApi is properly imported
-console.log('Imported taskApi:', taskApi);
-console.log('taskApi keys:', Object.keys(taskApi || {}));
 import { useToast } from '../contexts/ToastContext';
 
 const Tasks = () => {
@@ -35,8 +32,6 @@ const Tasks = () => {
   const loadTasks = async () => {
     try {
       setIsLoading(true);
-      console.log('taskApi object:', taskApi);
-      console.log('getAllTasks function:', taskApi.getAllTasks);
       
       // Check if function exists
       if (typeof taskApi.getAllTasks !== 'function') {
@@ -60,7 +55,6 @@ const Tasks = () => {
 
   // Handle task form submission
   const handleTaskSubmit = (taskData) => {
-    console.log('New task created:', taskData);
     // Reload tasks after creating a new one
     loadTasks();
     setIsTaskFormOpen(false);

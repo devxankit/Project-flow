@@ -127,13 +127,12 @@ const CustomerProjectDetails = () => {
   }
 
   // Extract project data
-  const { project, milestones, tasks } = projectData;
+  const { project, milestones = [], tasks = [] } = projectData;
 
   // Milestones and tasks are now coming from API data
 
   // Handle task request submission
   const handleTaskRequestSubmit = (requestData) => {
-    console.log('Task request submitted:', requestData);
     // The TaskRequestForm component now handles the API call directly
     // This callback is called after successful submission
   };

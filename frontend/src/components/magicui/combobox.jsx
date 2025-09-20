@@ -22,10 +22,10 @@ const Combobox = ({
   const inputRef = useRef(null);
 
   const filteredOptions = options.filter(option =>
-    option.label.toLowerCase().includes(searchTerm.toLowerCase())
+    option && option.label && option.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const selectedOption = options.find(option => option.value === value);
+  const selectedOption = options.find(option => option && option.value === value);
 
   useEffect(() => {
     const handleClickOutside = (event) => {

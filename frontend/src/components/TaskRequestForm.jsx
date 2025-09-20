@@ -10,21 +10,40 @@ import { DatePicker } from './magicui/date-picker';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
 
-const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, milestones }) => {
+const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, milestones, initialData, isEdit = false, isSubmitting: externalSubmitting = false }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    project: projectId || '',
-    milestone: '',
-    priority: 'Medium',
-    dueDate: '',
-    reason: '',
-    attachments: []
+    title: initialData?.title || '',
+    description: initialData?.description || '',
+    project: initialData?.project || projectId || '',
+    milestone: initialData?.milestone || '',
+    priority: initialData?.priority || 'Medium',
+    dueDate: initialData?.dueDate || '',
+    reason: initialData?.reason || '',
+    attachments: initialData?.attachments || []
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Use external submitting state if provided (for edit mode)
+  const submitting = externalSubmitting || isSubmitting;
+
+  // Transform milestones data to match Combobox expected format
+  
+  // More robust check for milestones
+  let milestoneOptions = [];
+  try {
+    if (milestones && Array.isArray(milestones)) {
+      milestoneOptions = milestones.map(milestone => ({
+        value: milestone._id,
+        label: milestone.title || 'Untitled Milestone'
+      }));
+    }
+  } catch (error) {
+    console.error('Error processing milestones:', error);
+    milestoneOptions = [];
+  }
 
   // Priority options
   const priorities = [
@@ -105,7 +124,9 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
       return;
     }
 
-    setIsSubmitting(true);
+    if (!isEdit) {
+      setIsSubmitting(true);
+    }
 
     try {
       const requestData = {
@@ -118,9 +139,17 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
         reason: formData.reason
       };
 
-      const response = await api.post('/task-requests/customer', requestData);
+      let response;
+      if (isEdit) {
+        // For edit mode, call the onSubmit callback with the data
+        await onSubmit(requestData);
+        return;
+      } else {
+        // For create mode, make API call directly
+        response = await api.post('/task-requests/customer', requestData);
+      }
       
-      if (response.data.success) {
+      if (response && response.data.success) {
         toast.success(
           'Task Request Submitted!',
           'Your task request has been submitted successfully. The project manager will review it soon.'
@@ -132,14 +161,16 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
         }
         
         handleClose();
-      } else {
+      } else if (response && !response.data.success) {
         toast.error('Error', response.data.message || 'Failed to submit task request');
       }
     } catch (error) {
       console.error('Error submitting task request:', error);
       toast.error('Error', 'Failed to submit task request. Please try again.');
     } finally {
-      setIsSubmitting(false);
+      if (!isEdit) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -167,10 +198,13 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-2xl font-bold flex items-center">
               <CheckSquare className="h-6 w-6 mr-2" />
-              Request New Task
+              {isEdit ? 'Edit Task Request' : 'Request New Task'}
             </DialogTitle>
             <DialogDescription className="text-primary-foreground/80">
-              Submit a task request for {projectName}. The project manager will review and approve your request.
+              {isEdit 
+                ? `Update your task request for ${projectName}. Changes will be reviewed by the project manager.`
+                : `Submit a task request for ${projectName}. The project manager will review and approve your request.`
+              }
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -260,10 +294,10 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
               Milestone *
             </label>
             <Combobox
-              options={milestones}
+              options={milestoneOptions}
               value={formData.milestone}
               onChange={(value) => handleInputChange('milestone', value)}
-              placeholder="Select the milestone this task belongs to"
+              placeholder={milestoneOptions.length === 0 ? "No milestones available for this project" : "Select the milestone this task belongs to"}
               className={`h-12 rounded-xl border-2 transition-all duration-200 ${
                 errors.milestone 
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
@@ -393,24 +427,24 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
               variant="outline"
               onClick={handleClose}
               className="flex-1 h-12 rounded-xl border-2 border-gray-200 hover:border-gray-300 transition-all duration-200"
-              disabled={isSubmitting}
+              disabled={submitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1 h-12 rounded-xl bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
-              disabled={isSubmitting}
+              disabled={submitting}
             >
-              {isSubmitting ? (
+              {submitting ? (
                 <div className="flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Submitting...
+                  {isEdit ? 'Updating...' : 'Submitting...'}
                 </div>
               ) : (
                 <div className="flex items-center">
                   <Save className="h-4 w-4 mr-2" />
-                  Submit Request
+                  {isEdit ? 'Update Request' : 'Submit Request'}
                 </div>
               )}
             </Button>
