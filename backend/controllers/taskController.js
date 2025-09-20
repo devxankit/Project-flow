@@ -4,6 +4,7 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
 const { validationResult } = require('express-validator');
+const { createTaskActivity } = require('./activityController');
 
 // Helper function to handle validation errors
 const handleValidationErrors = (req, res) => {
@@ -148,6 +149,36 @@ const createTask = async (req, res) => {
     });
 
     await task.save();
+
+    // Create activity for task creation
+    try {
+      await createTaskActivity(task._id, 'task_created', req.user.id, {
+        taskTitle: task.title,
+        milestone: milestone,
+        assignedTo: assignedTo || []
+      });
+    } catch (activityError) {
+      console.error('Error creating task activity:', activityError);
+      // Don't fail the task creation if activity creation fails
+    }
+
+    // Create activity for file uploads if any
+    if (attachments.length > 0) {
+      try {
+        const { createFileActivity } = require('./activityController');
+        for (const attachment of attachments) {
+          await createFileActivity(project, 'file_uploaded', req.user.id, {
+            filename: attachment.originalName,
+            fileSize: attachment.size,
+            fileType: attachment.mimetype,
+            taskId: task._id
+          });
+        }
+      } catch (activityError) {
+        console.error('Error creating file upload activity:', activityError);
+        // Don't fail the task creation if activity creation fails
+      }
+    }
 
     // Populate the created task with user data
     await task.populate([
@@ -353,6 +384,56 @@ const updateTask = async (req, res) => {
 
     // Save the task
     await task.save();
+
+    // Create activity for task update
+    try {
+      let activityType = 'task_updated';
+      let metadata = {};
+
+      // Check if status changed
+      if (status !== undefined && status !== task.status) {
+        activityType = 'task_status_changed';
+        metadata.newStatus = status;
+        metadata.oldStatus = task.status;
+      }
+
+      // Check if assignment changed
+      if (assignedTo !== undefined) {
+        const oldAssignedIds = task.assignedTo.map(id => id.toString());
+        const newAssignedIds = assignedTo.map(id => id.toString());
+        
+        if (JSON.stringify(oldAssignedIds.sort()) !== JSON.stringify(newAssignedIds.sort())) {
+          activityType = 'task_assigned';
+          metadata.assignedTo = assignedTo;
+        }
+      }
+
+      await createTaskActivity(task._id, activityType, req.user.id, {
+        taskTitle: task.title,
+        ...metadata
+      });
+    } catch (activityError) {
+      console.error('Error creating task update activity:', activityError);
+      // Don't fail the task update if activity creation fails
+    }
+
+    // Create activity for new file uploads if any
+    if (req.files && req.files.length > 0) {
+      try {
+        const { createFileActivity } = require('./activityController');
+        for (const file of req.files) {
+          await createFileActivity(projectId, 'file_uploaded', req.user.id, {
+            filename: file.originalname,
+            fileSize: file.size,
+            fileType: file.mimetype,
+            taskId: task._id
+          });
+        }
+      } catch (activityError) {
+        console.error('Error creating file upload activity:', activityError);
+        // Don't fail the task update if activity creation fails
+      }
+    }
 
     // Populate the updated task
     await task.populate([

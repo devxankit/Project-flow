@@ -434,80 +434,22 @@ const updateTaskStatus = async (req, res) => {
 // @access  Private (Employee only)
 const getEmployeeActivity = async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 20, type } = req.query;
+    const { page = 1, limit = 20, type, projectId } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Get projects assigned to this employee
-    const assignedProjects = await Project.find({ 
-      assignedTeam: userId 
-    }).select('_id');
-
-    const projectIds = assignedProjects.map(p => p._id);
-
-    // Build activity query - get tasks and milestones related to employee
-    let activityQuery = {
-      $or: [
-        { 'assignedTo': userId }, // Tasks assigned to employee
-        { 'project': { $in: projectIds } } // Activities in assigned projects
-      ]
-    };
-
-    if (type) {
-      activityQuery.type = type;
-    }
-
-    // For now, we'll simulate activity data since we don't have an Activity model
-    // In a real application, you'd have an Activity collection
-    const activities = [
-      {
-        id: 1,
-        type: 'task_completed',
-        title: 'Task completed',
-        description: 'You completed a task',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-        user: req.user.fullName,
-        project: 'Website Redesign',
-        milestone: 'Design Phase',
-        task: 'Update homepage design',
-        icon: 'CheckCircle',
-        color: 'text-green-600'
-      },
-      {
-        id: 2,
-        type: 'task_assigned',
-        title: 'Task assigned',
-        description: 'You were assigned to a new task',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-        user: 'Project Manager',
-        project: 'Website Redesign',
-        milestone: 'Development Phase',
-        task: 'Implement responsive design',
-        icon: 'UserPlus',
-        color: 'text-yellow-600'
-      }
-    ];
-
-    // Filter activities based on query
-    let filteredActivities = activities;
-    if (type) {
-      filteredActivities = activities.filter(activity => activity.type === type);
-    }
-
-    // Paginate results
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const paginatedActivities = filteredActivities.slice(skip, skip + parseInt(limit));
+    // Use the new Activity system
+    const Activity = require('../models/Activity');
+    const result = await Activity.getActivitiesForUser(userId, userRole, {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      type,
+      projectId
+    });
 
     res.json({
       success: true,
-      data: {
-        activities: paginatedActivities,
-        pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(filteredActivities.length / parseInt(limit)),
-          total: filteredActivities.length,
-          limit: parseInt(limit)
-        }
-      }
+      data: result
     });
 
   } catch (error) {

@@ -4,6 +4,7 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
 const { validationResult } = require('express-validator');
+const { createMilestoneActivity } = require('./activityController');
 
 // Helper function to handle validation errors
 const handleValidationErrors = (req, res) => {
@@ -224,6 +225,36 @@ const createMilestone = async (req, res) => {
 
     // Calculate initial progress (will be 0 since no tasks exist yet)
     await calculateMilestoneProgress(milestone._id);
+
+    // Create activity for milestone creation
+    try {
+      await createMilestoneActivity(milestone._id, 'milestone_created', req.user.id, {
+        milestoneTitle: milestone.title,
+        project: project._id,
+        assignedTo: assignedTo || []
+      });
+    } catch (activityError) {
+      console.error('Error creating milestone activity:', activityError);
+      // Don't fail the milestone creation if activity creation fails
+    }
+
+    // Create activity for file uploads if any
+    if (attachments.length > 0) {
+      try {
+        const { createFileActivity } = require('./activityController');
+        for (const attachment of attachments) {
+          await createFileActivity(projectId, 'file_uploaded', req.user.id, {
+            filename: attachment.originalName,
+            fileSize: attachment.size,
+            fileType: attachment.mimetype,
+            milestoneId: milestone._id
+          });
+        }
+      } catch (activityError) {
+        console.error('Error creating file upload activity:', activityError);
+        // Don't fail the milestone creation if activity creation fails
+      }
+    }
 
     // Populate the created milestone with user data
     await milestone.populate([
@@ -475,6 +506,57 @@ const updateMilestone = async (req, res) => {
 
     // Save the milestone
     await milestone.save();
+
+    // Create activity for milestone update
+    try {
+      let activityType = 'milestone_updated';
+      let metadata = {};
+
+      // Check if status changed
+      if (status !== undefined && status !== milestone.status) {
+        activityType = 'milestone_status_changed';
+        metadata.newStatus = status;
+        metadata.oldStatus = milestone.status;
+      }
+
+      // Check if assignment changed
+      if (assignedTo !== undefined) {
+        const oldAssignedIds = milestone.assignedTo.map(id => id.toString());
+        const newAssignedIds = assignedTo.map(id => id.toString());
+        
+        if (JSON.stringify(oldAssignedIds.sort()) !== JSON.stringify(newAssignedIds.sort())) {
+          activityType = 'milestone_updated'; // Keep as updated for assignment changes
+          metadata.assignedTo = assignedTo;
+        }
+      }
+
+      await createMilestoneActivity(milestone._id, activityType, req.user.id, {
+        milestoneTitle: milestone.title,
+        project: projectId,
+        ...metadata
+      });
+    } catch (activityError) {
+      console.error('Error creating milestone update activity:', activityError);
+      // Don't fail the milestone update if activity creation fails
+    }
+
+    // Create activity for new file uploads if any
+    if (req.files && req.files.length > 0) {
+      try {
+        const { createFileActivity } = require('./activityController');
+        for (const file of req.files) {
+          await createFileActivity(projectId, 'file_uploaded', req.user.id, {
+            filename: file.originalname,
+            fileSize: file.size,
+            fileType: file.mimetype,
+            milestoneId: milestone._id
+          });
+        }
+      } catch (activityError) {
+        console.error('Error creating file upload activity:', activityError);
+        // Don't fail the milestone update if activity creation fails
+      }
+    }
 
     // Recalculate progress based on tasks
     await calculateMilestoneProgress(milestone._id);

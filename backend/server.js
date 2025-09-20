@@ -18,6 +18,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const taskRequestRoutes = require('./routes/taskRequestRoutes');
+const activityRoutes = require('./routes/activityRoutes');
 
 const app = express();
 
@@ -103,6 +104,7 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/employee', employeeRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/task-requests', taskRequestRoutes);
+app.use('/api/activities', activityRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

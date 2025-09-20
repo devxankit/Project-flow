@@ -687,106 +687,22 @@ const getCustomerFiles = async (req, res) => {
 // @access  Private (Customer only)
 const getCustomerActivity = async (req, res) => {
   try {
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 20, type } = req.query;
+    const { page = 1, limit = 20, type, projectId } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Get customer's projects
-    const customerProjects = await Project.find({ customer: customerId }).select('_id name');
-    const projectIds = customerProjects.map(p => p._id);
-
-    if (projectIds.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          activities: [],
-          pagination: {
-            current: parseInt(page),
-            pages: 0,
-            total: 0,
-            limit: parseInt(limit)
-          }
-        }
-      });
-    }
-
-    // Get recent activities from tasks and milestones
-    const activities = [];
-
-    // Get task activities
-    const taskActivities = await Task.find({ project: { $in: projectIds } })
-      .populate('project', 'name')
-      .populate('milestone', 'title')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .sort({ updatedAt: -1 })
-      .limit(parseInt(limit));
-
-    // Format task activities
-    taskActivities.forEach(task => {
-      activities.push({
-        id: `task-${task._id}`,
-        type: 'task_updated',
-        title: 'Task updated',
-        description: `Task "${task.title}" was updated`,
-        timestamp: task.updatedAt,
-        user: task.assignedTo[0]?.fullName || 'Unknown',
-        project: task.project.name,
-        milestone: task.milestone?.title,
-        icon: 'CheckSquare',
-        color: 'text-green-600',
-        shareable: true
-      });
+    // Use the new Activity system
+    const Activity = require('../models/Activity');
+    const result = await Activity.getActivitiesForUser(userId, userRole, {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      type,
+      projectId
     });
-
-    // Get milestone activities
-    const milestoneActivities = await Milestone.find({ project: { $in: projectIds } })
-      .populate('project', 'name')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .sort({ updatedAt: -1 })
-      .limit(parseInt(limit));
-
-    // Format milestone activities
-    milestoneActivities.forEach(milestone => {
-      activities.push({
-        id: `milestone-${milestone._id}`,
-        type: 'milestone_updated',
-        title: 'Milestone updated',
-        description: `Milestone "${milestone.title}" was updated`,
-        timestamp: milestone.updatedAt,
-        user: milestone.assignedTo[0]?.fullName || 'Unknown',
-        project: milestone.project.name,
-        milestone: milestone.title,
-        icon: 'Target',
-        color: 'text-blue-600',
-        shareable: true
-      });
-    });
-
-    // Sort all activities by timestamp
-    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    // Apply type filter if specified
-    let filteredActivities = activities;
-    if (type && type !== 'all') {
-      filteredActivities = activities.filter(activity => activity.type === type);
-    }
-
-    // Apply pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const paginatedActivities = filteredActivities.slice(skip, skip + parseInt(limit));
 
     res.json({
       success: true,
-      data: {
-        activities: paginatedActivities,
-        pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(filteredActivities.length / parseInt(limit)),
-          total: filteredActivities.length,
-          limit: parseInt(limit)
-        }
-      }
+      data: result
     });
 
   } catch (error) {
@@ -838,6 +754,20 @@ const uploadTaskFile = async (req, res) => {
     // Add file to task attachments
     task.attachments.push(fileData);
     await task.save();
+
+    // Create activity for file upload
+    try {
+      const { createFileActivity } = require('./activityController');
+      await createFileActivity(task.project._id, 'file_uploaded', customerId, {
+        filename: fileData.name,
+        fileSize: fileData.size,
+        fileType: fileData.type,
+        taskId: task._id
+      });
+    } catch (activityError) {
+      console.error('Error creating file upload activity:', activityError);
+      // Don't fail the file upload if activity creation fails
+    }
 
     res.json({
       success: true,
@@ -894,6 +824,20 @@ const uploadMilestoneFile = async (req, res) => {
     // Add file to milestone attachments
     milestone.attachments.push(fileData);
     await milestone.save();
+
+    // Create activity for file upload
+    try {
+      const { createFileActivity } = require('./activityController');
+      await createFileActivity(milestone.project._id, 'file_uploaded', customerId, {
+        filename: fileData.name,
+        fileSize: fileData.size,
+        fileType: fileData.type,
+        milestoneId: milestone._id
+      });
+    } catch (activityError) {
+      console.error('Error creating file upload activity:', activityError);
+      // Don't fail the file upload if activity creation fails
+    }
 
     res.json({
       success: true,

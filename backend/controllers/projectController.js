@@ -5,6 +5,7 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
 const { validationResult } = require('express-validator');
+const { createProjectActivity, createTeamActivity } = require('./activityController');
 
 // Helper function to handle validation errors
 const handleValidationErrors = (req, res) => {
@@ -131,6 +132,18 @@ const createProject = async (req, res) => {
     await User.findByIdAndUpdate(req.user.id, {
       $addToSet: { managedProjects: project._id }
     });
+
+    // Create activity for project creation
+    try {
+      await createProjectActivity(project._id, 'project_created', req.user.id, {
+        projectName: project.name,
+        customer: customer,
+        assignedTeam: assignedTeam || []
+      });
+    } catch (activityError) {
+      console.error('Error creating project activity:', activityError);
+      // Don't fail the project creation if activity creation fails
+    }
 
     // Populate the project with user details
     const populatedProject = await Project.findById(project._id)
@@ -383,6 +396,38 @@ const updateProject = async (req, res) => {
           { $addToSet: { assignedProjects: id } }
         );
       }
+    }
+
+    // Create activity for project update
+    try {
+      let activityType = 'project_updated';
+      let metadata = {};
+
+      // Check if status changed
+      if (status !== undefined && status !== project.status) {
+        activityType = 'project_status_changed';
+        metadata.newStatus = status;
+        metadata.oldStatus = project.status;
+      }
+
+      // Check if team changed
+      if (assignedTeam !== undefined) {
+        const oldTeamIds = project.assignedTeam.map(id => id.toString());
+        const newTeamIds = assignedTeam.map(id => id.toString());
+        
+        if (JSON.stringify(oldTeamIds.sort()) !== JSON.stringify(newTeamIds.sort())) {
+          activityType = 'team_member_added';
+          metadata.assignedTeam = assignedTeam;
+        }
+      }
+
+      await createProjectActivity(updatedProject._id, activityType, req.user.id, {
+        projectName: updatedProject.name,
+        ...metadata
+      });
+    } catch (activityError) {
+      console.error('Error creating project update activity:', activityError);
+      // Don't fail the project update if activity creation fails
     }
 
     // Populate the updated project
