@@ -23,10 +23,10 @@ router.get('/', getActivities);
 // @access  Private (All roles)
 router.get('/stats', getActivityStats);
 
-// @route   GET /api/activities/project/:projectId
-// @desc    Get activities for a specific project
-// @access  Private (All roles with project access)
-router.get('/project/:projectId', getProjectActivities);
+// @route   GET /api/activities/customer/:customerId
+// @desc    Get activities for a specific customer
+// @access  Private (All roles with customer access)
+router.get('/customer/:customerId', getProjectActivities);
 
 // @route   GET /api/activities/:id
 // @desc    Get a specific activity by ID

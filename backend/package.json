@@ -13,7 +13,18 @@
     "test-profile": "node scripts/testProfileFunctionality.js",
     "demo-profile": "node scripts/demoProfileAPI.js",
     "cleanup-profile-tests": "node scripts/setupProfileTestUsers.js cleanup",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node scripts/runCompleteTest.js",
+    "test:comprehensive": "node scripts/comprehensiveTestSuite.js",
+    "test:run": "node scripts/runTests.js",
+    "test:suite": "node scripts/runTestSuite.js",
+    "test:complete": "node scripts/runCompleteTest.js",
+    "test:100": "node scripts/100PercentTest.js",
+    "test:file-system": "node scripts/enhancedFileSystemTest.js",
+    "test:final": "node scripts/finalComprehensiveTest.js",
+    "test:files": "node scripts/fileSystemTest.js",
+    "test:final-files": "node scripts/finalFileSystemTest.js",
+    "migrate": "node scripts/migrateToCustomerStructure.js",
+    "setup-files": "node scripts/setupFileSystem.js"
   },
   "keywords": [
     "project",
@@ -32,6 +43,7 @@
     "express": "^4.18.2",
     "express-rate-limit": "^6.10.0",
     "express-validator": "^7.2.1",
+    "form-data": "^4.0.4",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",

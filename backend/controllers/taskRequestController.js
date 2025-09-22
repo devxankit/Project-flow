@@ -1,6 +1,5 @@
 const TaskRequest = require('../models/TaskRequest');
-const Project = require('../models/Project');
-const Milestone = require('../models/Milestone');
+const Customer = require('../models/Customer');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const mongoose = require('mongoose');
@@ -38,29 +37,29 @@ const createTaskRequest = async (req, res) => {
 
     const customerId = new mongoose.Types.ObjectId(req.user.id);
 
-    // Verify customer has access to the project
-    const projectExists = await Project.findOne({
-      _id: project,
+    // Verify customer has access to the customer record
+    const customerExists = await Customer.findOne({
+      _id: project, // This is actually the customer ID in the new structure
       customer: customerId
     });
 
-    if (!projectExists) {
+    if (!customerExists) {
       return res.status(404).json({
         success: false,
-        message: 'Project not found or access denied'
+        message: 'Customer not found or access denied'
       });
     }
 
-    // Verify milestone belongs to the project
-    const milestoneExists = await Milestone.findOne({
-      _id: milestone,
-      project: project
+    // Verify task belongs to the customer
+    const taskExists = await Task.findOne({
+      _id: milestone, // This is actually the task ID in the new structure
+      customer: project // This is actually the customer ID
     });
 
-    if (!milestoneExists) {
+    if (!taskExists) {
       return res.status(404).json({
         success: false,
-        message: 'Milestone not found or does not belong to this project'
+        message: 'Task not found or does not belong to this customer'
       });
     }
 
@@ -278,11 +277,11 @@ const getPMTaskRequests = async (req, res) => {
     const pmId = new mongoose.Types.ObjectId(req.user.id);
     const { status, project } = req.query;
 
-    // Get projects managed by this PM
-    const projects = await Project.find({ projectManager: pmId }).select('_id');
-    const projectIds = projects.map(p => p._id);
+    // Get customers managed by this PM
+    const customers = await Customer.find({ projectManager: pmId }).select('_id');
+    const customerIds = customers.map(c => c._id);
 
-    if (projectIds.length === 0) {
+    if (customerIds.length === 0) {
       return res.json({
         success: true,
         data: []
@@ -290,7 +289,7 @@ const getPMTaskRequests = async (req, res) => {
     }
 
     // Build query
-    const query = { project: { $in: projectIds } };
+    const query = { project: { $in: customerIds } };
     
     if (status) {
       query.status = status;

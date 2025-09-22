@@ -1,13 +1,11 @@
 const mongoose = require('mongoose');
-const Project = require('../models/Project');
-const Milestone = require('../models/Milestone');
+const Customer = require('../models/Customer');
 const Task = require('../models/Task');
+const Subtask = require('../models/Subtask');
 const User = require('../models/User');
-const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
+const { formatFileData, deleteFile } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { createCustomerActivity } = require('./activityController');
 
 // Helper function to handle validation errors
 const handleValidationErrors = (req, res) => {
@@ -22,683 +20,534 @@ const handleValidationErrors = (req, res) => {
   return null;
 };
 
-// Helper function to check if customer has access to project
-const checkCustomerProjectAccess = async (projectId, customerId) => {
-  const project = await Project.findOne({ 
-    _id: projectId, 
-    customer: customerId 
-  });
-  return project;
+// Helper function to check if user has permission to access customer
+const checkCustomerPermission = async (customerId, userId, userRole) => {
+  try {
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return { hasPermission: false, error: 'Customer not found' };
+    }
+
+    // PMs can access all customers
+    if (userRole === 'pm') {
+      return { hasPermission: true, customer };
+    }
+
+    // Employees can access customers they're assigned to
+    if (userRole === 'employee') {
+      const isAssigned = customer.assignedTeam.includes(userId);
+      return { hasPermission: isAssigned, customer };
+    }
+
+    // Customers can only access their own customer records
+    if (userRole === 'customer') {
+      const isOwner = customer.customer.toString() === userId;
+      return { hasPermission: isOwner, customer };
+    }
+
+    return { hasPermission: false, error: 'Invalid user role' };
+  } catch (error) {
+    return { hasPermission: false, error: error.message };
+  }
 };
 
-// @desc    Get customer dashboard statistics
-// @route   GET /api/customer/dashboard
-// @access  Private (Customer only)
-const getCustomerDashboard = async (req, res) => {
+// Create a new customer
+const createCustomer = async (req, res) => {
   try {
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    // Check validation errors
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return validationError;
 
-    // Get customer's projects
-    const projects = await Project.find({ customer: customerId })
-      .populate('projectManager', 'fullName email avatar')
-      .populate('assignedTeam', 'fullName email avatar')
-      .sort({ updatedAt: -1 });
+    const { name, description, status, priority, dueDate, customer, assignedTeam, tags, visibility } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Calculate project statistics
-    const totalProjects = projects.length;
-    const activeProjects = projects.filter(p => p.status === 'active').length;
-    const completedProjects = projects.filter(p => p.status === 'completed').length;
-    const planningProjects = projects.filter(p => p.status === 'planning').length;
+    // Only PMs can create customers
+    if (userRole !== 'pm') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Project Managers can create customers'
+      });
+    }
 
-    // Get task statistics across all customer projects
-    const projectIds = projects.map(p => p._id);
-    const taskStats = await Task.aggregate([
-      { $match: { project: { $in: projectIds } } },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-          overdue: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $lt: ['$dueDate', new Date()] },
-                    { $ne: ['$status', 'completed'] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
-        }
+    // Validate customer user exists and has customer role
+    const customerUser = await User.findById(customer);
+    if (!customerUser || customerUser.role !== 'customer') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid customer user'
+      });
+    }
+
+    // Validate assigned team members
+    if (assignedTeam && assignedTeam.length > 0) {
+      const teamMembers = await User.find({
+        _id: { $in: assignedTeam },
+        role: { $in: ['employee', 'pm'] }
+      });
+      
+      if (teamMembers.length !== assignedTeam.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Some assigned team members are invalid'
+        });
       }
-    ]);
+    }
 
-    const taskCounts = taskStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0, overdue: 0 };
+    // Create customer
+    const newCustomer = new Customer({
+      name,
+      description,
+      status: status || 'planning',
+      priority: priority || 'normal',
+      dueDate,
+      customer,
+      projectManager: userId,
+      assignedTeam: assignedTeam || [],
+      tags: tags || [],
+      visibility: visibility || 'team',
+      createdBy: userId,
+      lastModifiedBy: userId
+    });
 
-    // Get milestone statistics
-    const milestoneStats = await Milestone.aggregate([
-      { $match: { project: { $in: projectIds } } },
+    await newCustomer.save();
+
+    // Update customer user's customerProjects array
+    await User.findByIdAndUpdate(customer, {
+      $addToSet: { customerProjects: newCustomer._id }
+    });
+
+    // Update assigned team members' assignedCustomers array
+    if (assignedTeam && assignedTeam.length > 0) {
+      await User.updateMany(
+        { _id: { $in: assignedTeam } },
+        { $addToSet: { assignedCustomers: newCustomer._id } }
+      );
+    }
+
+    // Update PM's managedCustomers array
+    await User.findByIdAndUpdate(userId, {
+      $addToSet: { managedCustomers: newCustomer._id }
+    });
+
+    // Create activity log
+    await createCustomerActivity(
+      newCustomer._id,
+      'customer_created',
+      userId,
       {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-        }
+        status: newCustomer.status,
+        priority: newCustomer.priority,
+        teamSize: assignedTeam ? assignedTeam.length : 0
       }
-    ]);
-
-    const milestoneCounts = milestoneStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
-
-    // Calculate overall progress
-    const totalItems = taskCounts.total + milestoneCounts.total;
-    const completedItems = taskCounts.completed + milestoneCounts.completed;
-    const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-
-    // Get recent projects for dashboard
-    const recentProjects = projects.slice(0, 4).map(project => ({
-      _id: project._id,
-      name: project.name,
-      description: project.description,
-      status: project.status,
-      progress: project.progress,
-      assignedTeam: project.assignedTeam,
-      dueDate: project.dueDate,
-      priority: project.priority,
-      totalTasks: 0, // Will be calculated separately
-      completedTasks: 0,
-      dueSoonTasks: 0,
-      overdueTasks: 0
-    }));
-
-    // Get task counts for recent projects
-    const projectsWithTaskCounts = await Promise.all(
-      recentProjects.map(async (project) => {
-        const taskCounts = await Task.aggregate([
-          { $match: { project: project._id } },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-              dueSoon: {
-                $sum: {
-                  $cond: [
-                    {
-                      $and: [
-                        { $gte: ['$dueDate', new Date()] },
-                        { $lte: ['$dueDate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)] },
-                        { $ne: ['$status', 'completed'] }
-                      ]
-                    },
-                    1,
-                    0
-                  ]
-                }
-              },
-              overdue: {
-                $sum: {
-                  $cond: [
-                    {
-                      $and: [
-                        { $lt: ['$dueDate', new Date()] },
-                        { $ne: ['$status', 'completed'] }
-                      ]
-                    },
-                    1,
-                    0
-                  ]
-                }
-              }
-            }
-          }
-        ]);
-
-        const counts = taskCounts[0] || { total: 0, completed: 0, dueSoon: 0, overdue: 0 };
-        
-        return {
-          ...project,
-          totalTasks: counts.total,
-          completedTasks: counts.completed,
-          dueSoonTasks: counts.dueSoon,
-          overdueTasks: counts.overdue
-        };
-      })
     );
 
-    res.json({
+    // Populate the response
+    const populatedCustomer = await Customer.findById(newCustomer._id)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('lastModifiedBy', 'fullName email avatar');
+
+    res.status(201).json({
       success: true,
+      message: 'Customer created successfully',
       data: {
-        statistics: {
-          projects: {
-            total: totalProjects,
-            active: activeProjects,
-            completed: completedProjects,
-            planning: planningProjects
-          },
-          tasks: taskCounts,
-          milestones: milestoneCounts,
-          overallProgress
-        },
-        recentProjects: projectsWithTaskCounts
+        customer: populatedCustomer
       }
     });
 
   } catch (error) {
-    console.error('Error fetching customer dashboard:', error);
+    console.error('Error creating customer:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching dashboard data',
+      message: 'Error creating customer',
       error: error.message
     });
   }
 };
 
-// @desc    Get customer projects
-// @route   GET /api/customer/projects
-// @access  Private (Customer only)
-const getCustomerProjects = async (req, res) => {
+// Get all customers with role-based filtering
+const getCustomers = async (req, res) => {
   try {
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 10, status, priority } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { page = 1, limit = 10, status, priority, search } = req.query;
 
-    // Build query
-    let query = { customer: customerId };
-    
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
+    let query = {};
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Role-based filtering
+    if (userRole === 'pm') {
+      // PMs can see all customers
+      query = {};
+    } else if (userRole === 'employee') {
+      // Employees can only see customers they're assigned to
+      query = { assignedTeam: userId };
+    } else if (userRole === 'customer') {
+      // Customers can only see their own customer records
+      query = { customer: userId };
+    }
 
-    // Get projects with populated data
-    const projects = await Project.find(query)
+    // Apply filters
+    if (status) {
+      query.status = status;
+    }
+    if (priority) {
+      query.priority = priority;
+    }
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const skip = (page - 1) * limit;
+
+    const customers = await Customer.find(query)
+      .populate('customer', 'fullName email avatar')
       .populate('projectManager', 'fullName email avatar')
-      .populate('assignedTeam', 'fullName email avatar')
-      .sort({ updatedAt: -1 })
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('lastModifiedBy', 'fullName email avatar')
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Get task counts for each project
-    const projectsWithTaskCounts = await Promise.all(
-      projects.map(async (project) => {
-        const taskCounts = await Task.aggregate([
-          { $match: { project: project._id } },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-              inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-              pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-              dueSoon: {
-                $sum: {
-                  $cond: [
-                    {
-                      $and: [
-                        { $gte: ['$dueDate', new Date()] },
-                        { $lte: ['$dueDate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)] },
-                        { $ne: ['$status', 'completed'] }
-                      ]
-                    },
-                    1,
-                    0
-                  ]
-                }
-              },
-              overdue: {
-                $sum: {
-                  $cond: [
-                    {
-                      $and: [
-                        { $lt: ['$dueDate', new Date()] },
-                        { $ne: ['$status', 'completed'] }
-                      ]
-                    },
-                    1,
-                    0
-                  ]
-                }
-              }
-            }
-          }
-        ]);
-
-        const counts = taskCounts[0] || { total: 0, completed: 0, inProgress: 0, pending: 0, dueSoon: 0, overdue: 0 };
-        
-        return {
-          ...project.toObject(),
-          totalTasks: counts.total,
-          completedTasks: counts.completed,
-          inProgressTasks: counts.inProgress,
-          pendingTasks: counts.pending,
-          dueSoonTasks: counts.dueSoon,
-          overdueTasks: counts.overdue
-        };
-      })
-    );
-
-    // Get total count for pagination
-    const total = await Project.countDocuments(query);
+    const total = await Customer.countDocuments(query);
 
     res.json({
       success: true,
       data: {
-        projects: projectsWithTaskCounts,
+        customers,
         pagination: {
           current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
+          pages: Math.ceil(total / limit),
+          total
         }
       }
     });
 
   } catch (error) {
-    console.error('Error fetching customer projects:', error);
+    console.error('Error fetching customers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching projects',
+      message: 'Error fetching customers',
       error: error.message
     });
   }
 };
 
-// @desc    Get customer project details
-// @route   GET /api/customer/projects/:id
-// @access  Private (Customer only)
-const getCustomerProjectDetails = async (req, res) => {
+// Get single customer details
+const getCustomer = async (req, res) => {
   try {
-    // Handle validation errors
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Check permissions
+    const permissionCheck = await checkCustomerPermission(id, userId, userRole);
+    if (!permissionCheck.hasPermission) {
+      const statusCode = permissionCheck.error === 'Customer not found' ? 404 : 403;
+      return res.status(statusCode).json({
+        success: false,
+        message: permissionCheck.error || 'Access denied'
+      });
+    }
+
+    const customer = await Customer.findById(id)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('lastModifiedBy', 'fullName email avatar')
+      .populate({
+        path: 'tasks',
+        populate: {
+          path: 'assignedTo',
+          select: 'fullName email avatar'
+        }
+      });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: customer
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer',
+      error: error.message
+    });
+  }
+};
+
+// Update customer
+const updateCustomer = async (req, res) => {
+  try {
+    // Check validation errors
     const validationError = handleValidationErrors(req, res);
     if (validationError) return validationError;
 
     const { id } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Check if customer has access to this project
-    const project = await checkCustomerProjectAccess(id, customerId);
-    if (!project) {
-      return res.status(404).json({
+    // Only PMs can update customers
+    if (userRole !== 'pm') {
+      return res.status(403).json({
         success: false,
-        message: 'Project not found or access denied'
+        message: 'Only Project Managers can update customers'
       });
     }
 
-    // Get project with populated data
-    const projectDetails = await Project.findById(id)
-      .populate('customer', 'fullName email company')
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const { name, description, status, priority, dueDate, assignedTeam, tags, visibility } = req.body;
+
+    // Validate assigned team members if provided
+    if (assignedTeam && assignedTeam.length > 0) {
+      const teamMembers = await User.find({
+        _id: { $in: assignedTeam },
+        role: { $in: ['employee', 'pm'] }
+      });
+      
+      if (teamMembers.length !== assignedTeam.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Some assigned team members are invalid'
+        });
+      }
+    }
+
+    // Update customer
+    const updateData = {
+      lastModifiedBy: userId
+    };
+
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (status !== undefined) updateData.status = status;
+    if (priority !== undefined) updateData.priority = priority;
+    if (dueDate !== undefined) updateData.dueDate = dueDate;
+    if (tags !== undefined) updateData.tags = tags;
+    if (visibility !== undefined) updateData.visibility = visibility;
+
+    // Handle team assignment changes
+    if (assignedTeam !== undefined) {
+      const oldTeam = customer.assignedTeam.map(id => id.toString());
+      const newTeam = assignedTeam.map(id => id.toString());
+
+      // Remove from old team members
+      const removedMembers = oldTeam.filter(id => !newTeam.includes(id));
+      if (removedMembers.length > 0) {
+        await User.updateMany(
+          { _id: { $in: removedMembers } },
+          { $pull: { assignedCustomers: customer._id } }
+        );
+      }
+
+      // Add to new team members
+      const addedMembers = newTeam.filter(id => !oldTeam.includes(id));
+      if (addedMembers.length > 0) {
+        await User.updateMany(
+          { _id: { $in: addedMembers } },
+          { $addToSet: { assignedCustomers: customer._id } }
+        );
+      }
+
+      updateData.assignedTeam = assignedTeam;
+    }
+
+    const updatedCustomer = await Customer.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    )
+      .populate('customer', 'fullName email avatar')
       .populate('projectManager', 'fullName email avatar')
-      .populate('assignedTeam', 'fullName email avatar role');
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('lastModifiedBy', 'fullName email avatar');
 
-    // Get milestones for this project with progress field
-    const milestones = await Milestone.find({ project: id })
-      .select('title description status progress dueDate assignedTo createdAt sequence')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('comments.user', 'fullName email')
-      .sort({ sequence: 1 });
-
-    // Get tasks for this project
-    const tasks = await Task.find({ project: id })
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('milestone', 'title sequence')
-      .populate('comments.user', 'fullName email')
-      .sort({ createdAt: -1 });
-
-    // Get task counts for each milestone
-    const milestonesWithTaskCounts = await Promise.all(
-      milestones.map(async (milestone) => {
-        const taskCounts = await Task.aggregate([
-          { $match: { milestone: milestone._id } },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-              inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-              pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-            }
-          }
-        ]);
-
-        const counts = taskCounts[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
-        
-        return {
-          ...milestone.toObject(),
-          totalTasks: counts.total,
-          completedTasks: counts.completed,
-          inProgressTasks: counts.inProgress,
-          pendingTasks: counts.pending
-        };
-      })
+    // Create activity log
+    await createCustomerActivity(
+      customer._id,
+      'customer_updated',
+      userId,
+      {
+        changes: Object.keys(updateData).filter(key => key !== 'lastModifiedBy')
+      }
     );
 
-    // Get overall task statistics for this project
-    const projectTaskStats = await Task.aggregate([
-      { $match: { project: id } },
+    res.json({
+      success: true,
+      message: 'Customer updated successfully',
+      data: updatedCustomer
+    });
+
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating customer',
+      error: error.message
+    });
+  }
+};
+
+// Delete customer
+const deleteCustomer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Only PMs can delete customers
+    if (userRole !== 'pm') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Project Managers can delete customers'
+      });
+    }
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Delete all tasks and subtasks associated with this customer
+    const tasks = await Task.find({ customer: id });
+    for (const task of tasks) {
+      // Delete all subtasks for this task
+      await Subtask.deleteMany({ task: task._id });
+      // Delete task files
+      if (task.attachments && task.attachments.length > 0) {
+        for (const attachment of task.attachments) {
+          await deleteFile(attachment.filePath);
+        }
+      }
+    }
+    await Task.deleteMany({ customer: id });
+
+    // Delete customer files
+    if (customer.attachments && customer.attachments.length > 0) {
+      for (const attachment of customer.attachments) {
+        await deleteFile(attachment.filePath);
+      }
+    }
+
+    // Remove customer references from users
+    await User.updateMany(
+      { customerProjects: id },
+      { $pull: { customerProjects: id } }
+    );
+    await User.updateMany(
+      { assignedCustomers: id },
+      { $pull: { assignedCustomers: id } }
+    );
+    await User.updateMany(
+      { managedCustomers: id },
+      { $pull: { managedCustomers: id } }
+    );
+
+    // Delete the customer
+    await Customer.findByIdAndDelete(id);
+
+    // Create activity log
+    await createCustomerActivity(
+      customer._id,
+      'customer_deleted',
+      userId,
+      {
+        deletedTasks: tasks.length
+      }
+    );
+
+    res.json({
+      success: true,
+      message: 'Customer deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting customer',
+      error: error.message
+    });
+  }
+};
+
+// Get customer statistics
+const getCustomerStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let matchQuery = {};
+
+    // Role-based filtering
+    if (userRole === 'employee') {
+      matchQuery.assignedTeam = userId;
+    } else if (userRole === 'customer') {
+      matchQuery.customer = userId;
+    }
+
+    const stats = await Customer.aggregate([
+      { $match: matchQuery },
       {
         $group: {
           _id: null,
           total: { $sum: 1 },
-          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
-          dueSoon: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $gte: ['$dueDate', new Date()] },
-                    { $lte: ['$dueDate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)] },
-                    { $ne: ['$status', 'completed'] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
+          active: {
+            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
           },
-          overdue: {
-            $sum: {
-              $cond: [
-                {
-                  $and: [
-                    { $lt: ['$dueDate', new Date()] },
-                    { $ne: ['$status', 'completed'] }
-                  ]
-                },
-                1,
-                0
-              ]
-            }
-          }
+          completed: {
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ['$status', 'on-hold'] }, 1, 0] }
+          },
+          cancelled: {
+            $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] }
+          },
+          planning: {
+            $sum: { $cond: [{ $eq: ['$status', 'planning'] }, 1, 0] }
+          },
+          avgProgress: { $avg: '$progress' }
         }
       }
     ]);
 
-    const taskStats = projectTaskStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0, dueSoon: 0, overdue: 0 };
-
-    res.json({
-      success: true,
-      data: {
-        project: {
-          ...projectDetails.toObject(),
-          totalTasks: taskStats.total,
-          completedTasks: taskStats.completed,
-          inProgressTasks: taskStats.inProgress,
-          pendingTasks: taskStats.pending,
-          dueSoonTasks: taskStats.dueSoon,
-          overdueTasks: taskStats.overdue
-        },
-        milestones: milestonesWithTaskCounts,
-        tasks: tasks
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching customer project details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching project details',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get customer task details
-// @route   GET /api/customer/tasks/:taskId
-// @access  Private (Customer only)
-const getCustomerTaskDetails = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Get task with project information
-    const task = await Task.findById(taskId)
-      .populate('project', 'name customer')
-      .populate('milestone', 'title description')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('comments.user', 'fullName email');
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found'
-      });
-    }
-
-    // Check if customer has access to this task's project
-    if (task.project.customer.toString() !== customerId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this task'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        task
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching customer task details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching task details',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get customer milestone details
-// @route   GET /api/customer/milestones/:milestoneId
-// @access  Private (Customer only)
-const getCustomerMilestoneDetails = async (req, res) => {
-  try {
-    const { milestoneId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Get milestone with project information
-    const milestone = await Milestone.findById(milestoneId)
-      .populate('project', 'name customer')
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('comments.user', 'fullName email');
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found'
-      });
-    }
-
-    // Check if customer has access to this milestone's project
-    if (milestone.project.customer.toString() !== customerId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied to this milestone'
-      });
-    }
-
-    // Get tasks for this milestone
-    const tasks = await Task.find({ milestone: milestoneId })
-      .populate('assignedTo', 'fullName email avatar')
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      data: {
-        milestone,
-        tasks
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching customer milestone details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching milestone details',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get customer files
-// @route   GET /api/customer/files
-// @access  Private (Customer only)
-const getCustomerFiles = async (req, res) => {
-  try {
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 20, type, project } = req.query;
-
-    // Get customer's projects
-    const customerProjects = await Project.find({ customer: customerId }).select('_id name');
-    const projectIds = customerProjects.map(p => p._id);
-
-    if (projectIds.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          files: [],
-          pagination: {
-            current: parseInt(page),
-            pages: 0,
-            total: 0,
-            limit: parseInt(limit)
-          }
-        }
-      });
-    }
-
-    // Build aggregation pipeline for files
-    const pipeline = [
-      {
-        $match: {
-          project: { $in: projectIds }
-        }
-      },
-      {
-        $unwind: '$attachments'
-      },
-      {
-        $lookup: {
-          from: 'projects',
-          localField: 'project',
-          foreignField: '_id',
-          as: 'projectInfo'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'attachments.uploadedBy',
-          foreignField: '_id',
-          as: 'uploaderInfo'
-        }
-      },
-      {
-        $addFields: {
-          'attachments.projectName': { $arrayElemAt: ['$projectInfo.name', 0] },
-          'attachments.taskTitle': '$title',
-          'attachments.uploadedByName': { $arrayElemAt: ['$uploaderInfo.fullName', 0] }
-        }
-      },
-      {
-        $replaceRoot: {
-          newRoot: {
-            $mergeObjects: ['$attachments', { taskId: '$_id' }]
-          }
-        }
-      }
-    ];
-
-    // Add type filter if specified
-    if (type && type !== 'all') {
-      pipeline.push({
-        $match: {
-          $or: [
-            { mimetype: { $regex: type, $options: 'i' } },
-            { originalName: { $regex: `\\.${type}$`, $options: 'i' } }
-          ]
-        }
-      });
-    }
-
-    // Add project filter if specified
-    if (project) {
-      pipeline.push({
-        $match: { projectName: { $regex: project, $options: 'i' } }
-      });
-    }
-
-    // Add pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    pipeline.push(
-      { $sort: { uploadedAt: -1 } },
-      { $skip: skip },
-      { $limit: parseInt(limit) }
-    );
-
-    // Execute aggregation
-    const files = await Task.aggregate(pipeline);
-
-    // Get total count for pagination
-    const countPipeline = [...pipeline];
-    countPipeline.splice(-3); // Remove sort, skip, limit
-    countPipeline.push({ $count: 'total' });
-    const countResult = await Task.aggregate(countPipeline);
-    const total = countResult[0]?.total || 0;
-
-    res.json({
-      success: true,
-      data: {
-        files,
-        pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching customer files:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching files',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get customer activity feed
-// @route   GET /api/customer/activity
-// @access  Private (Customer only)
-const getCustomerActivity = async (req, res) => {
-  try {
-    const { page = 1, limit = 20, type, projectId } = req.query;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    // Use the new Activity system
-    const Activity = require('../models/Activity');
-    const result = await Activity.getActivitiesForUser(userId, userRole, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      type,
-      projectId
-    });
+    const result = stats[0] || {
+      total: 0,
+      active: 0,
+      completed: 0,
+      onHold: 0,
+      cancelled: 0,
+      planning: 0,
+      avgProgress: 0
+    };
 
     res.json({
       success: true,
@@ -706,503 +555,102 @@ const getCustomerActivity = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching customer activity:', error);
+    console.error('Error fetching customer stats:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching activity feed',
+      message: 'Error fetching customer statistics',
       error: error.message
     });
   }
 };
 
-// Upload file to task
-const uploadTaskFile = async (req, res) => {
+// Get users available for customer assignment
+const getUsersForCustomer = async (req, res) => {
   try {
-    const { taskId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const { role } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Check if customer has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    }).populate('project', 'customer');
-
-    if (!task) {
-      return res.status(404).json({
+    // Only PMs can get users for assignment
+    if (userRole !== 'pm') {
+      return res.status(403).json({
         success: false,
-        message: 'Task not found or access denied'
+        message: 'Only Project Managers can access user lists'
       });
     }
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
+    let query = {};
+
+    if (role === 'customer') {
+      query.role = 'customer';
+    } else if (role === 'team') {
+      query.role = { $in: ['employee', 'pm'] };
     }
 
-    // Create file object
-    const fileData = {
-      name: req.file.originalname,
-      url: req.file.path,
-      size: req.file.size,
-      type: req.file.mimetype,
-      uploadedBy: customerId,
-      uploadedAt: new Date()
-    };
-
-    // Add file to task attachments
-    task.attachments.push(fileData);
-    await task.save();
-
-    // Create activity for file upload
-    try {
-      const { createFileActivity } = require('./activityController');
-      await createFileActivity(task.project._id, 'file_uploaded', customerId, {
-        filename: fileData.name,
-        fileSize: fileData.size,
-        fileType: fileData.type,
-        taskId: task._id
-      });
-    } catch (activityError) {
-      console.error('Error creating file upload activity:', activityError);
-      // Don't fail the file upload if activity creation fails
-    }
+    const users = await User.find(query)
+      .select('fullName email avatar role')
+      .sort({ fullName: 1 });
 
     res.json({
       success: true,
-      message: 'File uploaded successfully',
-      data: fileData
+      data: users
     });
 
   } catch (error) {
-    console.error('Error uploading task file:', error);
+    console.error('Error fetching users:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Error fetching users',
       error: error.message
     });
   }
 };
 
-// Upload file to milestone
-const uploadMilestoneFile = async (req, res) => {
+// Get all tasks for a customer
+const getCustomerTasks = async (req, res) => {
   try {
-    const { milestoneId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Check if customer has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    }).populate('project', 'customer');
-
-    if (!milestone) {
-      return res.status(404).json({
+    // Check permissions
+    const permissionCheck = await checkCustomerPermission(id, userId, userRole);
+    if (!permissionCheck.hasPermission) {
+      const statusCode = permissionCheck.error === 'Customer not found' ? 404 : 403;
+      return res.status(statusCode).json({
         success: false,
-        message: 'Milestone not found or access denied'
+        message: permissionCheck.error || 'Access denied'
       });
     }
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
-    }
-
-    // Create file object
-    const fileData = {
-      name: req.file.originalname,
-      url: req.file.path,
-      size: req.file.size,
-      type: req.file.mimetype,
-      uploadedBy: customerId,
-      uploadedAt: new Date()
-    };
-
-    // Add file to milestone attachments
-    milestone.attachments.push(fileData);
-    await milestone.save();
-
-    // Create activity for file upload
-    try {
-      const { createFileActivity } = require('./activityController');
-      await createFileActivity(milestone.project._id, 'file_uploaded', customerId, {
-        filename: fileData.name,
-        fileSize: fileData.size,
-        fileType: fileData.type,
-        milestoneId: milestone._id
-      });
-    } catch (activityError) {
-      console.error('Error creating file upload activity:', activityError);
-      // Don't fail the file upload if activity creation fails
-    }
+    const tasks = await Task.find({ customer: id })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .sort({ sequence: 1 });
 
     res.json({
       success: true,
-      message: 'File uploaded successfully',
-      data: fileData
+      data: tasks
     });
 
   } catch (error) {
-    console.error('Error uploading milestone file:', error);
+    console.error('Error fetching customer tasks:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Delete file from task
-const deleteTaskFile = async (req, res) => {
-  try {
-    const { taskId, fileId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Check if customer has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found or access denied'
-      });
-    }
-
-    // Find the file
-    const fileIndex = task.attachments.findIndex(
-      file => file._id.toString() === fileId && file.uploadedBy.toString() === customerId.toString()
-    );
-
-    if (fileIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found or access denied'
-      });
-    }
-
-    const file = task.attachments[fileIndex];
-
-    // Delete file from filesystem
-    try {
-      if (fs.existsSync(file.url)) {
-        fs.unlinkSync(file.url);
-      }
-    } catch (fsError) {
-      console.error('Error deleting file from filesystem:', fsError);
-    }
-
-    // Remove file from task
-    task.attachments.splice(fileIndex, 1);
-    await task.save();
-
-    res.json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Error deleting task file:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Delete file from milestone
-const deleteMilestoneFile = async (req, res) => {
-  try {
-    const { milestoneId, fileId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Check if customer has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found or access denied'
-      });
-    }
-
-    // Find the file
-    const fileIndex = milestone.attachments.findIndex(
-      file => file._id.toString() === fileId && file.uploadedBy.toString() === customerId.toString()
-    );
-
-    if (fileIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found or access denied'
-      });
-    }
-
-    const file = milestone.attachments[fileIndex];
-
-    // Delete file from filesystem
-    try {
-      if (fs.existsSync(file.url)) {
-        fs.unlinkSync(file.url);
-      }
-    } catch (fsError) {
-      console.error('Error deleting file from filesystem:', fsError);
-    }
-
-    // Remove file from milestone
-    milestone.attachments.splice(fileIndex, 1);
-    await milestone.save();
-
-    res.json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Error deleting milestone file:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Add comment to task
-const addTaskComment = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { comment } = req.body;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    if (!comment || !comment.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment is required'
-      });
-    }
-
-    // Check if customer has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found or access denied'
-      });
-    }
-
-    // Add comment to task
-    const newComment = {
-      user: customerId,
-      message: comment.trim(),
-      timestamp: new Date()
-    };
-
-    task.comments.push(newComment);
-    await task.save();
-
-    // Populate the comment with user details
-    await task.populate('comments.user', 'fullName email');
-
-    res.json({
-      success: true,
-      message: 'Comment added successfully',
-      data: task.comments[task.comments.length - 1]
-    });
-
-  } catch (error) {
-    console.error('Error adding task comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Add comment to milestone
-const addMilestoneComment = async (req, res) => {
-  try {
-    const { milestoneId } = req.params;
-    const { comment } = req.body;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    if (!comment || !comment.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment is required'
-      });
-    }
-
-    // Check if customer has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found or access denied'
-      });
-    }
-
-    // Add comment to milestone
-    const newComment = {
-      user: customerId,
-      message: comment.trim(),
-      timestamp: new Date()
-    };
-
-    milestone.comments.push(newComment);
-    await milestone.save();
-
-    // Populate the comment with user details
-    await milestone.populate('comments.user', 'fullName email');
-
-    res.json({
-      success: true,
-      message: 'Comment added successfully',
-      data: milestone.comments[milestone.comments.length - 1]
-    });
-
-  } catch (error) {
-    console.error('Error adding milestone comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Delete comment from task
-const deleteTaskComment = async (req, res) => {
-  try {
-    const { taskId, commentId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Check if customer has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found or access denied'
-      });
-    }
-
-    // Find the comment
-    const commentIndex = task.comments.findIndex(
-      comment => comment._id.toString() === commentId && comment.user.toString() === customerId.toString()
-    );
-
-    if (commentIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found or access denied'
-      });
-    }
-
-    // Remove comment
-    task.comments.splice(commentIndex, 1);
-    await task.save();
-
-    res.json({
-      success: true,
-      message: 'Comment deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Error deleting task comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Delete comment from milestone
-const deleteMilestoneComment = async (req, res) => {
-  try {
-    const { milestoneId, commentId } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Check if customer has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      project: { $in: await Project.find({ customer: customerId }).select('_id') }
-    });
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found or access denied'
-      });
-    }
-
-    // Find the comment
-    const commentIndex = milestone.comments.findIndex(
-      comment => comment._id.toString() === commentId && comment.user.toString() === customerId.toString()
-    );
-
-    if (commentIndex === -1) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found or access denied'
-      });
-    }
-
-    // Remove comment
-    milestone.comments.splice(commentIndex, 1);
-    await milestone.save();
-
-    res.json({
-      success: true,
-      message: 'Comment deleted successfully'
-    });
-
-  } catch (error) {
-    console.error('Error deleting milestone comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
+      message: 'Error fetching customer tasks',
       error: error.message
     });
   }
 };
 
 module.exports = {
-  getCustomerDashboard,
-  getCustomerProjects,
-  getCustomerProjectDetails,
-  getCustomerTaskDetails,
-  getCustomerMilestoneDetails,
-  getCustomerFiles,
-  getCustomerActivity,
-  uploadTaskFile,
-  uploadMilestoneFile,
-  deleteTaskFile,
-  deleteMilestoneFile,
-  addTaskComment,
-  addMilestoneComment,
-  deleteTaskComment,
-  deleteMilestoneComment
+  createCustomer,
+  getCustomers,
+  getCustomer,
+  updateCustomer,
+  deleteCustomer,
+  getCustomerStats,
+  getUsersForCustomer,
+  getCustomerTasks
 };

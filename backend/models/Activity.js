@@ -7,19 +7,12 @@ const activitySchema = new mongoose.Schema({
     required: [true, 'Activity type is required'],
     enum: {
       values: [
-        // Project activities
-        'project_created',
-        'project_updated',
-        'project_status_changed',
-        'project_completed',
-        'project_cancelled',
-        
-        // Milestone activities
-        'milestone_created',
-        'milestone_updated',
-        'milestone_status_changed',
-        'milestone_completed',
-        'milestone_cancelled',
+        // Customer activities
+        'customer_created',
+        'customer_updated',
+        'customer_status_changed',
+        'customer_completed',
+        'customer_cancelled',
         
         // Task activities
         'task_created',
@@ -29,6 +22,15 @@ const activitySchema = new mongoose.Schema({
         'task_unassigned',
         'task_completed',
         'task_cancelled',
+        
+        // Subtask activities
+        'subtask_created',
+        'subtask_updated',
+        'subtask_status_changed',
+        'subtask_assigned',
+        'subtask_unassigned',
+        'subtask_completed',
+        'subtask_cancelled',
         
         // Team activities
         'team_member_added',
@@ -82,16 +84,16 @@ const activitySchema = new mongoose.Schema({
   
   targetModel: {
     type: String,
-    enum: ['Project', 'Task', 'Milestone', 'User'],
+    enum: ['Customer', 'Task', 'Subtask', 'User'],
     required: false
   },
   
-  // Project context (required for most activities)
-  project: {
+  // Customer context (required for most activities)
+  customer: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project',
+    ref: 'Customer',
     required: function() {
-      // Most activities require a project context except user-level activities
+      // Most activities require a customer context except user-level activities
       return !['user_joined', 'user_left', 'user_role_changed'].includes(this.type);
     }
   },
@@ -218,12 +220,12 @@ activitySchema.statics.getActivitiesForUser = async function(userId, userRole, o
   }
   
   if (projectId) {
-    query.project = projectId;
+    query.customer = projectId;
   }
   
   const activities = await this.find(query)
     .populate('actor', 'fullName email avatar role')
-    .populate('project', 'name')
+    .populate('customer', 'name')
     .populate('target', 'title name')
     .sort({ timestamp: -1 })
     .skip(skip)
@@ -243,11 +245,11 @@ activitySchema.statics.getActivitiesForUser = async function(userId, userRole, o
 };
 
 // Static method to get project activities
-activitySchema.statics.getProjectActivities = async function(projectId, options = {}) {
+activitySchema.statics.getProjectActivities = async function(customerId, options = {}) {
   const { page = 1, limit = 20, type } = options;
   const skip = (page - 1) * limit;
   
-  let query = { project: projectId };
+  let query = { customer: customerId };
   
   if (type && type !== 'all') {
     query.type = type;

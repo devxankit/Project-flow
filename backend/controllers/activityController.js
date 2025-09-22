@@ -1,7 +1,7 @@
 const Activity = require('../models/Activity');
-const Project = require('../models/Project');
+const Customer = require('../models/Customer');
 const Task = require('../models/Task');
-const Milestone = require('../models/Milestone');
+const Subtask = require('../models/Subtask');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
@@ -34,7 +34,7 @@ const createActivity = async (activityData) => {
 // @access  Private
 const getActivities = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, projectId, timeRange = '7d' } = req.query;
+    const { page = 1, limit = 20, type, customerId, timeRange = '7d' } = req.query;
     const userId = req.user.id;
     const userRole = req.user.role;
 
@@ -42,7 +42,7 @@ const getActivities = async (req, res) => {
       page: parseInt(page),
       limit: parseInt(limit),
       type,
-      projectId
+      customerId
     });
 
     res.json({
@@ -65,17 +65,17 @@ const getActivities = async (req, res) => {
 // @access  Private
 const getProjectActivities = async (req, res) => {
   try {
-    const { projectId } = req.params;
+    const { customerId } = req.params;
     const { page = 1, limit = 20, type } = req.query;
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    // Check if user has access to this project
-    const project = await Project.findById(projectId);
-    if (!project) {
+    // Check if user has access to this customer
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
       return res.status(404).json({
         success: false,
-        message: 'Project not found'
+        message: 'Customer not found'
       });
     }
 
@@ -84,19 +84,19 @@ const getProjectActivities = async (req, res) => {
     if (userRole === 'pm') {
       hasAccess = true;
     } else if (userRole === 'employee') {
-      hasAccess = project.assignedTeam.includes(userId);
+      hasAccess = customer.assignedTeam.some(teamMember => teamMember.toString() === userId);
     } else if (userRole === 'customer') {
-      hasAccess = project.customer.toString() === userId;
+      hasAccess = customer.customer.toString() === userId;
     }
 
     if (!hasAccess) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied to this project'
+        message: 'Access denied to this customer'
       });
     }
 
-    const result = await Activity.getProjectActivities(projectId, {
+    const result = await Activity.getProjectActivities(customerId, {
       page: parseInt(page),
       limit: parseInt(limit),
       type
@@ -269,53 +269,11 @@ const getActivityById = async (req, res) => {
 
 // Activity creation helper functions for different types
 
-// Project activities
-const createProjectActivity = async (projectId, type, actorId, metadata = {}) => {
-  const project = await Project.findById(projectId).populate('customer projectManager', 'fullName');
-  
-  let title, description;
-  
-  switch (type) {
-    case 'project_created':
-      title = 'Project Created';
-      description = `Project "${project.name}" was created`;
-      break;
-    case 'project_updated':
-      title = 'Project Updated';
-      description = `Project "${project.name}" was updated`;
-      break;
-    case 'project_status_changed':
-      title = 'Project Status Changed';
-      description = `Project "${project.name}" status changed to ${metadata.newStatus}`;
-      break;
-    case 'project_completed':
-      title = 'Project Completed';
-      description = `Project "${project.name}" has been completed`;
-      break;
-    case 'project_cancelled':
-      title = 'Project Cancelled';
-      description = `Project "${project.name}" has been cancelled`;
-      break;
-    default:
-      title = 'Project Activity';
-      description = `Activity on project "${project.name}"`;
-  }
-
-  return createActivity({
-    type,
-    title,
-    description,
-    actor: actorId,
-    target: projectId,
-    targetModel: 'Project',
-    project: projectId,
-    metadata
-  });
-};
+// Note: Project activities removed - replaced with Customer activities
 
 // Task activities
 const createTaskActivity = async (taskId, type, actorId, metadata = {}) => {
-  const task = await Task.findById(taskId).populate('project milestone', 'name title');
+  const task = await Task.findById(taskId).populate('customer', 'name');
   
   let title, description;
   
@@ -360,84 +318,14 @@ const createTaskActivity = async (taskId, type, actorId, metadata = {}) => {
     actor: actorId,
     target: taskId,
     targetModel: 'Task',
-    project: task.project._id,
+    customer: task.customer._id,
     metadata
   });
 };
 
-// Milestone activities
-const createMilestoneActivity = async (milestoneId, type, actorId, metadata = {}) => {
-  const milestone = await Milestone.findById(milestoneId).populate('project', 'name');
-  
-  let title, description;
-  
-  switch (type) {
-    case 'milestone_created':
-      title = 'Milestone Created';
-      description = `Milestone "${milestone.title}" was created`;
-      break;
-    case 'milestone_updated':
-      title = 'Milestone Updated';
-      description = `Milestone "${milestone.title}" was updated`;
-      break;
-    case 'milestone_status_changed':
-      title = 'Milestone Status Changed';
-      description = `Milestone "${milestone.title}" status changed to ${metadata.newStatus}`;
-      break;
-    case 'milestone_completed':
-      title = 'Milestone Completed';
-      description = `Milestone "${milestone.title}" has been completed`;
-      break;
-    case 'milestone_cancelled':
-      title = 'Milestone Cancelled';
-      description = `Milestone "${milestone.title}" has been cancelled`;
-      break;
-    default:
-      title = 'Milestone Activity';
-      description = `Activity on milestone "${milestone.title}"`;
-  }
+// Note: Milestone activities removed - replaced with Task activities
 
-  return createActivity({
-    type,
-    title,
-    description,
-    actor: actorId,
-    target: milestoneId,
-    targetModel: 'Milestone',
-    project: milestone.project._id,
-    metadata
-  });
-};
-
-// Team activities
-const createTeamActivity = async (projectId, type, actorId, metadata = {}) => {
-  const project = await Project.findById(projectId).populate('assignedTeam', 'fullName');
-  
-  let title, description;
-  
-  switch (type) {
-    case 'team_member_added':
-      title = 'Team Member Added';
-      description = `${metadata.memberName} was added to the project team`;
-      break;
-    case 'team_member_removed':
-      title = 'Team Member Removed';
-      description = `${metadata.memberName} was removed from the project team`;
-      break;
-    default:
-      title = 'Team Activity';
-      description = `Team activity on project "${project.name}"`;
-  }
-
-  return createActivity({
-    type,
-    title,
-    description,
-    actor: actorId,
-    project: projectId,
-    metadata
-  });
-};
+// Note: Team activities removed - replaced with Customer team activities
 
 // Comment activities
 const createCommentActivity = async (targetId, targetModel, projectId, type, actorId, metadata = {}) => {
@@ -501,6 +389,102 @@ const createFileActivity = async (projectId, type, actorId, metadata = {}) => {
   });
 };
 
+// Customer activities
+const createCustomerActivity = async (customerId, type, actorId, metadata = {}) => {
+  const customer = await Customer.findById(customerId).populate('customer projectManager', 'fullName');
+  
+  let title, description;
+  
+  switch (type) {
+    case 'customer_created':
+      title = 'Customer Created';
+      description = `Customer "${customer.name}" was created`;
+      break;
+    case 'customer_updated':
+      title = 'Customer Updated';
+      description = `Customer "${customer.name}" was updated`;
+      break;
+    case 'customer_status_changed':
+      title = 'Customer Status Changed';
+      description = `Customer "${customer.name}" status changed to ${metadata.newStatus}`;
+      break;
+    case 'customer_completed':
+      title = 'Customer Completed';
+      description = `Customer "${customer.name}" has been completed`;
+      break;
+    case 'customer_cancelled':
+      title = 'Customer Cancelled';
+      description = `Customer "${customer.name}" has been cancelled`;
+      break;
+    default:
+      title = 'Customer Activity';
+      description = `Activity on customer "${customer.name}"`;
+  }
+
+  return createActivity({
+    type,
+    title,
+    description,
+    actor: actorId,
+    target: customerId,
+    targetModel: 'Customer',
+    customer: customerId,
+    metadata
+  });
+};
+
+// Subtask activities
+const createSubtaskActivity = async (subtaskId, type, actorId, metadata = {}) => {
+  const subtask = await Subtask.findById(subtaskId).populate('task customer', 'title name');
+  
+  let title, description;
+  
+  switch (type) {
+    case 'subtask_created':
+      title = 'Subtask Created';
+      description = `Subtask "${subtask.title}" was created`;
+      break;
+    case 'subtask_updated':
+      title = 'Subtask Updated';
+      description = `Subtask "${subtask.title}" was updated`;
+      break;
+    case 'subtask_status_changed':
+      title = 'Subtask Status Changed';
+      description = `Subtask "${subtask.title}" status changed to ${metadata.newStatus}`;
+      break;
+    case 'subtask_assigned':
+      title = 'Subtask Assigned';
+      description = `Subtask "${subtask.title}" was assigned`;
+      break;
+    case 'subtask_unassigned':
+      title = 'Subtask Unassigned';
+      description = `Subtask "${subtask.title}" was unassigned`;
+      break;
+    case 'subtask_completed':
+      title = 'Subtask Completed';
+      description = `Subtask "${subtask.title}" has been completed`;
+      break;
+    case 'subtask_cancelled':
+      title = 'Subtask Cancelled';
+      description = `Subtask "${subtask.title}" has been cancelled`;
+      break;
+    default:
+      title = 'Subtask Activity';
+      description = `Activity on subtask "${subtask.title}"`;
+  }
+
+  return createActivity({
+    type,
+    title,
+    description,
+    actor: actorId,
+    target: subtaskId,
+    targetModel: 'Subtask',
+    customer: subtask.customer._id,
+    metadata
+  });
+};
+
 module.exports = {
   getActivities,
   getProjectActivities,
@@ -508,10 +492,9 @@ module.exports = {
   createNewActivity,
   getActivityById,
   // Helper functions for creating activities
-  createProjectActivity,
   createTaskActivity,
-  createMilestoneActivity,
-  createTeamActivity,
+  createCustomerActivity,
+  createSubtaskActivity,
   createCommentActivity,
   createFileActivity
 };

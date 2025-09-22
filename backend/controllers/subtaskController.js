@@ -1,10 +1,11 @@
-const Customer = require('../models/Customer');
-const Task = require('../models/Task');
+const mongoose = require('mongoose');
 const Subtask = require('../models/Subtask');
+const Task = require('../models/Task');
+const Customer = require('../models/Customer');
 const User = require('../models/User');
 const { formatFileData, validateFileSize } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
-const { createTaskActivity } = require('./activityController');
+const { createSubtaskActivity } = require('./activityController');
 
 // Helper function to handle validation errors
 const handleValidationErrors = (req, res) => {
@@ -53,22 +54,22 @@ const checkCustomerPermission = async (customerId, userId, userRole) => {
   return { hasPermission: false, error: 'Invalid role' };
 };
 
-// @desc    Create a new task
-// @route   POST /api/tasks
+// @desc    Create a new subtask
+// @route   POST /api/subtasks
 // @access  Private (PM only)
-const createTask = async (req, res) => {
+const createSubtask = async (req, res) => {
   try {
     // Handle both JSON and FormData requests
-    let taskData;
-    if (req.body.taskData) {
-      // FormData request with taskData as JSON string
-      taskData = JSON.parse(req.body.taskData);
+    let subtaskData;
+    if (req.body.subtaskData) {
+      // FormData request with subtaskData as JSON string
+      subtaskData = JSON.parse(req.body.subtaskData);
     } else {
       // Regular JSON request
-      taskData = req.body;
+      subtaskData = req.body;
     }
 
-    const { title, description, customer, status, priority, assignedTo, dueDate, sequence } = taskData;
+    const { title, description, task, customer, status, priority, assignedTo, dueDate, sequence } = subtaskData;
 
     // Check if user has permission to access the customer
     const permissionCheck = await checkCustomerPermission(customer, req.user.id, req.user.role);
@@ -76,6 +77,15 @@ const createTask = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: permissionCheck.error
+      });
+    }
+
+    // Verify task exists and belongs to the customer
+    const taskExists = await Task.findOne({ _id: task, customer: customer });
+    if (!taskExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task not found or does not belong to the specified customer'
       });
     }
 
@@ -99,16 +109,17 @@ const createTask = async (req, res) => {
     
     if (req.files && req.files.length > 0) {
       attachments = req.files
-        .filter(file => file && file.originalname && file.mimetype) // Only process valid files
+        .filter(file => file && file.originalname && file.mimetype)
         .filter(file => validateFileSize(file)) // Validate file size by category
         .map(file => formatFileData(file, req.user.id)) // Use enhanced file formatting
-        .filter(attachment => attachment && attachment.url); // Only include valid attachments
+        .filter(attachment => attachment && attachment.url);
     }
 
-    // Create task
-    const task = new Task({
+    // Create subtask
+    const subtask = new Subtask({
       title,
       description: description || '',
+      task,
       customer,
       status: status || 'pending',
       priority: priority || 'normal',
@@ -119,18 +130,19 @@ const createTask = async (req, res) => {
       createdBy: req.user.id
     });
 
-    await task.save();
+    await subtask.save();
 
-    // Create activity for task creation
+    // Create activity for subtask creation
     try {
-      await createTaskActivity(task._id, 'task_created', req.user.id, {
-        taskTitle: task.title,
+      await createSubtaskActivity(subtask._id, 'subtask_created', req.user.id, {
+        subtaskTitle: subtask.title,
+        task: task,
         customer: customer,
         assignedTo: assignedTo || []
       });
     } catch (activityError) {
-      console.error('Error creating task activity:', activityError);
-      // Don't fail the task creation if activity creation fails
+      console.error('Error creating subtask activity:', activityError);
+      // Don't fail the subtask creation if activity creation fails
     }
 
     // Create activity for file uploads if any
@@ -142,30 +154,31 @@ const createTask = async (req, res) => {
             filename: attachment.originalName,
             fileSize: attachment.size,
             fileType: attachment.mimetype,
-            taskId: task._id
+            subtaskId: subtask._id
           });
         }
       } catch (activityError) {
         console.error('Error creating file upload activity:', activityError);
-        // Don't fail the task creation if activity creation fails
+        // Don't fail the subtask creation if activity creation fails
       }
     }
 
-    // Populate the created task with user data
-    await task.populate([
+    // Populate the created subtask with user data
+    await subtask.populate([
       { path: 'assignedTo', select: 'fullName email avatar' },
       { path: 'createdBy', select: 'fullName email avatar' },
+      { path: 'task', select: 'title' },
       { path: 'customer', select: 'name' }
     ]);
 
     res.status(201).json({
       success: true,
-      message: 'Task created successfully',
-      data: { task }
+      message: 'Subtask created successfully',
+      data: { subtask }
     });
 
   } catch (error) {
-    console.error('Error creating task:', error);
+    console.error('Error creating subtask:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -173,45 +186,10 @@ const createTask = async (req, res) => {
   }
 };
 
-// @desc    Get tasks for a customer
-// @route   GET /api/tasks/customer/:customerId
+// @desc    Get subtasks for a task
+// @route   GET /api/subtasks/task/:taskId/customer/:customerId
 // @access  Private
-const getTasksByCustomer = async (req, res) => {
-  try {
-    const { customerId } = req.params;
-
-    // Check if user has permission to access the customer
-    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
-    if (!permissionCheck.hasPermission) {
-      return res.status(403).json({
-        success: false,
-        message: permissionCheck.error
-      });
-    }
-
-    const customer = permissionCheck.customer;
-
-    // Get tasks for the customer
-    const tasks = await Task.getByCustomer(customerId);
-
-    res.json({
-      success: true,
-      data: { tasks, customer: { _id: customer._id, name: customer.name, progress: customer.progress } }
-    });
-
-  } catch (error) {
-    console.error('Error fetching tasks:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-};
-
-// @desc    Get single task
-// @route   GET /api/tasks/:taskId/customer/:customerId
-// @access  Private
-const getTask = async (req, res) => {
+const getSubtasksByTask = async (req, res) => {
   try {
     const { taskId, customerId } = req.params;
 
@@ -224,69 +202,112 @@ const getTask = async (req, res) => {
       });
     }
 
-    // Get task with populated data
-    const task = await Task.findOne({ _id: taskId, customer: customerId })
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar')
-      .populate('customer', 'name')
-      .populate('comments.user', 'fullName email');
-
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { task }
-    });
-
-  } catch (error) {
-    console.error('Error fetching task:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-};
-
-// @desc    Update task
-// @route   PUT /api/tasks/:taskId/customer/:customerId
-// @access  Private (PM only)
-const updateTask = async (req, res) => {
-  try {
-    const { taskId, customerId } = req.params;
-    
-    // Handle both JSON and FormData requests
-    let taskData;
-    if (req.body.taskData) {
-      // FormData request with taskData as JSON string
-      taskData = JSON.parse(req.body.taskData);
-    } else {
-      // Regular JSON request
-      taskData = req.body;
-    }
-    
-    const { title, description, status, priority, assignedTo, dueDate, sequence } = taskData;
-
-    // Check if user has permission to access the customer
-    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
-    if (!permissionCheck.hasPermission) {
-      return res.status(403).json({
-        success: false,
-        message: permissionCheck.error
-      });
-    }
-
-    // Find the task
+    // Verify task exists and belongs to the customer
     const task = await Task.findOne({ _id: taskId, customer: customerId });
     if (!task) {
       return res.status(404).json({
         success: false,
         message: 'Task not found'
+      });
+    }
+
+    // Get subtasks for the task
+    const subtasks = await Subtask.getByTask(taskId);
+
+    res.json({
+      success: true,
+      data: { subtasks, task: { _id: task._id, title: task.title, progress: task.progress } }
+    });
+
+  } catch (error) {
+    console.error('Error fetching subtasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Get single subtask
+// @route   GET /api/subtasks/:subtaskId/customer/:customerId
+// @access  Private
+const getSubtask = async (req, res) => {
+  try {
+    const { subtaskId, customerId } = req.params;
+
+    // Check if user has permission to access the customer
+    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error
+      });
+    }
+
+    // Get subtask with populated data
+    const subtask = await Subtask.findOne({ _id: subtaskId, customer: customerId })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .populate('task', 'title')
+      .populate('customer', 'name')
+      .populate('comments.user', 'fullName email');
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { subtask }
+    });
+
+  } catch (error) {
+    console.error('Error fetching subtask:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Update subtask
+// @route   PUT /api/subtasks/:subtaskId/customer/:customerId
+// @access  Private (PM only)
+const updateSubtask = async (req, res) => {
+  try {
+    const { subtaskId, customerId } = req.params;
+    
+    // Handle both JSON and FormData requests
+    let subtaskData;
+    if (req.body.subtaskData) {
+      // FormData request with subtaskData as JSON string
+      subtaskData = JSON.parse(req.body.subtaskData);
+    } else {
+      // Regular JSON request
+      subtaskData = req.body;
+    }
+    
+    const { title, description, status, priority, assignedTo, dueDate, sequence } = subtaskData;
+
+    // Check if user has permission to access the customer
+    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error
+      });
+    }
+
+    // Find the subtask
+    const subtask = await Subtask.findOne({ _id: subtaskId, customer: customerId });
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
       });
     }
 
@@ -299,60 +320,60 @@ const updateTask = async (req, res) => {
         .filter(attachment => attachment && attachment.url);
       
       // Add new attachments to existing ones
-      task.attachments = [...(task.attachments || []), ...newAttachments];
+      subtask.attachments = [...(subtask.attachments || []), ...newAttachments];
     }
 
-    // Update task fields
-    if (title !== undefined) task.title = title;
-    if (description !== undefined) task.description = description;
-    if (status !== undefined) task.status = status;
-    if (priority !== undefined) task.priority = priority;
-    if (assignedTo !== undefined) task.assignedTo = assignedTo;
-    if (dueDate !== undefined) task.dueDate = dueDate;
-    if (sequence !== undefined) task.sequence = sequence;
+    // Update subtask fields
+    if (title !== undefined) subtask.title = title;
+    if (description !== undefined) subtask.description = description;
+    if (status !== undefined) subtask.status = status;
+    if (priority !== undefined) subtask.priority = priority;
+    if (assignedTo !== undefined) subtask.assignedTo = assignedTo;
+    if (dueDate !== undefined) subtask.dueDate = dueDate;
+    if (sequence !== undefined) subtask.sequence = sequence;
 
     // Handle completion status
-    if (status === 'completed' && task.status !== 'completed') {
-      task.completedAt = new Date();
-      task.completedBy = req.user.id;
-    } else if (status !== 'completed' && task.status === 'completed') {
-      task.completedAt = null;
-      task.completedBy = null;
+    if (status === 'completed' && subtask.status !== 'completed') {
+      subtask.completedAt = new Date();
+      subtask.completedBy = req.user.id;
+    } else if (status !== 'completed' && subtask.status === 'completed') {
+      subtask.completedAt = null;
+      subtask.completedBy = null;
     }
 
-    // Save the task
-    await task.save();
+    // Save the subtask
+    await subtask.save();
 
-    // Create activity for task update
+    // Create activity for subtask update
     try {
-      let activityType = 'task_updated';
+      let activityType = 'subtask_updated';
       let metadata = {};
 
       // Check if status changed
-      if (status !== undefined && status !== task.status) {
-        activityType = 'task_status_changed';
+      if (status !== undefined && status !== subtask.status) {
+        activityType = 'subtask_status_changed';
         metadata.newStatus = status;
-        metadata.oldStatus = task.status;
+        metadata.oldStatus = subtask.status;
       }
 
       // Check if assignment changed
       if (assignedTo !== undefined) {
-        const oldAssignedIds = task.assignedTo.map(id => id.toString());
+        const oldAssignedIds = subtask.assignedTo.map(id => id.toString());
         const newAssignedIds = assignedTo.map(id => id.toString());
         
         if (JSON.stringify(oldAssignedIds.sort()) !== JSON.stringify(newAssignedIds.sort())) {
-          activityType = 'task_assigned';
+          activityType = 'subtask_assigned';
           metadata.assignedTo = assignedTo;
         }
       }
 
-      await createTaskActivity(task._id, activityType, req.user.id, {
-        taskTitle: task.title,
+      await createSubtaskActivity(subtask._id, activityType, req.user.id, {
+        subtaskTitle: subtask.title,
         ...metadata
       });
     } catch (activityError) {
-      console.error('Error creating task update activity:', activityError);
-      // Don't fail the task update if activity creation fails
+      console.error('Error creating subtask update activity:', activityError);
+      // Don't fail the subtask update if activity creation fails
     }
 
     // Create activity for new file uploads if any
@@ -364,31 +385,32 @@ const updateTask = async (req, res) => {
             filename: file.originalname,
             fileSize: file.size,
             fileType: file.mimetype,
-            taskId: task._id
+            subtaskId: subtask._id
           });
         }
       } catch (activityError) {
         console.error('Error creating file upload activity:', activityError);
-        // Don't fail the task update if activity creation fails
+        // Don't fail the subtask update if activity creation fails
       }
     }
 
-    // Populate the updated task
-    await task.populate([
+    // Populate the updated subtask
+    await subtask.populate([
       { path: 'assignedTo', select: 'fullName email avatar' },
       { path: 'createdBy', select: 'fullName email avatar' },
       { path: 'completedBy', select: 'fullName email avatar' },
+      { path: 'task', select: 'title' },
       { path: 'customer', select: 'name' }
     ]);
 
     res.json({
       success: true,
-      message: 'Task updated successfully',
-      data: { task }
+      message: 'Subtask updated successfully',
+      data: { subtask }
     });
 
   } catch (error) {
-    console.error('Error updating task:', error);
+    console.error('Error updating subtask:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -396,12 +418,12 @@ const updateTask = async (req, res) => {
   }
 };
 
-// @desc    Delete task
-// @route   DELETE /api/tasks/:taskId/customer/:customerId
+// @desc    Delete subtask
+// @route   DELETE /api/subtasks/:subtaskId/customer/:customerId
 // @access  Private (PM only)
-const deleteTask = async (req, res) => {
+const deleteSubtask = async (req, res) => {
   try {
-    const { taskId, customerId } = req.params;
+    const { subtaskId, customerId } = req.params;
 
     // Check if user has permission to access the customer
     const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
@@ -412,22 +434,22 @@ const deleteTask = async (req, res) => {
       });
     }
 
-    // Find and delete the task
-    const task = await Task.findOneAndDelete({ _id: taskId, customer: customerId });
-    if (!task) {
+    // Find and delete the subtask
+    const subtask = await Subtask.findOneAndDelete({ _id: subtaskId, customer: customerId });
+    if (!subtask) {
       return res.status(404).json({
         success: false,
-        message: 'Task not found'
+        message: 'Subtask not found'
       });
     }
 
     res.json({
       success: true,
-      message: 'Task deleted successfully'
+      message: 'Subtask deleted successfully'
     });
 
   } catch (error) {
-    console.error('Error deleting task:', error);
+    console.error('Error deleting subtask:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -435,113 +457,10 @@ const deleteTask = async (req, res) => {
   }
 };
 
-// @desc    Get team members for task assignment
-// @route   GET /api/tasks/team/:customerId
+// @desc    Get subtask statistics
+// @route   GET /api/subtasks/stats
 // @access  Private
-const getTeamMembersForTask = async (req, res) => {
-  try {
-    const { customerId } = req.params;
-
-    // Check if user has permission to access the customer
-    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
-    if (!permissionCheck.hasPermission) {
-      return res.status(403).json({
-        success: false,
-        message: permissionCheck.error
-      });
-    }
-
-    // Get active employees and PMs assigned to the customer
-    const teamMembers = await User.find({
-      _id: { $in: permissionCheck.customer.assignedTeam },
-      role: { $in: ['employee', 'pm'] },
-      status: 'active'
-    }).select('fullName email avatar role department jobTitle workTitle');
-
-    res.json({
-      success: true,
-      data: { teamMembers }
-    });
-
-  } catch (error) {
-    console.error('Error fetching team members:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-};
-
-// Get all tasks with filtering and pagination
-const getAllTasks = async (req, res) => {
-  try {
-    const { page = 1, limit = 10, status, priority, customer, assignedTo } = req.query;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-
-    // Build filter object
-    const filter = {};
-
-    // Add status filter
-    if (status) {
-      filter.status = status;
-    }
-
-    // Add priority filter
-    if (priority) {
-      filter.priority = priority;
-    }
-
-    // Add customer filter
-    if (customer) {
-      filter.customer = customer;
-    }
-
-    // Add assigned user filter
-    if (assignedTo) {
-      filter.assignedTo = assignedTo;
-    }
-
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-
-    // Get tasks with populated fields
-    const tasks = await Task.find(filter)
-      .populate('customer', 'name description status priority')
-      .populate('assignedTo', 'fullName email role department jobTitle workTitle')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
-
-    // Get total count for pagination
-    const total = await Task.countDocuments(filter);
-
-    res.json({
-      success: true,
-      data: {
-        tasks,
-        pagination: {
-          current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Error getting all tasks:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to get tasks',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get task statistics
-// @route   GET /api/tasks/stats
-// @access  Private
-const getTaskStats = async (req, res) => {
+const getSubtaskStats = async (req, res) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
@@ -550,17 +469,17 @@ const getTaskStats = async (req, res) => {
     let baseFilter = {};
     
     if (userRole === 'customer') {
-      // For customers, get tasks from their customer records
+      // For customers, get subtasks from their customer records
       const userCustomers = await Customer.find({ customer: userId }).select('_id');
       const customerIds = userCustomers.map(c => c._id);
       baseFilter.customer = { $in: customerIds };
     } else if (userRole === 'employee') {
-      // For employees, get tasks assigned to them
+      // For employees, get subtasks assigned to them
       baseFilter.assignedTo = userId;
     }
-    // PM can see all tasks (no additional filter)
+    // PM can see all subtasks (no additional filter)
 
-    const stats = await Task.aggregate([
+    const stats = await Subtask.aggregate([
       { $match: baseFilter },
       {
         $group: {
@@ -596,22 +515,20 @@ const getTaskStats = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching task stats:', error);
+    console.error('Error fetching subtask stats:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching task statistics',
+      message: 'Error fetching subtask statistics',
       error: error.message
     });
   }
 };
 
 module.exports = {
-  createTask,
-  getTasksByCustomer,
-  getTask,
-  updateTask,
-  deleteTask,
-  getTeamMembersForTask,
-  getAllTasks,
-  getTaskStats
+  createSubtask,
+  getSubtasksByTask,
+  getSubtask,
+  updateSubtask,
+  deleteSubtask,
+  getSubtaskStats
 };

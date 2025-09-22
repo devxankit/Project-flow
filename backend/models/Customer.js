@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// File attachment schema for embedded documents
+// File attachment schema for embedded documents (for tasks and subtasks)
 const attachmentSchema = new mongoose.Schema({
   filename: {
     type: String,
@@ -22,10 +22,6 @@ const attachmentSchema = new mongoose.Schema({
     min: [0, 'File size cannot be negative']
   },
   url: {
-    type: String,
-    required: true
-  },
-  cloudinaryId: {
     type: String,
     required: true
   },
@@ -55,78 +51,22 @@ const attachmentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Note: Milestone schema is now in separate Milestone model
-
-// Task schema for embedded documents
-const taskSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, 'Task title is required'],
-    trim: true,
-    maxlength: [200, 'Task title cannot exceed 200 characters']
-  },
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [1000, 'Task description cannot exceed 1000 characters']
-  },
-  assignedTo: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Task must be assigned to someone']
-  },
-  priority: {
-    type: String,
-    required: true,
-    enum: {
-      values: ['low', 'normal', 'high', 'urgent'],
-      message: 'Priority must be low, normal, high, or urgent'
-    },
-    default: 'normal'
-  },
-  status: {
-    type: String,
-    required: true,
-    enum: {
-      values: ['pending', 'in-progress', 'completed', 'cancelled'],
-      message: 'Status must be pending, in-progress, completed, or cancelled'
-    },
-    default: 'pending'
-  },
-  dueDate: {
-    type: Date,
-    required: [true, 'Task due date is required']
-  },
-  completedAt: {
-    type: Date,
-    default: null
-  },
-  attachments: [attachmentSchema],
-  createdBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  }
-}, {
-  timestamps: true
-});
-
-// Main Project schema
-const projectSchema = new mongoose.Schema({
+// Main Customer schema
+const customerSchema = new mongoose.Schema({
   // Basic Information
   name: {
     type: String,
-    required: [true, 'Project name is required'],
+    required: [true, 'Customer name is required'],
     trim: true,
-    maxlength: [200, 'Project name cannot exceed 200 characters']
+    maxlength: [200, 'Customer name cannot exceed 200 characters']
   },
   description: {
     type: String,
     trim: true,
-    maxlength: [2000, 'Project description cannot exceed 2000 characters']
+    maxlength: [2000, 'Customer description cannot exceed 2000 characters']
   },
   
-  // Project Details
+  // Customer Details
   status: {
     type: String,
     required: true,
@@ -153,7 +93,7 @@ const projectSchema = new mongoose.Schema({
   },
   dueDate: {
     type: Date,
-    required: [true, 'Project due date is required']
+    required: [true, 'Customer due date is required']
   },
   completedAt: {
     type: Date,
@@ -164,7 +104,7 @@ const projectSchema = new mongoose.Schema({
   customer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Project must have a customer'],
+    required: [true, 'Customer must have a customer user'],
     validate: {
       validator: async function(customerId) {
         const customer = await mongoose.model('User').findById(customerId);
@@ -176,7 +116,7 @@ const projectSchema = new mongoose.Schema({
   projectManager: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Project must have a project manager'],
+    required: [true, 'Customer must have a project manager'],
     validate: {
       validator: async function(pmId) {
         const pm = await mongoose.model('User').findById(pmId);
@@ -197,9 +137,11 @@ const projectSchema = new mongoose.Schema({
     }
   }],
   
-  // Project Structure
-  tasks: [taskSchema],
-  attachments: [attachmentSchema],
+  // Customer Structure
+  tasks: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task'
+  }],
   
   // Progress Tracking
   progress: {
@@ -208,7 +150,6 @@ const projectSchema = new mongoose.Schema({
     min: [0, 'Progress cannot be negative'],
     max: [100, 'Progress cannot exceed 100%']
   },
-  
   
   // System Fields
   createdBy: {
@@ -229,7 +170,7 @@ const projectSchema = new mongoose.Schema({
     maxlength: [50, 'Tag cannot exceed 50 characters']
   }],
   
-  // Project visibility and access
+  // Customer visibility and access
   visibility: {
     type: String,
     enum: {
@@ -244,8 +185,8 @@ const projectSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for project duration in days
-projectSchema.virtual('duration').get(function() {
+// Virtual for customer duration in days
+customerSchema.virtual('duration').get(function() {
   if (this.completedAt) {
     return Math.ceil((this.completedAt - this.startDate) / (1000 * 60 * 60 * 24));
   } else if (this.dueDate) {
@@ -255,7 +196,7 @@ projectSchema.virtual('duration').get(function() {
 });
 
 // Virtual for days remaining
-projectSchema.virtual('daysRemaining').get(function() {
+customerSchema.virtual('daysRemaining').get(function() {
   if (this.status === 'completed' || this.status === 'cancelled') {
     return 0;
   }
@@ -268,7 +209,7 @@ projectSchema.virtual('daysRemaining').get(function() {
 });
 
 // Virtual for overdue status
-projectSchema.virtual('isOverdue').get(function() {
+customerSchema.virtual('isOverdue').get(function() {
   if (this.status === 'completed' || this.status === 'cancelled') {
     return false;
   }
@@ -276,37 +217,33 @@ projectSchema.virtual('isOverdue').get(function() {
 });
 
 // Virtual for team size
-projectSchema.virtual('teamSize').get(function() {
+customerSchema.virtual('teamSize').get(function() {
   return this.assignedTeam ? this.assignedTeam.length : 0;
 });
 
 // Virtual for completed tasks count
-projectSchema.virtual('completedTasksCount').get(function() {
+customerSchema.virtual('completedTasksCount').get(function() {
   return this.tasks ? this.tasks.filter(task => task.status === 'completed').length : 0;
 });
 
 // Virtual for total tasks count
-projectSchema.virtual('totalTasksCount').get(function() {
+customerSchema.virtual('totalTasksCount').get(function() {
   return this.tasks ? this.tasks.length : 0;
 });
 
-// Note: Milestone counts are now calculated via the Milestone model
-
 // Indexes for better query performance
-projectSchema.index({ name: 'text', description: 'text' }); // Text search
-projectSchema.index({ status: 1 });
-projectSchema.index({ priority: 1 });
-projectSchema.index({ customer: 1 });
-projectSchema.index({ projectManager: 1 });
-projectSchema.index({ 'assignedTeam': 1 });
-projectSchema.index({ dueDate: 1 });
-projectSchema.index({ createdAt: -1 });
-projectSchema.index({ tags: 1 });
-
-// Note: Progress calculation is now handled by the Milestone model's post-save middleware
+customerSchema.index({ name: 'text', description: 'text' }); // Text search
+customerSchema.index({ status: 1 });
+customerSchema.index({ priority: 1 });
+customerSchema.index({ customer: 1 });
+customerSchema.index({ projectManager: 1 });
+customerSchema.index({ 'assignedTeam': 1 });
+customerSchema.index({ dueDate: 1 });
+customerSchema.index({ createdAt: -1 });
+customerSchema.index({ tags: 1 });
 
 // Pre-save middleware to update lastModifiedBy
-projectSchema.pre('save', function(next) {
+customerSchema.pre('save', function(next) {
   if (this.isModified() && !this.isNew) {
     // This will be set by the controller when updating
     // this.lastModifiedBy = req.user.id;
@@ -315,7 +252,7 @@ projectSchema.pre('save', function(next) {
 });
 
 // Instance method to add team member
-projectSchema.methods.addTeamMember = function(userId) {
+customerSchema.methods.addTeamMember = function(userId) {
   if (!this.assignedTeam.includes(userId)) {
     this.assignedTeam.push(userId);
   }
@@ -323,69 +260,65 @@ projectSchema.methods.addTeamMember = function(userId) {
 };
 
 // Instance method to remove team member
-projectSchema.methods.removeTeamMember = function(userId) {
+customerSchema.methods.removeTeamMember = function(userId) {
   this.assignedTeam = this.assignedTeam.filter(id => !id.equals(userId));
   return this.save();
 };
 
-// Instance method to add milestone
-projectSchema.methods.addMilestone = function(milestoneData) {
-  this.milestones.push(milestoneData);
-  return this.save();
-};
-
 // Instance method to add task
-projectSchema.methods.addTask = function(taskData) {
-  this.tasks.push(taskData);
+customerSchema.methods.addTask = function(taskId) {
+  if (!this.tasks.includes(taskId)) {
+    this.tasks.push(taskId);
+  }
   return this.save();
 };
 
-// Instance method to add attachment
-projectSchema.methods.addAttachment = function(attachmentData) {
-  this.attachments.push(attachmentData);
+// Instance method to remove task
+customerSchema.methods.removeTask = function(taskId) {
+  this.tasks = this.tasks.filter(id => !id.equals(taskId));
   return this.save();
 };
 
-// Static method to find projects by customer
-projectSchema.statics.findByCustomer = function(customerId) {
+// Static method to find customers by customer user
+customerSchema.statics.findByCustomer = function(customerId) {
   return this.find({ customer: customerId }).populate('projectManager', 'fullName email avatar');
 };
 
-// Static method to find projects by project manager
-projectSchema.statics.findByProjectManager = function(pmId) {
+// Static method to find customers by project manager
+customerSchema.statics.findByProjectManager = function(pmId) {
   return this.find({ projectManager: pmId }).populate('customer', 'fullName email company avatar');
 };
 
-// Static method to find projects by team member
-projectSchema.statics.findByTeamMember = function(memberId) {
+// Static method to find customers by team member
+customerSchema.statics.findByTeamMember = function(memberId) {
   return this.find({ assignedTeam: memberId }).populate('projectManager customer', 'fullName email avatar company');
 };
 
-// Static method to find overdue projects
-projectSchema.statics.findOverdue = function() {
+// Static method to find overdue customers
+customerSchema.statics.findOverdue = function() {
   return this.find({
     dueDate: { $lt: new Date() },
     status: { $nin: ['completed', 'cancelled'] }
   });
 };
 
-// Static method to find projects by status
-projectSchema.statics.findByStatus = function(status) {
+// Static method to find customers by status
+customerSchema.statics.findByStatus = function(status) {
   return this.find({ status }).populate('customer projectManager', 'fullName email avatar company');
 };
 
-// Static method to search projects
-projectSchema.statics.searchProjects = function(searchTerm) {
+// Static method to search customers
+customerSchema.statics.searchCustomers = function(searchTerm) {
   return this.find({
     $text: { $search: searchTerm }
   }).sort({ score: { $meta: 'textScore' } });
 };
 
 // Transform function to remove sensitive data when converting to JSON
-projectSchema.methods.toJSON = function() {
-  const projectObject = this.toObject();
+customerSchema.methods.toJSON = function() {
+  const customerObject = this.toObject();
   // Add any sensitive data removal here if needed
-  return projectObject;
+  return customerObject;
 };
 
-module.exports = mongoose.model('Project', projectSchema);
+module.exports = mongoose.model('Customer', customerSchema);

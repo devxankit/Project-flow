@@ -4,20 +4,17 @@ const { body, param, query } = require('express-validator');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const {
   getEmployeeDashboard,
-  getEmployeeProjects,
-  getEmployeeProjectDetails,
+  getEmployeeCustomers,
+  getEmployeeCustomerDetails,
   getEmployeeTasks,
   getEmployeeTask,
-  getEmployeeMilestone,
-  getEmployeeTasksByMilestone,
-  recalculateMilestoneProgress,
   updateTaskStatus,
   getEmployeeActivity,
   getEmployeeFiles,
   addTaskComment,
-  addMilestoneComment,
   deleteTaskComment,
-  deleteMilestoneComment
+  addSubtaskComment,
+  deleteSubtaskComment
 } = require('../controllers/employeeController');
 
 // Validation middleware
@@ -45,29 +42,61 @@ const validateTaskId = [
     .withMessage('Valid task ID is required')
 ];
 
-const validateTaskIdParam = [
-  param('taskId')
+const validateCommentId = [
+  param('commentId')
     .isMongoId()
-    .withMessage('Valid task ID is required')
-];
-
-const validateMilestoneId = [
-  param('milestoneId')
-    .isMongoId()
-    .withMessage('Valid milestone ID is required')
+    .withMessage('Valid comment ID is required')
 ];
 
 const validateComment = [
-  body('comment')
+  body('message')
     .trim()
     .isLength({ min: 1, max: 1000 })
-    .withMessage('Comment must be between 1 and 1000 characters')
+    .withMessage('Comment must be between 1 and 1000 characters'),
+  (req, res, next) => {
+    const errors = require('express-validator').validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+    next();
+  }
 ];
 
-const validateProjectId = [
+const validateCustomerId = [
   param('id')
     .isMongoId()
-    .withMessage('Valid project ID is required')
+    .withMessage('Valid customer ID is required')
+];
+
+const validateQueryParams = [
+  query('status')
+    .optional()
+    .isIn(['pending', 'in-progress', 'completed', 'cancelled', 'planning', 'active', 'on-hold'])
+    .withMessage('Invalid status filter'),
+  
+  query('priority')
+    .optional()
+    .isIn(['low', 'normal', 'high', 'urgent'])
+    .withMessage('Invalid priority filter'),
+  
+  query('customerId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid customer ID'),
+  
+  query('taskId')
+    .optional()
+    .isMongoId()
+    .withMessage('Invalid task ID'),
+  
+  query('type')
+    .optional()
+    .isString()
+    .withMessage('Type must be a string')
 ];
 
 // All routes are protected and require employee role
@@ -79,74 +108,101 @@ router.use(authorize('employee'));
 // @access  Private (Employee only)
 router.get('/dashboard', getEmployeeDashboard);
 
-// @route   GET /api/employee/projects
-// @desc    Get employee assigned projects
+// @route   GET /api/employee/customers
+// @desc    Get employee assigned customers
 // @access  Private (Employee only)
-router.get('/projects', validatePagination, getEmployeeProjects);
+router.get('/customers', 
+  validatePagination,
+  validateQueryParams,
+  getEmployeeCustomers
+);
 
-// @route   GET /api/employee/projects/:id
-// @desc    Get single project details for employee
+// @route   GET /api/employee/customers/:id
+// @desc    Get employee customer details
 // @access  Private (Employee only)
-router.get('/projects/:id', validateProjectId, getEmployeeProjectDetails);
-
-// @route   GET /api/employee/milestones/:milestoneId/project/:projectId
-// @desc    Get single milestone for employee
-// @access  Private (Employee only)
-router.get('/milestones/:milestoneId/project/:projectId', validateMilestoneId, getEmployeeMilestone);
-
-// @route   POST /api/employee/milestones/:milestoneId/recalculate-progress
-// @desc    Recalculate milestone progress
-// @access  Private (Employee only)
-router.post('/milestones/:milestoneId/recalculate-progress', recalculateMilestoneProgress);
-
-// @route   GET /api/employee/tasks/milestone/:milestoneId/project/:projectId
-// @desc    Get tasks by milestone for employee
-// @access  Private (Employee only)
-router.get('/tasks/milestone/:milestoneId/project/:projectId', validateMilestoneId, getEmployeeTasksByMilestone);
+router.get('/customers/:id', 
+  validateCustomerId,
+  getEmployeeCustomerDetails
+);
 
 // @route   GET /api/employee/tasks
-// @desc    Get employee assigned tasks
+// @desc    Get employee tasks
 // @access  Private (Employee only)
-router.get('/tasks', validatePagination, getEmployeeTasks);
+router.get('/tasks', 
+  validatePagination,
+  validateQueryParams,
+  getEmployeeTasks
+);
 
 // @route   GET /api/employee/tasks/:id
-// @desc    Get single task for employee
+// @desc    Get employee task details
 // @access  Private (Employee only)
-router.get('/tasks/:id', validateTaskId, getEmployeeTask);
+router.get('/tasks/:id', 
+  validateTaskId,
+  getEmployeeTask
+);
 
 // @route   PUT /api/employee/tasks/:id/status
-// @desc    Update task status (Employee only)
+// @desc    Update task status
 // @access  Private (Employee only)
-router.put('/tasks/:id/status', validateTaskId, validateTaskStatus, updateTaskStatus);
+router.put('/tasks/:id/status', 
+  validateTaskId,
+  validateTaskStatus,
+  updateTaskStatus
+);
 
 // @route   GET /api/employee/activity
-// @desc    Get employee activity feed
+// @desc    Get employee activity
 // @access  Private (Employee only)
-router.get('/activity', validatePagination, getEmployeeActivity);
+router.get('/activity', 
+  validatePagination,
+  validateQueryParams,
+  getEmployeeActivity
+);
 
 // @route   GET /api/employee/files
 // @desc    Get employee files
 // @access  Private (Employee only)
-router.get('/files', validatePagination, getEmployeeFiles);
+router.get('/files', 
+  validatePagination,
+  validateQueryParams,
+  getEmployeeFiles
+);
 
-// @route   POST /api/employee/tasks/:taskId/comments
+// @route   POST /api/employee/tasks/:id/comments
 // @desc    Add comment to task
 // @access  Private (Employee only)
-router.post('/tasks/:taskId/comments', validateTaskIdParam, validateComment, addTaskComment);
+router.post('/tasks/:id/comments', 
+  validateTaskId,
+  validateComment,
+  addTaskComment
+);
 
-// @route   DELETE /api/employee/tasks/:taskId/comments/:commentId
-// @desc    Delete comment from task
+// @route   DELETE /api/employee/tasks/:id/comments/:commentId
+// @desc    Delete task comment
 // @access  Private (Employee only)
-router.delete('/tasks/:taskId/comments/:commentId', validateTaskIdParam, deleteTaskComment);
+router.delete('/tasks/:id/comments/:commentId', 
+  validateTaskId,
+  validateCommentId,
+  deleteTaskComment
+);
 
-// @route   POST /api/employee/milestones/:milestoneId/comments
-// @desc    Add comment to milestone
+// @route   POST /api/employee/subtasks/:id/comments
+// @desc    Add comment to subtask
 // @access  Private (Employee only)
-router.post('/milestones/:milestoneId/comments', validateMilestoneId, validateComment, addMilestoneComment);
+router.post('/subtasks/:id/comments', 
+  validateTaskId,
+  validateComment,
+  addSubtaskComment
+);
 
-// @route   DELETE /api/employee/milestones/:milestoneId/comments/:commentId
-// @desc    Delete comment from milestone
+// @route   DELETE /api/employee/subtasks/:id/comments/:commentId
+// @desc    Delete subtask comment
 // @access  Private (Employee only)
-router.delete('/milestones/:milestoneId/comments/:commentId', validateMilestoneId, deleteMilestoneComment);
+router.delete('/subtasks/:id/comments/:commentId', 
+  validateTaskId,
+  validateCommentId,
+  deleteSubtaskComment
+);
 
 module.exports = router;

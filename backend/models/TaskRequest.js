@@ -17,13 +17,13 @@ const taskRequestSchema = new mongoose.Schema({
   },
   project: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project',
-    required: [true, 'Project is required']
+    ref: 'Customer',
+    required: [true, 'Customer is required']
   },
   milestone: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Milestone',
-    required: [true, 'Milestone is required']
+    ref: 'Task',
+    required: [true, 'Task is required']
   },
   priority: {
     type: String,

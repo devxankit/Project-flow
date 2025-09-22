@@ -12,11 +12,11 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const profileRoutes = require('./routes/profileRoutes');
-const projectRoutes = require('./routes/projectRoutes');
-const milestoneRoutes = require('./routes/milestoneRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const customerRoutes = require('./routes/customerRoutes');
+const subtaskRoutes = require('./routes/subtaskRoutes');
+const fileRoutes = require('./routes/enhancedFileRoutes');
 const taskRequestRoutes = require('./routes/taskRequestRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 
@@ -98,11 +98,11 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/milestones', milestoneRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/employee', employeeRoutes);
-app.use('/api/customer', customerRoutes);
+app.use('/api/customers', customerRoutes);
+app.use('/api/subtasks', subtaskRoutes);
+app.use('/api/files', fileRoutes);
 app.use('/api/task-requests', taskRequestRoutes);
 app.use('/api/activities', activityRoutes);
 
@@ -114,7 +114,8 @@ app.use('*', (req, res) => {
   });
 });
 
-// Global error handler
+
+// Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   

@@ -1,10 +1,10 @@
 const express = require('express');
 const { body } = require('express-validator');
 const { protect, authorize } = require('../middlewares/authMiddleware');
-const { uploadMultiple } = require('../middlewares/uploadMiddleware');
+const { upload } = require('../middlewares/enhancedFileUpload');
 const {
   createTask,
-  getTasksByMilestone,
+  getTasksByCustomer,
   getTask,
   updateTask,
   deleteTask,
@@ -26,12 +26,12 @@ const validateTask = [
     .trim()
     .isLength({ max: 1000 })
     .withMessage('Task description cannot exceed 1000 characters'),
-  body('milestone')
+  body('customer')
     .isMongoId()
-    .withMessage('Valid milestone ID is required'),
-  body('project')
-    .isMongoId()
-    .withMessage('Valid project ID is required'),
+    .withMessage('Valid customer ID is required'),
+  body('sequence')
+    .isInt({ min: 1 })
+    .withMessage('Sequence must be a positive integer'),
   body('status')
     .optional()
     .isIn(['pending', 'in-progress', 'completed', 'cancelled'])
@@ -59,7 +59,7 @@ router.use(protect);
 // @route   POST /api/tasks
 // @desc    Create a new task
 // @access  Private (PM only)
-router.post('/', authorize('pm'), uploadMultiple('attachments', 10), validateTask, createTask);
+router.post('/', authorize('pm'), upload.array('attachments', 10), validateTask, createTask);
 
 // @route   GET /api/tasks
 // @desc    Get all tasks with filtering and pagination
@@ -71,29 +71,29 @@ router.get('/', getAllTasks);
 // @access  Private
 router.get('/stats', getTaskStats);
 
-// @route   GET /api/tasks/milestone/:milestoneId/project/:projectId
-// @desc    Get tasks for a milestone
+// @route   GET /api/tasks/customer/:customerId
+// @desc    Get tasks for a customer
 // @access  Private
-router.get('/milestone/:milestoneId/project/:projectId', getTasksByMilestone);
+router.get('/customer/:customerId', getTasksByCustomer);
 
-// @route   GET /api/tasks/:taskId/project/:projectId
+// @route   GET /api/tasks/:taskId/customer/:customerId
 // @desc    Get single task
 // @access  Private
-router.get('/:taskId/project/:projectId', getTask);
+router.get('/:taskId/customer/:customerId', getTask);
 
-// @route   PUT /api/tasks/:taskId/project/:projectId
+// @route   PUT /api/tasks/:taskId/customer/:customerId
 // @desc    Update task
 // @access  Private (PM only)
-router.put('/:taskId/project/:projectId', authorize('pm'), uploadMultiple('attachments', 10), validateTask, updateTask);
+router.put('/:taskId/customer/:customerId', authorize('pm'), upload.array('attachments', 10), validateTask, updateTask);
 
-// @route   DELETE /api/tasks/:taskId/project/:projectId
+// @route   DELETE /api/tasks/:taskId/customer/:customerId
 // @desc    Delete task
 // @access  Private (PM only)
-router.delete('/:taskId/project/:projectId', authorize('pm'), deleteTask);
+router.delete('/:taskId/customer/:customerId', authorize('pm'), deleteTask);
 
-// @route   GET /api/tasks/team/:projectId
+// @route   GET /api/tasks/team/:customerId
 // @desc    Get team members for task assignment
 // @access  Private
-router.get('/team/:projectId', getTeamMembersForTask);
+router.get('/team/:customerId', getTeamMembersForTask);
 
 module.exports = router;

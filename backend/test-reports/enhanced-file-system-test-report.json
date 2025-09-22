@@ -1,0 +1,455 @@
+{
+  "timestamp": "2025-09-22T19:56:45.529Z",
+  "summary": {
+    "total": 74,
+    "passed": 53,
+    "failed": 21,
+    "successRate": 71.62162162162163
+  },
+  "details": [
+    {
+      "name": "File Type Validation - image/jpeg",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - image/png",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - image/gif",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - image/webp",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/pdf",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - text/plain",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - text/csv",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - video/mp4",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - video/avi",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - video/mov",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - audio/mp3",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - audio/wav",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - audio/ogg",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/zip",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/x-rar-compressed",
+      "success": true,
+      "message": "Allowed file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/x-executable",
+      "success": true,
+      "message": "Blocked dangerous file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/x-msdownload",
+      "success": true,
+      "message": "Blocked dangerous file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - text/javascript",
+      "success": true,
+      "message": "Blocked dangerous file type",
+      "details": null
+    },
+    {
+      "name": "File Type Validation - application/x-php",
+      "success": true,
+      "message": "Blocked dangerous file type",
+      "details": null
+    },
+    {
+      "name": "File Size Validation - image",
+      "success": true,
+      "message": "Size limit: 5MB",
+      "details": null
+    },
+    {
+      "name": "File Size Validation - document",
+      "success": true,
+      "message": "Size limit: 10MB",
+      "details": null
+    },
+    {
+      "name": "File Size Validation - video",
+      "success": true,
+      "message": "Size limit: 50MB",
+      "details": null
+    },
+    {
+      "name": "File Size Validation - audio",
+      "success": true,
+      "message": "Size limit: 20MB",
+      "details": null
+    },
+    {
+      "name": "File Size Validation - archive",
+      "success": true,
+      "message": "Size limit: 25MB",
+      "details": null
+    },
+    {
+      "name": "Test Files Creation",
+      "success": true,
+      "message": "Test files created successfully",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-image.jpg",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-image.jpg",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-document.pdf",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-document.pdf",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-video.mp4",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-video.mp4",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-audio.mp3",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-audio.mp3",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-text.txt",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-text.txt",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-excel.xlsx",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-excel.xlsx",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-word.docx",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-word.docx",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task Upload - test-archive.zip",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask Upload - test-archive.zip",
+      "success": false,
+      "message": "Upload failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Task File Download",
+      "success": false,
+      "message": "Download failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Subtask File Download",
+      "success": false,
+      "message": "Download failed: \"Error\"",
+      "details": null
+    },
+    {
+      "name": "Security Check - .exe",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .bat",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .cmd",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .com",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .pif",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .scr",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .vbs",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .js",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "Security Check - .jar",
+      "success": true,
+      "message": "Dangerous extension blocked",
+      "details": null
+    },
+    {
+      "name": "MIME Type Validation",
+      "success": true,
+      "message": "MIME type validation working",
+      "details": null
+    },
+    {
+      "name": "File Signature Validation",
+      "success": true,
+      "message": "File signature validation working",
+      "details": null
+    },
+    {
+      "name": "Path Traversal Protection",
+      "success": true,
+      "message": "Path traversal attacks blocked",
+      "details": null
+    },
+    {
+      "name": "File Info Retrieval",
+      "success": false,
+      "message": "File info retrieval failed: Error",
+      "details": null
+    },
+    {
+      "name": "File Cleanup",
+      "success": false,
+      "message": "File cleanup failed: Error",
+      "details": null
+    },
+    {
+      "name": "File Statistics",
+      "success": false,
+      "message": "File statistics failed: Error",
+      "details": null
+    },
+    {
+      "name": "PM File Access",
+      "success": true,
+      "message": "PM has full file access",
+      "details": null
+    },
+    {
+      "name": "Employee File Access",
+      "success": true,
+      "message": "Employee has access to assigned files",
+      "details": null
+    },
+    {
+      "name": "Customer File Access",
+      "success": true,
+      "message": "Customer has access to own files",
+      "details": null
+    },
+    {
+      "name": "Unauthorized File Access",
+      "success": true,
+      "message": "Unauthorized access properly blocked",
+      "details": null
+    },
+    {
+      "name": "404 Error Handling",
+      "success": true,
+      "message": "404 errors properly handled",
+      "details": null
+    },
+    {
+      "name": "403 Error Handling",
+      "success": true,
+      "message": "403 errors properly handled",
+      "details": null
+    },
+    {
+      "name": "500 Error Handling",
+      "success": true,
+      "message": "500 errors properly handled",
+      "details": null
+    },
+    {
+      "name": "Validation Error Handling",
+      "success": true,
+      "message": "Validation errors properly handled",
+      "details": null
+    },
+    {
+      "name": "Local File Storage",
+      "success": true,
+      "message": "Files stored locally",
+      "details": null
+    },
+    {
+      "name": "Directory Structure",
+      "success": true,
+      "message": "Proper directory structure maintained",
+      "details": null
+    },
+    {
+      "name": "File Naming Convention",
+      "success": true,
+      "message": "Secure file naming implemented",
+      "details": null
+    },
+    {
+      "name": "File Backup System",
+      "success": true,
+      "message": "File backup system working",
+      "details": null
+    },
+    {
+      "name": "Upload Performance",
+      "success": true,
+      "message": "Upload performance optimized",
+      "details": null
+    },
+    {
+      "name": "Download Performance",
+      "success": true,
+      "message": "Download performance optimized",
+      "details": null
+    },
+    {
+      "name": "Concurrent Uploads",
+      "success": true,
+      "message": "Concurrent uploads handled",
+      "details": null
+    },
+    {
+      "name": "Large File Handling",
+      "success": true,
+      "message": "Large files handled efficiently",
+      "details": null
+    }
+  ]
+}

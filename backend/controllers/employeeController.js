@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
-const Project = require('../models/Project');
-const Milestone = require('../models/Milestone');
+const Customer = require('../models/Customer');
 const Task = require('../models/Task');
+const Subtask = require('../models/Subtask');
 const User = require('../models/User');
-const { formatFileData, deleteFile } = require('../middlewares/uploadMiddleware');
+const { formatFileData, deleteFile } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
 
 // Helper function to handle validation errors
@@ -19,25 +19,24 @@ const handleValidationErrors = (req, res) => {
   return null;
 };
 
-// Helper function to check if user has permission to access project
-const checkProjectPermission = async (projectId, userId, userRole) => {
-  const project = await Project.findById(projectId);
-  if (!project) {
-    return { hasPermission: false, error: 'Project not found' };
-  }
-
-  // Employee can access projects they're assigned to
-  if (userRole === 'employee') {
-    const isAssigned = project.assignedTeam.some(teamMember => 
-      teamMember.toString() === userId
-    );
-    if (isAssigned) {
-      return { hasPermission: true, project };
+// Helper function to check if user has permission to access customer
+const checkCustomerPermission = async (customerId, userId, userRole) => {
+  try {
+    const customer = await Customer.findById(customerId);
+    if (!customer) {
+      return { hasPermission: false, error: 'Customer not found' };
     }
-    return { hasPermission: false, error: 'Access denied' };
-  }
 
-  return { hasPermission: false, error: 'Invalid role' };
+    // Employees can access customers they're assigned to
+    if (userRole === 'employee') {
+      const isAssigned = customer.assignedTeam.includes(userId);
+      return { hasPermission: isAssigned, customer };
+    }
+
+    return { hasPermission: false, error: 'Invalid user role' };
+  } catch (error) {
+    return { hasPermission: false, error: error.message };
+  }
 };
 
 // @desc    Get employee dashboard data
@@ -47,16 +46,16 @@ const getEmployeeDashboard = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
-    // Get projects assigned to this employee
-    const assignedProjects = await Project.find({ 
+    // Get customers assigned to this employee
+    const assignedCustomers = await Customer.find({ 
       assignedTeam: userId,
       status: { $in: ['planning', 'active'] }
-    }).select('_id name status priority dueDate');
+    }).select('_id name status priority dueDate progress');
 
-    const projectIds = assignedProjects.map(p => p._id);
+    const customerIds = assignedCustomers.map(c => c._id);
 
-    // If no projects assigned, return empty stats
-    if (projectIds.length === 0) {
+    // If no customers assigned, return empty stats
+    if (customerIds.length === 0) {
       return res.json({
         success: true,
         data: {
@@ -75,16 +74,16 @@ const getEmployeeDashboard = async (req, res) => {
             overallProgress: 0
           },
           recentTasks: [],
-          assignedProjects: 0
+          assignedCustomers: 0
         }
       });
     }
 
-    // Get task statistics for assigned projects
+    // Get task statistics for assigned customers
     const taskStats = await Task.aggregate([
       { 
         $match: { 
-          project: { $in: projectIds },
+          customer: { $in: customerIds },
           assignedTo: { $in: [userId] }
         } 
       },
@@ -121,14 +120,14 @@ const getEmployeeDashboard = async (req, res) => {
     const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
 
     const dueSoonTasks = await Task.countDocuments({
-      project: { $in: projectIds },
+      customer: { $in: customerIds },
       assignedTo: { $in: [userId] },
       dueDate: { $gte: now, $lte: threeDaysFromNow },
       status: { $nin: ['completed', 'cancelled'] }
     });
 
     const overdueTasks = await Task.countDocuments({
-      project: { $in: projectIds },
+      customer: { $in: customerIds },
       assignedTo: { $in: [userId] },
       dueDate: { $lt: now },
       status: { $nin: ['completed', 'cancelled'] }
@@ -136,11 +135,10 @@ const getEmployeeDashboard = async (req, res) => {
 
     // Get recent tasks
     const recentTasks = await Task.find({
-      project: { $in: projectIds },
+      customer: { $in: customerIds },
       assignedTo: { $in: [userId] }
     })
-      .populate('project', 'name')
-      .populate('milestone', 'title')
+      .populate('customer', 'name')
       .sort({ updatedAt: -1 })
       .limit(6);
 
@@ -157,7 +155,7 @@ const getEmployeeDashboard = async (req, res) => {
           overallProgress
         },
         recentTasks,
-        assignedProjects: assignedProjects.length
+        assignedCustomers: assignedCustomers.length
       }
     });
 
@@ -171,122 +169,148 @@ const getEmployeeDashboard = async (req, res) => {
   }
 };
 
-// @desc    Get employee assigned projects
-// @route   GET /api/employee/projects
+// @desc    Get employee assigned customers
+// @route   GET /api/employee/customers
 // @access  Private (Employee only)
-const getEmployeeProjects = async (req, res) => {
+const getEmployeeCustomers = async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 10, status, priority } = req.query;
+    const userId = req.user.id;
+    const { page = 1, limit = 10, status, priority, search } = req.query;
 
-    // Build query
     let query = { assignedTeam: userId };
-    
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Apply filters
+    if (status) {
+      query.status = status;
+    }
+    if (priority) {
+      query.priority = priority;
+    }
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
 
-    // Get projects with populated data
-    const projects = await Project.find(query)
-      .populate('customer', 'fullName email company')
-      .populate('projectManager', 'fullName email')
-      .populate('assignedTeam', 'fullName email avatar')
-      .sort({ updatedAt: -1 })
+    const skip = (page - 1) * limit;
+
+    const customers = await Customer.find(query)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Get task counts for each project
-    const projectsWithTaskCounts = await Promise.all(
-      projects.map(async (project) => {
-        const taskCounts = await Task.aggregate([
-          { 
-            $match: { 
-              project: project._id,
-              assignedTo: { $in: [userId] }
-            } 
-          },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-              inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-              pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-            }
-          }
-        ]);
-
-        const counts = taskCounts[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
-        
-        return {
-          ...project.toObject(),
-          myTasks: counts.total,
-          myCompletedTasks: counts.completed,
-          myInProgressTasks: counts.inProgress,
-          myPendingTasks: counts.pending
-        };
-      })
-    );
-
-    // Get total count for pagination
-    const total = await Project.countDocuments(query);
+    const total = await Customer.countDocuments(query);
 
     res.json({
       success: true,
       data: {
-        projects: projectsWithTaskCounts,
+        customers,
         pagination: {
           current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
+          pages: Math.ceil(total / limit),
+          total
         }
       }
     });
 
   } catch (error) {
-    console.error('Error fetching employee projects:', error);
+    console.error('Error fetching employee customers:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching projects',
+      message: 'Error fetching customers',
       error: error.message
     });
   }
 };
 
-// @desc    Get employee assigned tasks
+// @desc    Get employee customer details
+// @route   GET /api/employee/customers/:id
+// @access  Private (Employee only)
+const getEmployeeCustomerDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Check permissions
+    const permissionCheck = await checkCustomerPermission(id, userId, userRole);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error || 'Access denied'
+      });
+    }
+
+    const customer = await Customer.findById(id)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate({
+        path: 'tasks',
+        populate: {
+          path: 'assignedTo',
+          select: 'fullName email avatar'
+        }
+      });
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: customer
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer details',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get employee tasks
 // @route   GET /api/employee/tasks
 // @access  Private (Employee only)
 const getEmployeeTasks = async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 10, status, priority, project, milestone } = req.query;
+    const userId = req.user.id;
+    const { page = 1, limit = 10, status, priority, customerId } = req.query;
 
-    // Build filter
-    const filter = { assignedTo: { $in: [userId] } };
-    
-    if (status) filter.status = status;
-    if (priority) filter.priority = priority;
-    if (project) filter.project = project;
-    if (milestone) filter.milestone = milestone;
+    let query = { assignedTo: userId };
 
-    // Calculate pagination
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // Apply filters
+    if (status) {
+      query.status = status;
+    }
+    if (priority) {
+      query.priority = priority;
+    }
+    if (customerId) {
+      query.customer = customerId;
+    }
 
-    // Get tasks with populated data
-    const tasks = await Task.find(filter)
-      .populate('project', 'name description status priority')
-      .populate('milestone', 'title description status')
+    const skip = (page - 1) * limit;
+
+    const tasks = await Task.find(query)
+      .populate('customer', 'name status priority')
       .populate('assignedTo', 'fullName email avatar')
       .populate('createdBy', 'fullName email avatar')
-      .sort({ createdAt: -1 })
+      .sort({ dueDate: 1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    // Get total count for pagination
-    const total = await Task.countDocuments(filter);
+    const total = await Task.countDocuments(query);
 
     res.json({
       success: true,
@@ -294,9 +318,8 @@ const getEmployeeTasks = async (req, res) => {
         tasks,
         pagination: {
           current: parseInt(page),
-          pages: Math.ceil(total / parseInt(limit)),
-          total,
-          limit: parseInt(limit)
+          pages: Math.ceil(total / limit),
+          total
         }
       }
     });
@@ -311,25 +334,20 @@ const getEmployeeTasks = async (req, res) => {
   }
 };
 
-// @desc    Get single task for employee
+// @desc    Get employee task details
 // @route   GET /api/employee/tasks/:id
 // @access  Private (Employee only)
 const getEmployeeTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = new mongoose.Types.ObjectId(req.user.id);
+    const userId = req.user.id;
 
-    // Get task with populated data
-    const task = await Task.findOne({ 
-      _id: id, 
-      assignedTo: { $in: [userId] }
-    })
-      .populate('project', 'name description status priority')
-      .populate('milestone', 'title description status')
+    const task = await Task.findOne({ _id: id, assignedTo: userId })
+      .populate('customer', 'name status priority')
       .populate('assignedTo', 'fullName email avatar')
       .populate('createdBy', 'fullName email avatar')
       .populate('completedBy', 'fullName email avatar')
-      .populate('comments.user', 'fullName email');
+      .populate('comments.user', 'fullName email avatar');
 
     if (!task) {
       return res.status(404).json({
@@ -338,49 +356,44 @@ const getEmployeeTask = async (req, res) => {
       });
     }
 
+    // Get subtasks for this task
+    const subtasks = await Subtask.find({ task: id })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .sort({ sequence: 1 });
+
     res.json({
       success: true,
-      data: { task }
+      data: {
+        task,
+        subtasks
+      }
     });
 
   } catch (error) {
-    console.error('Error fetching employee task:', error);
+    console.error('Error fetching task details:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching task',
+      message: 'Error fetching task details',
       error: error.message
     });
   }
 };
 
-// @desc    Update task status (Employee only)
+// @desc    Update task status
 // @route   PUT /api/employee/tasks/:id/status
 // @access  Private (Employee only)
 const updateTaskStatus = async (req, res) => {
   try {
-    // Check for validation errors
     const validationError = handleValidationErrors(req, res);
     if (validationError) return validationError;
 
     const { id } = req.params;
     const { status } = req.body;
-    const userId = new mongoose.Types.ObjectId(req.user.id);
+    const userId = req.user.id;
 
-    // Validate status
-    const validStatuses = ['pending', 'in-progress', 'completed', 'cancelled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid status. Must be one of: pending, in-progress, completed, cancelled'
-      });
-    }
-
-    // Find task
-    const task = await Task.findOne({ 
-      _id: id, 
-      assignedTo: { $in: [userId] }
-    });
-
+    const task = await Task.findOne({ _id: id, assignedTo: userId });
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -388,35 +401,24 @@ const updateTaskStatus = async (req, res) => {
       });
     }
 
-    // Update task status
-    const updateData = { status };
+    const oldStatus = task.status;
+    task.status = status;
 
-    // Handle completion status
-    if (status === 'completed' && task.status !== 'completed') {
-      updateData.completedAt = new Date();
-      updateData.completedBy = userId;
-    } else if (status !== 'completed' && task.status === 'completed') {
-      updateData.completedAt = null;
-      updateData.completedBy = null;
+    // Set completion data if status changed to completed
+    if (status === 'completed' && oldStatus !== 'completed') {
+      task.completedAt = new Date();
+      task.completedBy = userId;
+    } else if (status !== 'completed' && oldStatus === 'completed') {
+      task.completedAt = null;
+      task.completedBy = null;
     }
 
-    // Update the task using save() to trigger middleware
-    Object.assign(task, updateData);
-    const updatedTask = await task.save();
-    
-    // Populate the updated task
-    await updatedTask.populate([
-      { path: 'project', select: 'name' },
-      { path: 'milestone', select: 'title' },
-      { path: 'assignedTo', select: 'fullName email avatar' },
-      { path: 'createdBy', select: 'fullName email avatar' },
-      { path: 'completedBy', select: 'fullName email avatar' }
-    ]);
+    await task.save();
 
     res.json({
       success: true,
       message: 'Task status updated successfully',
-      data: { task: updatedTask }
+      data: task
     });
 
   } catch (error) {
@@ -429,27 +431,51 @@ const updateTaskStatus = async (req, res) => {
   }
 };
 
-// @desc    Get employee activity feed
+// @desc    Get employee activity
 // @route   GET /api/employee/activity
 // @access  Private (Employee only)
 const getEmployeeActivity = async (req, res) => {
   try {
-    const { page = 1, limit = 20, type, projectId } = req.query;
     const userId = req.user.id;
-    const userRole = req.user.role;
+    const { page = 1, limit = 20, type } = req.query;
 
-    // Use the new Activity system
-    const Activity = require('../models/Activity');
-    const result = await Activity.getActivitiesForUser(userId, userRole, {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      type,
-      projectId
-    });
+    // Get customers assigned to this employee
+    const assignedCustomers = await Customer.find({ assignedTeam: userId }).select('_id');
+    const customerIds = assignedCustomers.map(c => c._id);
+
+    let query = {
+      $or: [
+        { actor: userId },
+        { customer: { $in: customerIds } }
+      ]
+    };
+
+    if (type) {
+      query.type = type;
+    }
+
+    const skip = (page - 1) * limit;
+
+    const activities = await Activity.find(query)
+      .populate('actor', 'fullName email avatar')
+      .populate('customer', 'name')
+      .populate('target', 'title name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Activity.countDocuments(query);
 
     res.json({
       success: true,
-      data: result
+      data: {
+        activities,
+        pagination: {
+          current: parseInt(page),
+          pages: Math.ceil(total / limit),
+          total
+        }
+      }
     });
 
   } catch (error) {
@@ -462,203 +488,98 @@ const getEmployeeActivity = async (req, res) => {
   }
 };
 
-// @desc    Get single project details for employee
-// @route   GET /api/employee/projects/:id
-// @access  Private (Employee only)
-const getEmployeeProjectDetails = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Get project with populated data
-    const project = await Project.findOne({ 
-      _id: id, 
-      assignedTeam: userId 
-    })
-      .populate('customer', 'fullName email company')
-      .populate('projectManager', 'fullName email avatar')
-      .populate('assignedTeam', 'fullName email avatar role');
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found or access denied'
-      });
-    }
-
-    // Get milestones for this project with progress field
-    const milestones = await Milestone.find({ project: id })
-      .select('title description status progress dueDate assignedTo createdAt sequence')
-      .sort({ createdAt: 1 });
-
-    // Get task counts for each milestone
-    const milestonesWithTaskCounts = await Promise.all(
-      milestones.map(async (milestone) => {
-        const taskCounts = await Task.aggregate([
-          { 
-            $match: { 
-              milestone: milestone._id,
-              assignedTo: { $in: [userId] }
-            } 
-          },
-          {
-            $group: {
-              _id: null,
-              total: { $sum: 1 },
-              completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-              inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-              pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-            }
-          }
-        ]);
-
-        const counts = taskCounts[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
-        
-        return {
-          ...milestone.toObject(),
-          myTasks: counts.total,
-          myCompletedTasks: counts.completed,
-          myInProgressTasks: counts.inProgress,
-          myPendingTasks: counts.pending
-        };
-      })
-    );
-
-    // Get overall task statistics for this project
-    const projectTaskStats = await Task.aggregate([
-      { 
-        $match: { 
-          project: id,
-          assignedTo: { $in: [userId] }
-        } 
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
-          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
-        }
-      }
-    ]);
-
-    const taskStats = projectTaskStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
-
-    res.json({
-      success: true,
-      data: {
-        project: {
-          ...project.toObject(),
-          myTasks: taskStats.total,
-          myCompletedTasks: taskStats.completed,
-          myInProgressTasks: taskStats.inProgress,
-          myPendingTasks: taskStats.pending
-        },
-        milestones: milestonesWithTaskCounts
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching employee project details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching project details',
-      error: error.message
-    });
-  }
-};
-
 // @desc    Get employee files
 // @route   GET /api/employee/files
 // @access  Private (Employee only)
 const getEmployeeFiles = async (req, res) => {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-    const { page = 1, limit = 20, type, status } = req.query;
+    const userId = req.user.id;
+    const { page = 1, limit = 20, customerId, taskId } = req.query;
 
-    // Get projects assigned to this employee
-    const assignedProjects = await Project.find({ 
-      assignedTeam: userId 
-    }).select('_id name');
-
-    const projectIds = assignedProjects.map(p => p._id);
-
-    // If no projects assigned, return empty files
-    if (projectIds.length === 0) {
-      return res.json({
-        success: true,
-        data: {
-          files: [],
-          pagination: {
-            current: parseInt(page),
-            pages: 0,
-            total: 0,
-            limit: parseInt(limit)
-          }
-        }
-      });
-    }
+    // Get customers assigned to this employee
+    const assignedCustomers = await Customer.find({ assignedTeam: userId }).select('_id');
+    const customerIds = assignedCustomers.map(c => c._id);
 
     // Get tasks assigned to this employee
-    const assignedTasks = await Task.find({ 
-      assignedTo: { $in: [userId] }
-    }).select('_id title project milestone');
+    const assignedTasks = await Task.find({ assignedTo: userId }).select('_id');
+    const taskIds = assignedTasks.map(t => t._id);
 
-    // Collect all files from assigned tasks
+    // Get subtasks assigned to this employee
+    const assignedSubtasks = await Subtask.find({ assignedTo: userId }).select('_id');
+    const subtaskIds = assignedSubtasks.map(s => s._id);
+
+    let query = {
+      $or: [
+        { 'attachments.uploadedBy': userId },
+        { customer: { $in: customerIds } },
+        { task: { $in: taskIds } },
+        { subtask: { $in: subtaskIds } }
+      ]
+    };
+
+    if (customerId) {
+      query.customer = customerId;
+    }
+    if (taskId) {
+      query.task = taskId;
+    }
+
+    const skip = (page - 1) * limit;
+
+    // Get files from tasks
+    const taskFiles = await Task.find(query)
+      .select('title attachments customer')
+      .populate('customer', 'name')
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Get files from subtasks
+    const subtaskFiles = await Subtask.find(query)
+      .select('title attachments customer task')
+      .populate('customer', 'name')
+      .populate('task', 'title')
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // Combine and format files
     const allFiles = [];
     
-    for (const task of assignedTasks) {
-      if (task.attachments && task.attachments.length > 0) {
-        for (const attachment of task.attachments) {
-          const project = assignedProjects.find(p => p._id.toString() === task.project.toString());
-          const milestone = await Milestone.findById(task.milestone).select('title');
-          
-          allFiles.push({
-            id: attachment._id,
-            name: attachment.originalName,
-            type: getFileType(attachment.mimetype),
-            size: formatFileSize(attachment.size),
-            uploadedBy: 'System', // You might want to track this
-            uploadedDate: attachment.uploadedAt,
-            task: task.title,
-            project: project ? project.name : 'Unknown Project',
-            milestone: milestone ? milestone.title : 'Unknown Milestone',
-            status: 'active',
-            description: `File attached to task: ${task.title}`,
-            downloadCount: 0, // You might want to track this
-            lastAccessed: attachment.uploadedAt,
-            url: attachment.url,
-            cloudinaryId: attachment.cloudinaryId
-          });
-        }
-      }
-    }
+    taskFiles.forEach(task => {
+      task.attachments.forEach(attachment => {
+        allFiles.push({
+          ...attachment.toObject(),
+          entityType: 'task',
+          entityId: task._id,
+          entityTitle: task.title,
+          customer: task.customer
+        });
+      });
+    });
 
-    // Apply filters
-    let filteredFiles = allFiles;
-    
-    if (type && type !== 'all') {
-      filteredFiles = filteredFiles.filter(file => file.type === type);
-    }
-    
-    if (status && status !== 'all') {
-      filteredFiles = filteredFiles.filter(file => file.status === status);
-    }
+    subtaskFiles.forEach(subtask => {
+      subtask.attachments.forEach(attachment => {
+        allFiles.push({
+          ...attachment.toObject(),
+          entityType: 'subtask',
+          entityId: subtask._id,
+          entityTitle: subtask.title,
+          customer: subtask.customer,
+          task: subtask.task
+        });
+      });
+    });
 
-    // Paginate results
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const paginatedFiles = filteredFiles.slice(skip, skip + parseInt(limit));
+    // Sort by upload date
+    allFiles.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
 
     res.json({
       success: true,
       data: {
-        files: paginatedFiles,
+        files: allFiles,
         pagination: {
           current: parseInt(page),
-          pages: Math.ceil(filteredFiles.length / parseInt(limit)),
-          total: filteredFiles.length,
-          limit: parseInt(limit)
+          pages: Math.ceil(allFiles.length / limit),
+          total: allFiles.length
         }
       }
     });
@@ -673,50 +594,19 @@ const getEmployeeFiles = async (req, res) => {
   }
 };
 
-// Helper function to determine file type from mimetype
-const getFileType = (mimetype) => {
-  if (mimetype.startsWith('image/')) return 'image';
-  if (mimetype.startsWith('video/')) return 'video';
-  if (mimetype.includes('pdf')) return 'document';
-  if (mimetype.includes('word') || mimetype.includes('document')) return 'document';
-  if (mimetype.includes('spreadsheet') || mimetype.includes('excel')) return 'spreadsheet';
-  if (mimetype.includes('zip') || mimetype.includes('rar')) return 'archive';
-  if (mimetype.includes('text/') || mimetype.includes('javascript') || mimetype.includes('json')) return 'code';
-  return 'document';
-};
-
-// Helper function to format file size
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
-
-// Add comment to task
+// @desc    Add comment to task
+// @route   POST /api/employee/tasks/:id/comments
+// @access  Private (Employee only)
 const addTaskComment = async (req, res) => {
   try {
-    const { taskId } = req.params;
-    const { comment } = req.body;
-    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return validationError;
 
-    if (!comment || !comment.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment is required'
-      });
-    }
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id;
 
-    // Check if employee has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      $or: [
-        { assignedTo: employeeId },
-        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
-      ]
-    });
-
+    const task = await Task.findOne({ _id: id, assignedTo: userId });
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -724,109 +614,43 @@ const addTaskComment = async (req, res) => {
       });
     }
 
-    // Add comment to task
-    const newComment = {
-      user: employeeId,
-      message: comment.trim(),
+    task.comments.push({
+      message,
+      user: userId,
       timestamp: new Date()
-    };
+    });
 
-    task.comments.push(newComment);
     await task.save();
 
-    // Populate the comment with user details
-    await task.populate('comments.user', 'fullName email');
+    // Populate the comment for response
+    const updatedTask = await Task.findById(id)
+      .populate('comments.user', 'fullName email avatar');
 
     res.json({
       success: true,
       message: 'Comment added successfully',
-      data: task.comments[task.comments.length - 1]
+      data: updatedTask.comments[updatedTask.comments.length - 1]
     });
 
   } catch (error) {
     console.error('Error adding task comment:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Error adding comment',
       error: error.message
     });
   }
 };
 
-// Add comment to milestone
-const addMilestoneComment = async (req, res) => {
-  try {
-    const { milestoneId } = req.params;
-    const { comment } = req.body;
-    const employeeId = new mongoose.Types.ObjectId(req.user.id);
-
-    if (!comment || !comment.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Comment is required'
-      });
-    }
-
-    // Check if employee has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      $or: [
-        { assignedTo: employeeId },
-        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
-      ]
-    });
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found or access denied'
-      });
-    }
-
-    // Add comment to milestone
-    const newComment = {
-      user: employeeId,
-      message: comment.trim(),
-      timestamp: new Date()
-    };
-
-    milestone.comments.push(newComment);
-    await milestone.save();
-
-    // Populate the comment with user details
-    await milestone.populate('comments.user', 'fullName email');
-
-    res.json({
-      success: true,
-      message: 'Comment added successfully',
-      data: milestone.comments[milestone.comments.length - 1]
-    });
-
-  } catch (error) {
-    console.error('Error adding milestone comment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Delete comment from task
+// @desc    Delete task comment
+// @route   DELETE /api/employee/tasks/:id/comments/:commentId
+// @access  Private (Employee only)
 const deleteTaskComment = async (req, res) => {
   try {
-    const { taskId, commentId } = req.params;
-    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+    const { id, commentId } = req.params;
+    const userId = req.user.id;
 
-    // Check if employee has access to this task
-    const task = await Task.findOne({
-      _id: taskId,
-      $or: [
-        { assignedTo: employeeId },
-        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
-      ]
-    });
-
+    const task = await Task.findOne({ _id: id, assignedTo: userId });
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -834,20 +658,23 @@ const deleteTaskComment = async (req, res) => {
       });
     }
 
-    // Find the comment
-    const commentIndex = task.comments.findIndex(
-      comment => comment._id.toString() === commentId && comment.user.toString() === employeeId.toString()
-    );
-
-    if (commentIndex === -1) {
+    const comment = task.comments.id(commentId);
+    if (!comment) {
       return res.status(404).json({
         success: false,
-        message: 'Comment not found or access denied'
+        message: 'Comment not found'
       });
     }
 
-    // Remove comment
-    task.comments.splice(commentIndex, 1);
+    // Only allow deleting own comments
+    if (comment.user.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own comments'
+      });
+    }
+
+    comment.remove();
     await task.save();
 
     res.json({
@@ -859,37 +686,80 @@ const deleteTaskComment = async (req, res) => {
     console.error('Error deleting task comment:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Error deleting comment',
       error: error.message
     });
   }
 };
 
-// Delete comment from milestone
-const deleteMilestoneComment = async (req, res) => {
+// @desc    Add comment to subtask
+// @route   POST /api/employee/subtasks/:id/comments
+// @access  Private (Employee only)
+const addSubtaskComment = async (req, res) => {
   try {
-    const { milestoneId, commentId } = req.params;
-    const employeeId = new mongoose.Types.ObjectId(req.user.id);
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return validationError;
 
-    // Check if employee has access to this milestone
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      $or: [
-        { assignedTo: employeeId },
-        { project: { $in: await Project.find({ assignedTeam: employeeId }).select('_id') } }
-      ]
-    });
+    const { id } = req.params;
+    const { message } = req.body;
+    const userId = req.user.id;
 
-    if (!milestone) {
+    const subtask = await Subtask.findOne({ _id: id, assignedTo: userId });
+    if (!subtask) {
       return res.status(404).json({
         success: false,
-        message: 'Milestone not found or access denied'
+        message: 'Subtask not found or access denied'
       });
     }
 
-    // Find the comment
-    const commentIndex = milestone.comments.findIndex(
-      comment => comment._id.toString() === commentId && comment.user.toString() === employeeId.toString()
+    subtask.comments.push({
+      message,
+      user: userId,
+      timestamp: new Date()
+    });
+
+    await subtask.save();
+
+    // Populate the comment for response
+    const updatedSubtask = await Subtask.findById(id)
+      .populate('comments.user', 'fullName email avatar');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: { subtask: updatedSubtask }
+    });
+
+  } catch (error) {
+    console.error('Error adding subtask comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
+// @desc    Delete subtask comment
+// @route   DELETE /api/employee/subtasks/:id/comments/:commentId
+// @access  Private (Employee only)
+const deleteSubtaskComment = async (req, res) => {
+  try {
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return validationError;
+
+    const { id, commentId } = req.params;
+    const userId = req.user.id;
+
+    const subtask = await Subtask.findOne({ _id: id, assignedTo: userId });
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found or access denied'
+      });
+    }
+
+    const commentIndex = subtask.comments.findIndex(
+      comment => comment._id.toString() === commentId && comment.user.toString() === userId
     );
 
     if (commentIndex === -1) {
@@ -899,9 +769,8 @@ const deleteMilestoneComment = async (req, res) => {
       });
     }
 
-    // Remove comment
-    milestone.comments.splice(commentIndex, 1);
-    await milestone.save();
+    subtask.comments.splice(commentIndex, 1);
+    await subtask.save();
 
     res.json({
       success: true,
@@ -909,233 +778,25 @@ const deleteMilestoneComment = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting milestone comment:', error);
+    console.error('Error deleting subtask comment:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get single milestone for employee
-// @route   GET /api/employee/milestones/:milestoneId/project/:projectId
-// @access  Private (Employee only)
-const getEmployeeMilestone = async (req, res) => {
-  try {
-    const { milestoneId, projectId } = req.params;
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Check if employee has access to this project
-    const project = await Project.findOne({
-      _id: projectId,
-      assignedTeam: { $in: [userId] }
-    });
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found or access denied'
-      });
-    }
-
-    // Get milestone with populated data
-    const milestone = await Milestone.findOne({ 
-      _id: milestoneId, 
-      project: projectId 
-    })
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar')
-      .populate('comments.user', 'fullName email');
-
-    if (!milestone) {
-      return res.status(404).json({
-        success: false,
-        message: 'Milestone not found or access denied'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: { 
-        milestone,
-        project: {
-          _id: project._id,
-          name: project.name,
-          description: project.description
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching employee milestone:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Get tasks by milestone for employee
-// @route   GET /api/employee/tasks/milestone/:milestoneId/project/:projectId
-// @access  Private (Employee only)
-const getEmployeeTasksByMilestone = async (req, res) => {
-  try {
-    const { milestoneId, projectId } = req.params;
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-
-    // Verify employee has access to this project
-    const project = await Project.findOne({
-      _id: projectId,
-      assignedTeam: { $in: [userId] }
-    });
-
-    if (!project) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Project not found or access denied' 
-      });
-    }
-
-    // Verify milestone belongs to this project
-    const milestone = await Milestone.findOne({
-      _id: milestoneId,
-      project: projectId
-    });
-
-    if (!milestone) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Milestone not found or access denied' 
-      });
-    }
-
-    // Get tasks for this milestone
-    const tasks = await Task.find({ 
-      milestone: milestoneId,
-      project: projectId
-    })
-      .populate('assignedTo', 'fullName email avatar')
-      .populate('createdBy', 'fullName email avatar')
-      .populate('completedBy', 'fullName email avatar')
-      .populate('comments.user', 'fullName email')
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      data: {
-        tasks,
-        milestone: {
-          _id: milestone._id,
-          title: milestone.title,
-          description: milestone.description,
-          status: milestone.status,
-          progress: milestone.progress
-        },
-        project: {
-          _id: project._id,
-          name: project.name,
-          description: project.description
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error fetching employee tasks by milestone:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// @desc    Recalculate milestone progress
-// @route   POST /api/employee/milestones/:milestoneId/recalculate-progress
-// @access  Private (Employee only)
-const recalculateMilestoneProgress = async (req, res) => {
-  try {
-    const { milestoneId } = req.params;
-    
-    // Basic validation
-    if (!milestoneId || !mongoose.Types.ObjectId.isValid(milestoneId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Valid milestone ID is required'
-      });
-    }
-    
-    const userId = new mongoose.Types.ObjectId(req.user.id);
-
-    console.log(`Recalculating progress for milestone: ${milestoneId}, user: ${userId}`);
-
-    // Get the milestone
-    const milestone = await Milestone.findById(milestoneId);
-    if (!milestone) {
-      console.log(`Milestone not found: ${milestoneId}`);
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Milestone not found' 
-      });
-    }
-
-    // Verify employee has access to this project
-    const project = await Project.findOne({
-      _id: milestone.project,
-      assignedTeam: { $in: [userId] }
-    });
-
-    if (!project) {
-      console.log(`Access denied for user ${userId} to project ${milestone.project}`);
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Access denied to this milestone' 
-      });
-    }
-
-    console.log(`Recalculating progress for milestone: ${milestone.title}`);
-
-    // Recalculate progress
-    const newProgress = await milestone.calculateProgress();
-
-    console.log(`Progress recalculated: ${newProgress}%`);
-
-    res.json({
-      success: true,
-      message: 'Milestone progress recalculated successfully',
-      data: {
-        milestoneId: milestone._id,
-        title: milestone.title,
-        progress: newProgress
-      }
-    });
-
-  } catch (error) {
-    console.error('Error recalculating milestone progress:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
+      message: 'Internal server error'
     });
   }
 };
 
 module.exports = {
   getEmployeeDashboard,
-  getEmployeeProjects,
-  getEmployeeProjectDetails,
+  getEmployeeCustomers,
+  getEmployeeCustomerDetails,
   getEmployeeTasks,
   getEmployeeTask,
-  getEmployeeMilestone,
-  getEmployeeTasksByMilestone,
-  recalculateMilestoneProgress,
   updateTaskStatus,
   getEmployeeActivity,
   getEmployeeFiles,
   addTaskComment,
-  addMilestoneComment,
   deleteTaskComment,
-  deleteMilestoneComment
+  addSubtaskComment,
+  deleteSubtaskComment
 };

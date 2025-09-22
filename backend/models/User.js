@@ -170,18 +170,18 @@ const userSchema = new mongoose.Schema({
     ref: 'User'
   },
   
-  // Project relationships
-  managedProjects: [{
+  // Customer relationships
+  managedCustomers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project'
+    ref: 'Customer'
   }],
-  assignedProjects: [{
+  assignedCustomers: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project'
+    ref: 'Customer'
   }],
   customerProjects: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project'
+    ref: 'Customer'
   }],
   
   // Timestamps
@@ -310,16 +310,16 @@ userSchema.statics.searchUsers = function(searchTerm) {
   }).sort({ score: { $meta: 'textScore' } });
 };
 
-// Static method to find users for project assignment (employees and PMs)
-userSchema.statics.findForProjectAssignment = function() {
+// Static method to find users for customer assignment (employees and PMs)
+userSchema.statics.findForCustomerAssignment = function() {
   return this.find({ 
     role: { $in: ['employee', 'pm'] },
     status: 'active' 
   }).select('fullName email avatar department jobTitle workTitle skills');
 };
 
-// Static method to find customers for project assignment
-userSchema.statics.findCustomersForProject = function() {
+// Static method to find customers for customer assignment
+userSchema.statics.findCustomersForCustomer = function() {
   return this.find({ 
     role: 'customer',
     status: 'active' 
