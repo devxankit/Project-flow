@@ -8,7 +8,7 @@ import {
   Eye, 
   Calendar, 
   User, 
-  FolderKanban,
+  Building2,
   Search,
   Filter,
   File,
@@ -133,7 +133,8 @@ const EmployeeFiles = () => {
     if (!searchTerm) return true;
     return file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
            file.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           file.task.toLowerCase().includes(searchTerm.toLowerCase());
+           file.task.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (file.customer && file.customer.toLowerCase().includes(searchTerm.toLowerCase()));
   });
 
   const handleDownload = (file) => {
@@ -154,8 +155,8 @@ const EmployeeFiles = () => {
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Shared Files</h1>
-            <p className="text-gray-600">Files shared with your tasks and milestones</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Customer Files</h1>
+            <p className="text-gray-600">Files shared with your customer tasks and subtasks</p>
           </div>
 
           {/* Search and Filters */}
@@ -166,7 +167,7 @@ const EmployeeFiles = () => {
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search files by name, description, or task..."
+                    placeholder="Search files by name, description, or customer..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
@@ -253,11 +254,11 @@ const EmployeeFiles = () => {
                     {file.description}
                   </p>
 
-                  {/* Task & Project Info */}
+                  {/* Customer & Task Info */}
                   <div className="mb-3">
                     <div className="flex items-center space-x-2 mb-1">
-                      <FolderKanban className="h-3 w-3 text-gray-400" />
-                      <span className="text-xs font-medium text-gray-700">{file.project}</span>
+                      <Building2 className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs font-medium text-gray-700">{file.customer || 'Unknown Customer'}</span>
                     </div>
                     <div className="flex items-center space-x-2 mb-1">
                       <CheckCircle className="h-3 w-3 text-gray-400" />
@@ -265,7 +266,7 @@ const EmployeeFiles = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Calendar className="h-3 w-3 text-gray-400" />
-                      <span className="text-xs text-gray-600">{file.milestone}</span>
+                      <span className="text-xs text-gray-600">{file.subtask || 'Task File'}</span>
                     </div>
                   </div>
 

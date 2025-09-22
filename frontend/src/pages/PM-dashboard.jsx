@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
-import ProjectForm from '../components/ProjectForm';
+import CustomerForm from '../components/CustomerForm';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
-import { projectApi, taskApi, getCurrentUser, handleApiError } from '../utils/api';
+import { Building2, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
+import { customerApi, taskApi, getCurrentUser, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 
 const PMDashboard = () => {
   const { toast } = useToast();
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
-  const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
-  const [projectStats, setProjectStats] = useState({
+  const [isCustomerFormOpen, setIsCustomerFormOpen] = useState(false);
+  const [customerStats, setCustomerStats] = useState({
     total: 0,
     active: 0,
     completed: 0,
@@ -36,7 +36,7 @@ const PMDashboard = () => {
     normal: 0,
     low: 0
   });
-  const [recentProjects, setRecentProjects] = useState([]);
+  const [recentCustomers, setRecentCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   
@@ -56,20 +56,20 @@ const PMDashboard = () => {
       setIsLoading(true);
       
       // Load all data in parallel
-      const [projectStatsResponse, taskStatsResponse, recentProjectsResponse] = await Promise.all([
-        projectApi.getProjectStats(),
+      const [customerStatsResponse, taskStatsResponse, recentCustomersResponse] = await Promise.all([
+        customerApi.getCustomerStats(),
         taskApi.getTaskStats(),
-        projectApi.getAllProjects({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' })
+        customerApi.getCustomers({ limit: 5, sortBy: 'createdAt', sortOrder: 'desc' })
       ]);
 
-      // Set project stats
-      setProjectStats(projectStatsResponse.data);
+      // Set customer stats
+      setCustomerStats(customerStatsResponse.data);
 
       // Set task stats
       setTaskStats(taskStatsResponse.data);
 
-      // Set recent projects
-      setRecentProjects(recentProjectsResponse.data);
+      // Set recent customers
+      setRecentCustomers(recentCustomersResponse.data);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -86,11 +86,11 @@ const PMDashboard = () => {
     setIsTaskFormOpen(false);
   };
 
-  // Handle project form submission
-  const handleProjectSubmit = (projectData) => {
-    // Refresh dashboard data after creating a new project
+  // Handle customer form submission
+  const handleCustomerSubmit = (customerData) => {
+    // Refresh dashboard data after creating a new customer
     loadDashboardData();
-    setIsProjectFormOpen(false);
+    setIsCustomerFormOpen(false);
   };
 
   return (
@@ -107,7 +107,7 @@ const PMDashboard = () => {
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
                   Welcome, {currentUser?.fullName || 'Project Manager'}!
                 </h1>
-                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
+                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your customer overview</p>
               </div>
             </div>
           </div>
@@ -115,19 +115,19 @@ const PMDashboard = () => {
           {/* Quick Stats - Responsive Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-6 md:mb-8">
             <button 
-              onClick={() => navigate('/projects')}
+              onClick={() => navigate('/customers')}
               className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 active:scale-95 md:hover:shadow-md transition-all text-left"
             >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
-                  <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                  <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                {isLoading ? '...' : projectStats.total}
+                {isLoading ? '...' : customerStats.total}
               </p>
-              <p className="text-xs md:text-sm text-gray-600">Projects</p>
+              <p className="text-xs md:text-sm text-gray-600">Customers</p>
             </button>
 
             <button 
@@ -141,7 +141,7 @@ const PMDashboard = () => {
                 <span className="text-xs md:text-sm text-gray-500">Done</span>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                {isLoading ? '...' : projectStats.completed}
+                {isLoading ? '...' : customerStats.completed}
               </p>
               <p className="text-xs md:text-sm text-gray-600">Completed</p>
             </button>
@@ -157,7 +157,7 @@ const PMDashboard = () => {
                 <span className="text-xs md:text-sm text-gray-500">Team</span>
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">
-                {isLoading ? '...' : projectStats.active}
+                {isLoading ? '...' : taskStats.inProgress}
               </p>
               <p className="text-xs md:text-sm text-gray-600">Active</p>
             </button>
@@ -201,28 +201,28 @@ const PMDashboard = () => {
                       </div>
                     ))}
                   </div>
-                ) : recentProjects.length > 0 ? (
-                  recentProjects.slice(0, 3).map((project) => (
+                ) : recentCustomers.length > 0 ? (
+                  recentCustomers.slice(0, 3).map((customer) => (
                     <div 
-                      key={project._id}
-                      onClick={() => navigate(`/project/${project._id}`)}
+                      key={customer._id}
+                      onClick={() => navigate(`/customer/${customer._id}`)}
                       className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors duration-200"
                     >
                       <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                        <span className="text-gray-600 truncate hover:text-primary transition-colors duration-200">{project.name}</span>
-                        <span className="text-gray-900 font-medium">{Math.round(project.progress || 0)}%</span>
+                        <span className="text-gray-600 truncate hover:text-primary transition-colors duration-200">{customer.name}</span>
+                        <span className="text-gray-900 font-medium">{Math.round(customer.progress || 0)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
                         <div 
                           className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-300" 
-                          style={{width: `${Math.round(project.progress || 0)}%`}}
+                          style={{width: `${Math.round(customer.progress || 0)}%`}}
                         ></div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-gray-500 text-sm">No projects found</p>
+                    <p className="text-gray-500 text-sm">No customers found</p>
                   </div>
                 )}
               </div>
@@ -240,11 +240,11 @@ const PMDashboard = () => {
                   <p className="text-sm md:text-base font-medium">New Task</p>
                 </button>
                 <button 
-                  onClick={() => setIsProjectFormOpen(true)}
+                  onClick={() => setIsCustomerFormOpen(true)}
                   className="bg-white border border-gray-200 rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3"
                 >
-                  <FolderKanban className="h-6 w-6 md:h-5 md:w-5 text-primary" />
-                  <p className="text-sm md:text-base font-medium text-gray-900">New Project</p>
+                  <Building2 className="h-6 w-6 md:h-5 md:w-5 text-primary" />
+                  <p className="text-sm md:text-base font-medium text-gray-900">New Customer</p>
                 </button>
               </div>
             </div>
@@ -301,11 +301,11 @@ const PMDashboard = () => {
         onSubmit={handleTaskSubmit}
       />
 
-      {/* Project Form */}
-      <ProjectForm
-        isOpen={isProjectFormOpen}
-        onClose={() => setIsProjectFormOpen(false)}
-        onSubmit={handleProjectSubmit}
+      {/* Customer Form */}
+      <CustomerForm
+        isOpen={isCustomerFormOpen}
+        onClose={() => setIsCustomerFormOpen(false)}
+        onSubmit={handleCustomerSubmit}
       />
     </div>
   );

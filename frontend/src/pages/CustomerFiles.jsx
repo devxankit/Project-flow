@@ -9,7 +9,7 @@ import {
   Eye, 
   Calendar,
   User,
-  FolderKanban,
+  Building2,
   CheckSquare,
   Image,
   File,
@@ -275,8 +275,8 @@ const CustomerFiles = () => {
                     <span>{formatDate(file.uploadDate || file.uploadedAt || new Date())}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <FolderKanban className="h-3 w-3" />
-                    <span>{file.project || file.projectName || 'Unknown Project'}</span>
+                    <Building2 className="h-3 w-3" />
+                    <span>{file.customer || file.customerName || 'Unknown Customer'}</span>
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-gray-500">
                     <CheckSquare className="h-3 w-3" />

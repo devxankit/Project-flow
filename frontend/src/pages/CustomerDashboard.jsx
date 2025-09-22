@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
+import { Building2, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
@@ -13,6 +13,8 @@ const CustomerDashboard = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [tasks, setTasks] = useState([]);
   
   // Scroll to top when component mounts
   useScrollToTop();
@@ -22,9 +24,12 @@ const CustomerDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/customer/dashboard');
+        // Get customer's own records
+        const response = await api.customer.getCustomers();
         if (response.data.success) {
-          setDashboardData(response.data.data);
+          const customers = response.data.data || [];
+          setCustomers(customers);
+          setDashboardData({ customers });
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -114,8 +119,8 @@ const CustomerDashboard = () => {
   }
 
   // Extract data from API response
-  const { statistics, recentProjects } = dashboardData;
-  const projects = recentProjects || [];
+  const { statistics, recentCustomers } = dashboardData;
+  const customerProjects = recentCustomers || [];
   
 
   return (
@@ -132,7 +137,7 @@ const CustomerDashboard = () => {
                 <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
                   Welcome, {user?.fullName || 'Customer'}!
                 </h1>
-                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
+                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your customer overview</p>
               </div>
             </div>
           </div>
@@ -142,12 +147,12 @@ const CustomerDashboard = () => {
             <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
-                  <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                  <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.projects.active}</p>
-              <p className="text-xs md:text-sm text-gray-600">Projects</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.customers?.active || 0}</p>
+              <p className="text-xs md:text-sm text-gray-600">Customers</p>
             </div>
 
             <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">

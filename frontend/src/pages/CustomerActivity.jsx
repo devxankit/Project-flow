@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { Activity, Filter, Calendar, User, CheckCircle, MessageSquare, BarChart3, FolderPlus, Loader2 } from 'lucide-react';
+import { Activity, Filter, Calendar, User, CheckCircle, MessageSquare, BarChart3, Building2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
@@ -112,8 +112,8 @@ const CustomerActivity = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">Project Timeline</h2>
-                  <p className="text-sm text-gray-600">Track your project progress and updates</p>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Customer Timeline</h2>
+                  <p className="text-sm text-gray-600">Track your customer progress and updates</p>
                 </div>
                 <button className="ml-4 bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
                   <Filter className="h-5 w-5" />
@@ -134,8 +134,8 @@ const CustomerActivity = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <h3 className="text-sm font-semibold text-gray-900">Project Timeline</h3>
-                  <p className="text-xs text-gray-600">Track your project progress and updates</p>
+                  <h3 className="text-sm font-semibold text-gray-900">Customer Timeline</h3>
+                  <p className="text-xs text-gray-600">Track your customer progress and updates</p>
                 </div>
                 <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
                   <Filter className="h-5 w-5" />
@@ -151,8 +151,8 @@ const CustomerActivity = () => {
               {[
                 { key: 'all', label: 'All', count: shareableActivities.length },
                 { key: 'task_completed', label: 'Done', count: shareableActivities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_updated', label: 'Updates', count: shareableActivities.filter(a => a.type === 'project_updated').length },
-                { key: 'milestone_reached', label: 'Milestones', count: shareableActivities.filter(a => a.type === 'milestone_reached').length }
+                { key: 'customer_updated', label: 'Updates', count: shareableActivities.filter(a => a.type === 'customer_updated').length },
+                { key: 'subtask_completed', label: 'Subtasks', count: shareableActivities.filter(a => a.type === 'subtask_completed').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -178,8 +178,8 @@ const CustomerActivity = () => {
               {[
                 { key: 'all', label: 'All', count: shareableActivities.length },
                 { key: 'task_completed', label: 'Done', count: shareableActivities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_updated', label: 'Updates', count: shareableActivities.filter(a => a.type === 'project_updated').length },
-                { key: 'milestone_reached', label: 'Milestones', count: shareableActivities.filter(a => a.type === 'milestone_reached').length }
+                { key: 'customer_updated', label: 'Updates', count: shareableActivities.filter(a => a.type === 'customer_updated').length },
+                { key: 'subtask_completed', label: 'Subtasks', count: shareableActivities.filter(a => a.type === 'subtask_completed').length }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}

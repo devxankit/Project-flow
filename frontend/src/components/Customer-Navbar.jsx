@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { 
-  FolderKanban, 
+  Building2, 
   CheckSquare, 
   Activity, 
   BarChart3, 
@@ -31,7 +31,7 @@ const CustomerNavbar = () => {
   }, []);
 
   const navigationItems = [
-    { name: 'My Projects', icon: FolderKanban, href: '/customer-dashboard', key: 'dashboard' },
+    { name: 'My Customers', icon: Building2, href: '/customer-dashboard', key: 'dashboard' },
     { name: 'Requests', icon: CheckSquare, href: '/customer-task-requests', key: 'task-requests' },
     { name: 'Activity', icon: Activity, href: '/customer-activity', key: 'activity' },
     { name: 'Files', icon: FileText, href: '/customer-files', key: 'files' },

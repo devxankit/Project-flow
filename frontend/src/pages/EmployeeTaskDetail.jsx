@@ -20,13 +20,17 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api, { commentApi } from '../utils/api';
+import { taskApi, commentApi, handleApiError } from '../utils/api';
 
 const EmployeeTaskDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Get customerId from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const customerId = urlParams.get('customerId');
   
   const [timeLeft, setTimeLeft] = useState('');
   const [newComment, setNewComment] = useState('');
@@ -43,18 +47,18 @@ const EmployeeTaskDetail = () => {
   const fetchTask = async () => {
     try {
       setLoading(true);
-      const response = await api.employee.getTask(id);
+      const response = await taskApi.getTask(id, customerId);
       
-      if (response.data && response.data.success) {
-        setTask(response.data.data?.task);
+      if (response.success) {
+        setTask(response.data);
       } else {
         toast.error('Error', 'Task not found or access denied');
-        navigate('/employee-dashboard');
+        navigate('/employee-customers');
       }
     } catch (error) {
       console.error('Error fetching task:', error);
-      toast.error('Error', 'Failed to load task details');
-      navigate('/employee-dashboard');
+      handleApiError(error, toast);
+      navigate('/employee-customers');
     } finally {
       setLoading(false);
     }
@@ -301,11 +305,11 @@ const EmployeeTaskDetail = () => {
           {/* Back Button */}
           <div className="mb-6">
             <button 
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(customerId ? `/employee-customer-details/${customerId}` : '/employee-customers')}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">Back</span>
+              <span className="text-sm font-medium">Back to Customer</span>
             </button>
           </div>
 
@@ -495,13 +499,18 @@ const EmployeeTaskDetail = () => {
                   </div>
                   <div className="flex items-center space-x-2">
                     <button 
-                      onClick={() => window.open(attachment.url, '_blank')}
+                      onClick={() => window.open(`/api/files/task/${task._id}/customer/${task.customer}/attachment/${attachment._id}/download`, '_blank')}
                       className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <Eye className="h-4 w-4" />
                     </button>
                     <button 
-                      onClick={() => window.open(attachment.url, '_blank')}
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = `/api/files/task/${task._id}/customer/${task.customer}/attachment/${attachment._id}/download`;
+                        link.download = attachment.originalName;
+                        link.click();
+                      }}
                       className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                     >
                       <Download className="h-4 w-4" />

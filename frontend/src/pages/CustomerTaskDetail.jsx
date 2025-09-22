@@ -20,7 +20,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../utils/api';
+import { taskApi, commentApi, handleApiError } from '../utils/api';
 
 const CustomerTaskDetail = () => {
   const { id } = useParams();
@@ -33,6 +33,10 @@ const CustomerTaskDetail = () => {
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(true);
   const [taskData, setTaskData] = useState(null);
+  
+  // Get customerId from URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const customerId = urlParams.get('customerId');
 
   // Task data is now fetched from API
 
@@ -41,26 +45,26 @@ const CustomerTaskDetail = () => {
     const fetchTaskData = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/customer/tasks/${id}`);
-        if (response.data.success) {
-          setTaskData(response.data.data);
+        const response = await taskApi.getTask(id, customerId);
+        if (response.success) {
+          setTaskData(response.data);
         } else {
           toast.error('Error', 'Task not found');
           navigate('/customer-dashboard');
         }
       } catch (error) {
         console.error('Error fetching task data:', error);
-        toast.error('Error', 'Failed to load task data');
+        handleApiError(error, toast);
         navigate('/customer-dashboard');
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
+    if (id && customerId) {
       fetchTaskData();
     }
-  }, [id, navigate]);
+  }, [id, customerId, navigate, toast]);
 
   // Countdown logic - moved before early returns to maintain hook order
   useEffect(() => {
@@ -224,7 +228,7 @@ const CustomerTaskDetail = () => {
     for (const file of files) {
       try {
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('attachments', file);
         
         const response = await api.post(`/customer/tasks/${id}/files`, formData, {
           headers: {
@@ -330,11 +334,11 @@ const CustomerTaskDetail = () => {
           {/* Back Button */}
           <div className="mb-6">
             <button 
-              onClick={() => navigate(-1)}
+              onClick={() => navigate(customerId ? `/customer-details/${customerId}` : '/customer-dashboard')}
               className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">Back</span>
+              <span className="text-sm font-medium">Back to Customer</span>
             </button>
           </div>
 

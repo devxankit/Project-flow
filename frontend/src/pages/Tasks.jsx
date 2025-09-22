@@ -33,15 +33,10 @@ const Tasks = () => {
     try {
       setIsLoading(true);
       
-      // Check if function exists
-      if (typeof taskApi.getAllTasks !== 'function') {
-        console.error('getAllTasks function not found, available functions:', Object.keys(taskApi || {}));
-        throw new Error('getAllTasks function not found in taskApi');
-      }
-      
+      // Load all tasks using the updated API
       const response = await taskApi.getAllTasks();
       if (response.success) {
-        setTasks(response.data.tasks || []);
+        setTasks(response.data || []);
       } else {
         toast.error('Error', response.message || 'Failed to load tasks');
       }
@@ -202,7 +197,7 @@ const Tasks = () => {
               {filteredTasks.map((task) => (
               <div 
                 key={task._id} 
-                onClick={() => navigate(`/pm-task/${task._id}?projectId=${task.project?._id || task.project}`)}
+                onClick={() => navigate(`/pm-task/${task._id}?customerId=${task.customer?._id || task.customer}`)}
                 className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
               >
                 {/* Magic UI Border Effect */}
@@ -246,14 +241,11 @@ const Tasks = () => {
                   </span>
                 </div>
 
-                {/* Project & Milestone */}
+                {/* Customer */}
                 <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center space-x-1 text-gray-600">
-                      <span className="text-primary font-semibold">{task.project?.name || 'No Project'}</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-gray-600">
-                      <span className="text-primary font-semibold">{task.milestone?.name || 'No Milestone'}</span>
+                      <span className="text-primary font-semibold">{task.customer?.name || 'No Customer'}</span>
                     </div>
                   </div>
                 </div>

@@ -41,14 +41,14 @@ const EmployeeProjectDetails = () => {
     const fetchProjectDetails = async () => {
       try {
         setLoading(true);
-        const response = await api.employee.getProjectDetails(id);
+        const response = await api.employee.getCustomerDetails(id);
         
         if (response.data && response.data.success) {
           setProject(response.data.data.project);
           setMilestones(response.data.data.milestones || []);
         } else {
           toast.error('Error', 'Project not found or access denied');
-          navigate('/employee-projects');
+          navigate('/employee-customers');
         }
       } catch (error) {
         console.error('Error fetching project details:', error);

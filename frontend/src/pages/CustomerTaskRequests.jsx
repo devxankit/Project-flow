@@ -33,9 +33,9 @@ const CustomerTaskRequests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [milestones, setMilestones] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [tasks, setTasks] = useState([]);
 
   // Fetch task requests
   useEffect(() => {
@@ -58,21 +58,21 @@ const CustomerTaskRequests = () => {
     fetchTaskRequests();
   }, []);
 
-  // Fetch projects data for the task request form
+  // Fetch customers data for the task request form
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchCustomers = async () => {
       try {
-        const response = await api.get('/customer/projects');
+        const response = await api.get('/customer/customers');
         if (response.data.success) {
-          setProjects(response.data.data.projects || []);
+          setCustomers(response.data.data.customers || []);
         }
       } catch (error) {
-        console.error('Error fetching projects:', error);
+        console.error('Error fetching customers:', error);
         // Don't show error toast as this is not critical for the main functionality
       }
     };
 
-    fetchProjects();
+    fetchCustomers();
   }, []);
 
   // Filter and search
@@ -87,10 +87,10 @@ const CustomerTaskRequests = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(request => {
-        const projectName = typeof request.project === 'string' ? request.project : request.project?.name || '';
+        const customerName = typeof request.customer === 'string' ? request.customer : request.customer?.name || '';
         return request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-               projectName.toLowerCase().includes(searchTerm.toLowerCase());
+               customerName.toLowerCase().includes(searchTerm.toLowerCase());
       });
     }
 
@@ -177,8 +177,8 @@ const CustomerTaskRequests = () => {
   // Handle closing the task request form
   const handleCloseForm = () => {
     setIsTaskRequestFormOpen(false);
-    setSelectedProject(null);
-    setMilestones([]);
+    setSelectedCustomer(null);
+    setTasks([]);
   };
 
   // Handle task request form submission
@@ -205,7 +205,7 @@ const CustomerTaskRequests = () => {
   // Fetch milestones for a specific project
   const fetchMilestonesForProject = async (projectId) => {
     try {
-      const response = await api.get(`/milestones/project/${projectId}`);
+      const response = await api.get(`/customers/${projectId}/tasks`);
       if (response.data.success) {
         setMilestones(response.data.data || []);
         // Close the project selection dialog and open the task request form
@@ -447,7 +447,7 @@ const CustomerTaskRequests = () => {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Select Project</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Select Customer</h2>
                 <button
                   onClick={handleCloseForm}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -456,25 +456,25 @@ const CustomerTaskRequests = () => {
                 </button>
               </div>
               
-              {!projects || !Array.isArray(projects) || projects.length === 0 ? (
+              {!customers || !Array.isArray(customers) || customers.length === 0 ? (
                 <div className="text-center py-8">
                   <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-600">No projects available for task requests.</p>
+                  <p className="text-gray-600">No customers available for task requests.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {projects.map((project) => (
+                  {customers.map((customer) => (
                     <button
-                      key={project._id}
+                      key={customer._id}
                       onClick={() => {
-                        setSelectedProject(project);
-                        // Fetch milestones for the selected project
-                        fetchMilestonesForProject(project._id);
+                        setSelectedCustomer(customer);
+                        // Fetch tasks for the selected customer
+                        fetchTasksForCustomer(customer._id);
                       }}
                       className="w-full p-4 text-left border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors"
                     >
-                      <h3 className="font-medium text-gray-900">{project.name}</h3>
-                      <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                      <h3 className="font-medium text-gray-900">{customer.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{customer.description}</p>
                     </button>
                   ))}
                 </div>
@@ -485,17 +485,17 @@ const CustomerTaskRequests = () => {
       )}
 
       {/* Task Request Form Dialog */}
-      {selectedProject && (
+      {selectedCustomer && (
         <TaskRequestForm
-          isOpen={!!selectedProject}
+          isOpen={!!selectedCustomer}
           onClose={() => {
-            setSelectedProject(null);
-            setMilestones([]);
+            setSelectedCustomer(null);
+            setTasks([]);
           }}
           onSubmit={handleTaskRequestSubmit}
-          projectId={selectedProject._id}
-          projectName={selectedProject.name}
-          milestones={milestones}
+          customerId={selectedCustomer._id}
+          customerName={selectedCustomer.name}
+          tasks={tasks}
         />
       )}
     </div>

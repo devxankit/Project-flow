@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { 
-  FolderKanban, 
+  Building2, 
   CheckSquare, 
   Activity, 
   BarChart3, 
@@ -32,7 +32,7 @@ const PMNavbar = () => {
 
   const navigationItems = [
     { name: 'Dashboard', icon: BarChart3, href: '/pm-dashboard', key: 'dashboard' },
-    { name: 'Projects', icon: FolderKanban, href: '/projects', key: 'projects' },
+    { name: 'Customers', icon: Building2, href: '/customers', key: 'customers' },
     { name: 'Tasks', icon: CheckSquare, href: '/tasks', key: 'tasks' },
     { name: 'Requests', icon: MessageSquare, href: '/task-requests', key: 'requests' },
     { name: 'Activity', icon: Activity, href: '/activity', key: 'activity' },

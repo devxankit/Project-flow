@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, User, FolderKanban, Loader2 } from 'lucide-react';
+import { CheckSquare, Clock, AlertTriangle, TrendingUp, Calendar, User, Building2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
@@ -18,6 +18,7 @@ const EmployeeDashboard = () => {
   // State management
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
+  const [customers, setCustomers] = useState([]);
   const [tasks, setTasks] = useState([]);
 
   const [filter, setFilter] = useState('all');
@@ -31,6 +32,7 @@ const EmployeeDashboard = () => {
         
         if (response.data && response.data.success) {
           setDashboardData(response.data.data);
+          setCustomers(response.data.data?.assignedCustomers || []);
           setTasks(response.data.data?.recentTasks || []);
         } else {
           console.error('Dashboard API Error:', response.data);
@@ -432,15 +434,12 @@ const EmployeeDashboard = () => {
                     {task.description}
                   </p>
 
-                  {/* Project & Milestone */}
+                  {/* Customer */}
                   <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-1 text-gray-600">
-                        <FolderKanban className="h-3 w-3" />
-                        <span className="text-primary font-semibold">{task.project?.name || 'Unknown Project'}</span>
-                      </div>
-                      <div className="flex items-center space-x-1 text-gray-600">
-                        <span className="text-primary font-semibold">{task.milestone?.title || 'Unknown Milestone'}</span>
+                        <Building2 className="h-3 w-3" />
+                        <span className="text-primary font-semibold">{task.customer?.name || 'Unknown Customer'}</span>
                       </div>
                     </div>
                   </div>

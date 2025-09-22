@@ -38,7 +38,7 @@ const CustomerProjectDetails = () => {
     const fetchProjectData = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/customer/projects/${id}`);
+        const response = await api.customer.getCustomerDetails(id);
         if (response.data.success) {
           setProjectData(response.data.data);
         } else {

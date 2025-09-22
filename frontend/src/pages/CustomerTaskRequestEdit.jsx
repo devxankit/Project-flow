@@ -37,7 +37,7 @@ const CustomerTaskRequestEdit = () => {
             const projectId = typeof request.project === 'string' ? request.project : request.project._id;
             setMilestonesLoading(true);
             try {
-              const milestonesResponse = await api.get(`/milestones/project/${projectId}`);
+              const milestonesResponse = await api.get(`/customers/${projectId}/tasks`);
               if (milestonesResponse.data.success) {
                 setMilestones(milestonesResponse.data.data || []);
               } else {

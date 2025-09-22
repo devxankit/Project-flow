@@ -6,9 +6,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import PublicRoute from './components/PublicRoute';
 import PMDashboard from './pages/PM-dashboard';
-import Projects from './pages/Projects';
-import ProjectDetails from './pages/ProjectDetails';
-import ProjectForm from './components/ProjectForm';
+import Customers from './pages/Customers';
+import CustomerDetails from './pages/CustomerDetails';
+import CustomerForm from './components/CustomerForm';
 import Tasks from './pages/Tasks';
 import ActivityPage from './pages/Activity';
 import PMProfile from './pages/PM-Profile';
@@ -17,13 +17,12 @@ import EmployeeManagement from './pages/EmployeeManagement';
 import Auth from './pages/Auth';
 // PM Module imports
 import PMTaskDetail from './pages/PMTaskDetail';
-import PMMilestoneDetail from './pages/PMMilestoneDetail';
+// Note: PMMilestoneDetail removed - replaced with PMTaskDetail
 // Customer Module imports
 import CustomerDashboard from './pages/CustomerDashboard';
-import CustomerProjectDetails from './pages/CustomerProjectDetails';
 import CustomerActivity from './pages/CustomerActivity';
 import CustomerTaskDetail from './pages/CustomerTaskDetail';
-import CustomerMilestoneDetail from './pages/CustomerMilestoneDetail';
+// Note: CustomerMilestoneDetail removed - replaced with CustomerTaskDetail
 import CustomerFiles from './pages/CustomerFiles';
 import CustomerProfile from './pages/CustomerProfile';
 import CustomerTaskRequests from './pages/CustomerTaskRequests';
@@ -32,9 +31,9 @@ import CustomerTaskRequestEdit from './pages/CustomerTaskRequestEdit';
 // Employee Module imports
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeTaskDetail from './pages/EmployeeTaskDetail';
-import EmployeeProjects from './pages/EmployeeProjects';
-import EmployeeProjectDetails from './pages/EmployeeProjectDetails';
-import EmployeeMilestoneDetail from './pages/EmployeeMilestoneDetail';
+import EmployeeCustomers from './pages/EmployeeCustomers';
+import EmployeeCustomerDetails from './pages/EmployeeCustomerDetails';
+// Note: EmployeeMilestoneDetail removed - replaced with EmployeeTaskDetail
 import EmployeeActivity from './pages/EmployeeActivity';
 import EmployeeProfile from './pages/EmployeeProfile';
 import EmployeeFiles from './pages/EmployeeFiles';
@@ -64,24 +63,24 @@ function App() {
                   <PMDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/projects" element={
+              <Route path="/customers" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <Projects />
+                  <Customers />
                 </ProtectedRoute>
               } />
-              <Route path="/project/:id" element={
+              <Route path="/customer/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <ProjectDetails />
+                  <CustomerDetails />
                 </ProtectedRoute>
               } />
-              <Route path="/project-details/:id" element={
+              <Route path="/customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <ProjectDetails />
+                  <CustomerDetails />
                 </ProtectedRoute>
               } />
-              <Route path="/projects/edit/:id" element={
+              <Route path="/customers/edit/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <ProjectForm />
+                  <CustomerForm />
                 </ProtectedRoute>
               } />
               <Route path="/tasks" element={
@@ -122,7 +121,7 @@ function App() {
               } />
               <Route path="/pm-milestone/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <PMMilestoneDetail />
+                  <PMTaskDetail />
                 </ProtectedRoute>
               } />
           
@@ -132,9 +131,9 @@ function App() {
                   <CustomerDashboard />
                 </ProtectedRoute>
               } />
-              <Route path="/customer-project/:id" element={
+              <Route path="/customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['customer']}>
-                  <CustomerProjectDetails />
+                  <CustomerDetails />
                 </ProtectedRoute>
               } />
               <Route path="/customer-activity" element={
@@ -149,7 +148,7 @@ function App() {
               } />
               <Route path="/customer-milestone/:id" element={
                 <ProtectedRoute allowedRoles={['customer']}>
-                  <CustomerMilestoneDetail />
+                  <CustomerTaskDetail />
                 </ProtectedRoute>
               } />
               <Route path="/customer-files" element={
@@ -189,19 +188,19 @@ function App() {
                   <EmployeeTaskDetail />
                 </ProtectedRoute>
               } />
-              <Route path="/employee-projects" element={
+              <Route path="/employee-customers" element={
                 <ProtectedRoute allowedRoles={['employee']}>
-                  <EmployeeProjects />
+                  <EmployeeCustomers />
                 </ProtectedRoute>
               } />
-              <Route path="/employee-project/:id" element={
+              <Route path="/employee-customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['employee']}>
-                  <EmployeeProjectDetails />
+                  <EmployeeCustomerDetails />
                 </ProtectedRoute>
               } />
               <Route path="/employee/milestone-details/:id" element={
                 <ProtectedRoute allowedRoles={['employee']}>
-                  <EmployeeMilestoneDetail />
+                  <EmployeeTaskDetail />
                 </ProtectedRoute>
               } />
               <Route path="/employee-activity" element={

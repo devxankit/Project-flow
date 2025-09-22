@@ -33,7 +33,7 @@ import PMNavbar from '../components/PM-Navbar';
 const PMTaskDetail = () => {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
-  const projectId = searchParams.get('projectId');
+  const customerId = searchParams.get('customerId');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -45,24 +45,24 @@ const PMTaskDetail = () => {
   const [newComment, setNewComment] = useState('');
 
   useEffect(() => {
-    if (id && projectId) {
+    if (id && customerId) {
       loadTask();
     } else {
-      toast.error('Error', 'Missing task or project ID');
-      navigate('/projects');
+      toast.error('Error', 'Missing task or customer ID');
+      navigate('/customers');
     }
-  }, [id, projectId]);
+  }, [id, customerId]);
 
   const loadTask = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading task with ID:', id, 'Project ID:', projectId, 'Type:', typeof projectId);
+      console.log('Loading task with ID:', id, 'Customer ID:', customerId, 'Type:', typeof customerId);
       
-      // Ensure projectId is a string
-      const projectIdString = String(projectId);
-      console.log('Project ID as string:', projectIdString);
+      // Ensure customerId is a string
+      const customerIdString = String(customerId);
+      console.log('Customer ID as string:', customerIdString);
       
-      const response = await taskApi.getTask(id, projectIdString);
+      const response = await taskApi.getTask(id, customerIdString);
       console.log('Task API response:', response);
       
       if (response.success) {
@@ -70,7 +70,7 @@ const PMTaskDetail = () => {
       } else {
         console.error('Task API error:', response.message);
         toast.error('Error', response.message || 'Failed to load task');
-        navigate('/projects');
+        navigate('/customers');
       }
     } catch (error) {
       console.error('Error loading task:', error);
@@ -84,11 +84,11 @@ const PMTaskDetail = () => {
   const handleDeleteTask = async () => {
     try {
       setIsDeleting(true);
-      const response = await taskApi.deleteTask(id, projectId);
+      const response = await taskApi.deleteTask(id, customerId);
       
       if (response.success) {
         toast.success('Success', 'Task deleted successfully');
-        navigate(`/project-details/${projectId}`);
+        navigate(`/customer-details/${customerId}`);
       } else {
         toast.error('Error', response.message || 'Failed to delete task');
       }
@@ -233,8 +233,8 @@ const PMTaskDetail = () => {
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Task Not Found</h2>
             <p className="text-gray-600 mb-4">The task you're looking for doesn't exist or has been deleted.</p>
-            <Button onClick={() => navigate('/projects')} className="bg-primary hover:bg-primary-dark">
-              Back to Projects
+            <Button onClick={() => navigate('/customers')} className="bg-primary hover:bg-primary-dark">
+              Back to Customers
             </Button>
           </div>
         </div>
@@ -251,11 +251,11 @@ const PMTaskDetail = () => {
         <div className="mb-6 sm:mb-8">
           <Button
             variant="ghost"
-            onClick={() => navigate(`/project-details/${projectId}`)}
+            onClick={() => navigate(`/customer-details/${customerId}`)}
             className="mb-4 text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Project
+            Back to Customer
           </Button>
           
           {/* Header Section - Responsive Layout */}
@@ -283,7 +283,7 @@ const PMTaskDetail = () => {
               <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => navigate(`/edit-task/${id}?projectId=${projectId}`)}
+                  onClick={() => navigate(`/edit-task/${id}?customerId=${customerId}`)}
                   className="text-gray-600 hover:text-gray-900 flex-1 sm:flex-none"
                 >
                   <Edit className="h-4 w-4 mr-2" />
@@ -339,7 +339,7 @@ const PMTaskDetail = () => {
                       </div>
                       <div className="flex items-center space-x-2">
                         <a 
-                          href={attachment.url} 
+                          href={`/api/files/task/${task._id}/customer/${task.customer}/attachment/${attachment._id}/download`}
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -347,7 +347,7 @@ const PMTaskDetail = () => {
                           <Eye className="h-4 w-4" />
                         </a>
                         <a 
-                          href={attachment.url} 
+                          href={`/api/files/task/${task._id}/customer/${task.customer}/attachment/${attachment._id}/download`}
                           download={attachment.originalName}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         >

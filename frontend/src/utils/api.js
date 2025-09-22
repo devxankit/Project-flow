@@ -109,11 +109,15 @@ const handleApiResponse = async (response) => {
   if (!response.ok) {
     // Handle authentication errors
     if (response.status === 401 || response.status === 403) {
-      // Clear invalid token and redirect to login
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/auth';
-      throw new Error('Authentication failed. Please login again.');
+      // Only redirect if this is NOT a login attempt
+      // Login attempts should not redirect, they should show error messages
+      if (!response.url.includes('/auth/login')) {
+        // Clear invalid token and redirect to login
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/';
+        throw new Error('Authentication failed. Please login again.');
+      }
     }
     
     // Handle validation errors (400 Bad Request)
@@ -266,10 +270,11 @@ const getAuthHeadersForUpload = () => {
 };
 
 // Project Management API functions
-export const projectApi = {
-  // Get all projects with pagination and filters
-  getAllProjects: async (params = {}) => {
-    const queryKey = `projects-${JSON.stringify(params)}`;
+// Customer API functions (replaces projectApi)
+export const customerApi = {
+  // Get all customers with pagination and filters
+  getCustomers: async (params = {}) => {
+    const queryKey = `customers-${JSON.stringify(params)}`;
     return throttleRequest(queryKey, async () => {
       const queryParams = new URLSearchParams();
       
@@ -280,7 +285,7 @@ export const projectApi = {
         }
       });
       
-      const url = `${API_BASE_URL}/projects${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      const url = `${API_BASE_URL}/customers${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       
       const response = await fetch(url, {
         method: 'GET',
@@ -291,10 +296,10 @@ export const projectApi = {
     });
   },
 
-  // Get single project by ID
-  getProjectById: async (projectId) => {
-    return throttleRequest(`project-${projectId}`, async () => {
-      const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+  // Get single customer by ID
+  getCustomerById: async (customerId) => {
+    return throttleRequest(`customer-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -303,31 +308,31 @@ export const projectApi = {
     });
   },
 
-  // Create new project
-  createProject: async (projectData) => {
-    const response = await fetch(`${API_BASE_URL}/projects`, {
+  // Create new customer
+  createCustomer: async (customerData) => {
+    const response = await fetch(`${API_BASE_URL}/customers`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify(projectData)
+      body: JSON.stringify(customerData)
     });
     
     return handleApiResponse(response);
   },
 
-  // Update project
-  updateProject: async (projectId, projectData) => {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+  // Update customer
+  updateCustomer: async (customerId, customerData) => {
+    const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify(projectData)
+      body: JSON.stringify(customerData)
     });
     
     return handleApiResponse(response);
   },
 
-  // Delete project
-  deleteProject: async (projectId) => {
-    const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+  // Delete customer
+  deleteCustomer: async (customerId) => {
+    const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
@@ -335,9 +340,9 @@ export const projectApi = {
     return handleApiResponse(response);
   },
 
-  // Get project statistics
-  getProjectStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/projects/stats`, {
+  // Get customer statistics
+  getCustomerStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/customers/stats`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -345,9 +350,9 @@ export const projectApi = {
     return handleApiResponse(response);
   },
 
-  // Get users for project assignment
-  getUsersForProject: async (type = null) => {
-    const url = type ? `${API_BASE_URL}/projects/users?type=${type}` : `${API_BASE_URL}/projects/users`;
+  // Get users for customer assignment
+  getUsersForCustomer: async (type = null) => {
+    const url = type ? `${API_BASE_URL}/customers/users?type=${type}` : `${API_BASE_URL}/customers/users`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -355,48 +360,40 @@ export const projectApi = {
     });
     
     return handleApiResponse(response);
+  },
+
+  // Get all tasks for a customer
+  getCustomerTasks: async (customerId) => {
+    return throttleRequest(`customer-tasks-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}/tasks`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
   }
 };
 
-// Task API functions
+// Note: projectApi removed - replaced with customerApi
+
+// Task API functions (updated for customer structure)
 export const taskApi = {
   // Create a new task
-  createTask: async (taskData, attachments = []) => {
-    if (attachments.length > 0) {
-      const formData = new FormData();
-      formData.append('taskData', JSON.stringify(taskData));
-      attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
-      
-      const token = localStorage.getItem('token');
-      const headers = {};
-      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
-        method: 'POST',
-        headers,
-        body: formData
-      });
-      
-      return handleApiResponse(response);
-    } else {
-      const response = await fetch(`${API_BASE_URL}/tasks`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(taskData)
-      });
-      
-      return handleApiResponse(response);
-    }
+  createTask: async (taskData) => {
+    const response = await fetch(`${API_BASE_URL}/tasks`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: taskData // FormData for file uploads
+    });
+    
+    return handleApiResponse(response);
   },
 
-  // Get tasks for a milestone
-  getTasksByMilestone: async (milestoneId, projectId) => {
-    return throttleRequest(`tasks-${milestoneId}-${projectId}`, async () => {
-      const response = await fetch(`${API_BASE_URL}/tasks/milestone/${milestoneId}/project/${projectId}`, {
+  // Get tasks for a customer
+  getTasksByCustomer: async (customerId) => {
+    return throttleRequest(`tasks-customer-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/tasks/customer/${customerId}`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -406,8 +403,8 @@ export const taskApi = {
   },
 
   // Get single task
-  getTask: async (taskId, projectId) => {
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/project/${projectId}`, {
+  getTask: async (taskId, customerId) => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -416,41 +413,19 @@ export const taskApi = {
   },
 
   // Update task
-  updateTask: async (taskId, projectId, taskData, attachments = []) => {
-    if (attachments.length > 0) {
-      const formData = new FormData();
-      formData.append('taskData', JSON.stringify(taskData));
-      attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
-      
-      const token = localStorage.getItem('token');
-      const headers = {};
-      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/project/${projectId}`, {
-        method: 'PUT',
-        headers,
-        body: formData
-      });
-      
-      return handleApiResponse(response);
-    } else {
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/project/${projectId}`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(taskData)
-      });
-      
-      return handleApiResponse(response);
-    }
+  updateTask: async (taskId, customerId, taskData) => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: taskData // FormData for file uploads
+    });
+    
+    return handleApiResponse(response);
   },
 
   // Delete task
-  deleteTask: async (taskId, projectId) => {
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/project/${projectId}`, {
+  deleteTask: async (taskId, customerId) => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
@@ -459,8 +434,8 @@ export const taskApi = {
   },
 
   // Get team members for task assignment
-  getTeamMembersForTask: async (projectId) => {
-    const response = await fetch(`${API_BASE_URL}/tasks/team/${projectId}`, {
+  getTeamMembersForTask: async (customerId) => {
+    const response = await fetch(`${API_BASE_URL}/tasks/team/${customerId}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -500,178 +475,7 @@ export const taskApi = {
   }
 };
 
-// Milestone Management API functions
-export const milestoneApi = {
-  // Get milestones for a project
-  getMilestonesByProject: async (projectId) => {
-    return throttleRequest(`milestones-${projectId}`, async () => {
-      const response = await fetch(`${API_BASE_URL}/milestones/project/${projectId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      return handleApiResponse(response);
-    });
-  },
-
-  // Get single milestone
-  getMilestone: async (milestoneId, projectId) => {
-    const response = await fetch(`${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}`, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    });
-    
-    return handleApiResponse(response);
-  },
-
-  // Create new milestone
-  createMilestone: async (milestoneData, attachments = []) => {
-    if (attachments.length > 0) {
-      // Use FormData if there are attachments
-      const formData = new FormData();
-      
-      // Add milestone data as JSON string
-      formData.append('milestoneData', JSON.stringify(milestoneData));
-      
-      // Add attachments
-      attachments.forEach((file) => {
-        formData.append('attachments', file);
-      });
-      
-      const response = await fetch(`${API_BASE_URL}/milestones`, {
-        method: 'POST',
-        headers: getAuthHeadersForUpload(),
-        body: formData
-      });
-      
-      return handleApiResponse(response);
-    } else {
-      // Use JSON if no attachments
-      const response = await fetch(`${API_BASE_URL}/milestones`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(milestoneData)
-      });
-      
-      return handleApiResponse(response);
-    }
-  },
-
-  // Update milestone
-  updateMilestone: async (milestoneId, projectId, milestoneData, attachments = []) => {
-    const formData = new FormData();
-    
-    // Add milestone data
-    Object.entries(milestoneData).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        formData.append(key, value);
-      }
-    });
-    
-    // Add attachments
-    attachments.forEach((file, index) => {
-      formData.append('attachments', file);
-    });
-    
-    const response = await fetch(`${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}`, {
-      method: 'PUT',
-      headers: getAuthHeadersForUpload(),
-      body: formData
-    });
-    
-    return handleApiResponse(response);
-  },
-
-  // Delete milestone
-  deleteMilestone: async (milestoneId, projectId) => {
-    const response = await fetch(`${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders()
-    });
-    
-    return handleApiResponse(response);
-  },
-
-  // Get team members for milestone assignment
-  getTeamMembersForMilestone: async (projectId) => {
-    const response = await fetch(`${API_BASE_URL}/milestones/team/${projectId}`, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    });
-    
-    return handleApiResponse(response);
-  },
-
-  // Debug milestone attachment details
-  debugAttachment: async (milestoneId, projectId, attachmentId) => {
-    const url = `${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}/attachment/${attachmentId}/debug`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    });
-    
-    return handleApiResponse(response);
-  },
-
-  // Download milestone attachment
-  downloadAttachment: async (milestoneId, projectId, attachmentId) => {
-    const url = `${API_BASE_URL}/milestones/${milestoneId}/project/${projectId}/attachment/${attachmentId}/download`;
-    
-    try {
-      // Fetch the file directly from our backend (which proxies from Cloudinary)
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('File access denied. Please check your permissions.');
-        } else if (response.status === 404) {
-          throw new Error('File not found. The file may have been moved or deleted.');
-        } else {
-          throw new Error(`Download failed: ${response.status} ${response.statusText}`);
-        }
-      }
-      
-      // Get the filename from the Content-Disposition header
-      const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = 'download';
-      
-      if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
-      }
-      
-      // Convert response to blob
-      const blob = await response.blob();
-      
-      // Create download link
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = filename;
-      link.style.display = 'none';
-      
-      // Trigger download
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up blob URL
-      setTimeout(() => {
-        window.URL.revokeObjectURL(blobUrl);
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Download error:', error);
-      throw error;
-    }
-  }
-};
+// Note: milestoneApi removed - replaced with taskApi
 
 // Default export - axios-like interface for profile API calls
 const api = {
@@ -786,15 +590,15 @@ const api = {
       return api.get('/employee/dashboard');
     },
 
-    // Get employee assigned projects
-    getProjects: async (params = {}) => {
+    // Get employee assigned customers
+    getCustomers: async (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
-      return api.get(`/employee/projects${queryString ? `?${queryString}` : ''}`);
+      return api.get(`/employee/customers${queryString ? `?${queryString}` : ''}`);
     },
 
-    // Get single project details for employee
-    getProjectDetails: async (projectId) => {
-      return api.get(`/employee/projects/${projectId}`);
+    // Get single customer details for employee
+    getCustomerDetails: async (customerId) => {
+      return api.get(`/employee/customers/${customerId}`);
     },
 
     // Get employee assigned tasks
@@ -833,15 +637,15 @@ const api = {
       return api.get('/customer/dashboard');
     },
 
-    // Get customer projects
-    getProjects: async (params = {}) => {
+    // Get customer records
+    getCustomers: async (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
-      return api.get(`/customer/projects${queryString ? `?${queryString}` : ''}`);
+      return api.get(`/customers${queryString ? `?${queryString}` : ''}`);
     },
 
-    // Get single project details for customer
-    getProjectDetails: async (projectId) => {
-      return api.get(`/customer/projects/${projectId}`);
+    // Get single customer details
+    getCustomerDetails: async (customerId) => {
+      return api.get(`/customers/${customerId}`);
     },
 
     // Get customer activity feed
@@ -858,26 +662,107 @@ const api = {
   }
 };
 
+// Subtask API functions
+export const subtaskApi = {
+  // Create a new subtask
+  createSubtask: async (subtaskData) => {
+    const response = await fetch(`${API_BASE_URL}/subtasks`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: subtaskData // FormData for file uploads
+    });
+    
+    return handleApiResponse(response);
+  },
+
+  // Get subtasks for a task
+  getSubtasksByTask: async (taskId, customerId) => {
+    return throttleRequest(`subtasks-task-${taskId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/subtasks/task/${taskId}/customer/${customerId}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  // Get single subtask
+  getSubtask: async (subtaskId, taskId, customerId) => {
+    return throttleRequest(`subtask-${subtaskId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  // Update subtask
+  updateSubtask: async (subtaskId, taskId, customerId, subtaskData) => {
+    const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: subtaskData // FormData for file uploads
+    });
+    
+    return handleApiResponse(response);
+  },
+
+  // Delete subtask
+  deleteSubtask: async (subtaskId, taskId, customerId) => {
+    const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    
+    return handleApiResponse(response);
+  },
+
+  // Get subtask statistics
+  getSubtaskStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/subtasks/stats`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    return handleApiResponse(response);
+  },
+
+  // Get team members for subtask assignment
+  getTeamMembersForSubtask: async (customerId) => {
+    return throttleRequest(`subtask-team-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/tasks/team/${customerId}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  }
+};
+
 // Comment API functions
 export const commentApi = {
   // Add comment to task (for PM)
   addTaskComment: async (taskId, comment) => {
-    return api.post(`/projects/tasks/${taskId}/comments`, { comment });
+    return api.post(`/tasks/${taskId}/comments`, { comment });
   },
 
   // Delete comment from task (for PM)
   deleteTaskComment: async (taskId, commentId) => {
-    return api.delete(`/projects/tasks/${taskId}/comments/${commentId}`);
+    return api.delete(`/tasks/${taskId}/comments/${commentId}`);
   },
 
-  // Add comment to milestone (for PM)
-  addMilestoneComment: async (milestoneId, comment) => {
-    return api.post(`/projects/milestones/${milestoneId}/comments`, { comment });
+  // Add comment to subtask (for PM)
+  addSubtaskComment: async (subtaskId, comment) => {
+    return api.post(`/subtasks/${subtaskId}/comments`, { comment });
   },
 
-  // Delete comment from milestone (for PM)
-  deleteMilestoneComment: async (milestoneId, commentId) => {
-    return api.delete(`/projects/milestones/${milestoneId}/comments/${commentId}`);
+  // Delete comment from subtask (for PM)
+  deleteSubtaskComment: async (subtaskId, commentId) => {
+    return api.delete(`/subtasks/${subtaskId}/comments/${commentId}`);
   },
 
   // Add comment to task (for Employee)
@@ -890,14 +775,14 @@ export const commentApi = {
     return api.delete(`/employee/tasks/${taskId}/comments/${commentId}`);
   },
 
-  // Add comment to milestone (for Employee)
-  addEmployeeMilestoneComment: async (milestoneId, comment) => {
-    return api.post(`/employee/milestones/${milestoneId}/comments`, { comment });
+  // Add comment to subtask (for Employee)
+  addEmployeeSubtaskComment: async (subtaskId, comment) => {
+    return api.post(`/employee/subtasks/${subtaskId}/comments`, { comment });
   },
 
-  // Delete comment from milestone (for Employee)
-  deleteEmployeeMilestoneComment: async (milestoneId, commentId) => {
-    return api.delete(`/employee/milestones/${milestoneId}/comments/${commentId}`);
+  // Delete comment from subtask (for Employee)
+  deleteEmployeeSubtaskComment: async (subtaskId, commentId) => {
+    return api.delete(`/employee/subtasks/${subtaskId}/comments/${commentId}`);
   },
 
   // Add comment to task (for Customer)
@@ -910,14 +795,14 @@ export const commentApi = {
     return api.delete(`/customer/tasks/${taskId}/comments/${commentId}`);
   },
 
-  // Add comment to milestone (for Customer)
-  addCustomerMilestoneComment: async (milestoneId, comment) => {
-    return api.post(`/customer/milestones/${milestoneId}/comments`, { comment });
+  // Add comment to subtask (for Customer)
+  addCustomerSubtaskComment: async (subtaskId, comment) => {
+    return api.post(`/customer/subtasks/${subtaskId}/comments`, { comment });
   },
 
-  // Delete comment from milestone (for Customer)
-  deleteCustomerMilestoneComment: async (milestoneId, commentId) => {
-    return api.delete(`/customer/milestones/${milestoneId}/comments/${commentId}`);
+  // Delete comment from subtask (for Customer)
+  deleteCustomerSubtaskComment: async (subtaskId, commentId) => {
+    return api.delete(`/customer/subtasks/${subtaskId}/comments/${commentId}`);
   }
 };
 
@@ -935,10 +820,10 @@ export const activityApi = {
     return api.get(`/activities/stats${queryString ? `?${queryString}` : ''}`);
   },
 
-  // Get activities for a specific project
-  getProjectActivities: async (projectId, params = {}) => {
+  // Get activities for a specific customer
+  getCustomerActivities: async (customerId, params = {}) => {
     const queryString = new URLSearchParams(params).toString();
-    return api.get(`/activities/project/${projectId}${queryString ? `?${queryString}` : ''}`);
+    return api.get(`/activities/customer/${customerId}${queryString ? `?${queryString}` : ''}`);
   },
 
   // Get a specific activity by ID

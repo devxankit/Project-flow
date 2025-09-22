@@ -50,14 +50,14 @@ const ActivityPage = () => {
   // Helper function to get activity icon
   const getActivityIcon = (type) => {
     switch (type) {
-      case 'task_completed': return CheckCircle;
-      case 'project_created': return FolderPlus;
+      case 'subtask_completed': return CheckCircle;
+      case 'customer_created': return FolderPlus;
       case 'comment_added': return MessageSquare;
       case 'task_assigned': return UserPlus;
-      case 'project_updated': return BarChart3;
+      case 'customer_updated': return BarChart3;
       case 'task_created': return Plus;
-      case 'milestone_created': return BarChart3;
-      case 'milestone_completed': return CheckCircle;
+      case 'subtask_created': return BarChart3;
+      case 'task_completed': return CheckCircle;
       case 'team_member_added': return UserPlus;
       case 'file_uploaded': return Plus;
       default: return Activity;
@@ -66,12 +66,14 @@ const ActivityPage = () => {
 
   const getActivityTypeColor = (type) => {
     switch (type) {
-      case 'task_completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'project_created': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'subtask_completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'customer_created': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'comment_added': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'task_assigned': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'project_updated': return 'bg-primary/10 text-primary border-primary/20';
+      case 'customer_updated': return 'bg-primary/10 text-primary border-primary/20';
       case 'task_created': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'subtask_created': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+      case 'task_completed': return 'bg-green-100 text-green-800 border-green-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
