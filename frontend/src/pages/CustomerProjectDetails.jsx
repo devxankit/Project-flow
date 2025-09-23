@@ -36,6 +36,9 @@ import {
   DialogFooter 
 } from '../components/magicui/dialog';
 import { Button } from '../components/magicui/button';
+import ThreeDotMenu from '../components/ThreeDotMenu';
+import CopyConfirmDialog from '../components/CopyConfirmDialog';
+import { taskApi, subtaskApi } from '../utils/api';
 
 const CustomerProjectDetails = () => {
   const { id } = useParams();
@@ -53,6 +56,14 @@ const CustomerProjectDetails = () => {
     customer: false,
     tasks: false,
     subtasks: false
+  });
+  
+  // Copy dialog states
+  const [copyDialog, setCopyDialog] = useState({
+    isOpen: false,
+    type: null, // 'task' or 'subtask'
+    item: null,
+    isLoading: false
   });
 
   // Fetch customer data
@@ -216,6 +227,91 @@ const CustomerProjectDetails = () => {
 
     return () => clearInterval(interval);
   }, [customerData?.customer?.dueDate]);
+
+  // Copy handlers
+  const handleCopyTask = (task) => {
+    setCopyDialog({
+      isOpen: true,
+      type: 'task',
+      item: task,
+      isLoading: false
+    });
+  };
+
+  const handleCopySubtask = (subtask) => {
+    setCopyDialog({
+      isOpen: true,
+      type: 'subtask',
+      item: subtask,
+      isLoading: false
+    });
+  };
+
+  const handleConfirmCopy = async () => {
+    if (!copyDialog.item) return;
+
+    setCopyDialog(prev => ({ ...prev, isLoading: true }));
+
+    try {
+      if (copyDialog.type === 'task') {
+        try {
+          const response = await taskApi.copyTask(copyDialog.item._id, id);
+          if (!response.success) {
+            toast.error('Error', response.message || 'Failed to copy task');
+            setCopyDialog({ isOpen: false, type: null, item: null, isLoading: false });
+            return;
+          }
+          toast.success('Success', 'Task copied successfully');
+        } catch (e) {
+          toast.error('Error', 'Failed to copy task');
+          setCopyDialog({ isOpen: false, type: null, item: null, isLoading: false });
+          return;
+        }
+        // Refresh after success
+        try {
+          const customerResponse = await api.get(`/customer/${id}`);
+          if (customerResponse.success) {
+            setCustomerData(customerResponse.data);
+          }
+        } catch (_) {}
+      } else if (copyDialog.type === 'subtask') {
+        const response = await subtaskApi.copySubtask(
+          copyDialog.item._id, 
+          copyDialog.item.task, 
+          id
+        );
+        if (response.success) {
+          toast.success('Success', 'Subtask copied successfully');
+          // Refresh customer data to show new subtask
+          const customerResponse = await api.get(`/customer/${id}`);
+          if (customerResponse.success) {
+            setCustomerData(customerResponse.data);
+          }
+        } else {
+          toast.error('Error', response.message || 'Failed to copy subtask');
+        }
+      }
+    } catch (error) {
+      console.error('Error copying item:', error);
+      toast.error('Error', 'Failed to copy item');
+    } finally {
+      setCopyDialog({
+        isOpen: false,
+        type: null,
+        item: null,
+        isLoading: false
+      });
+    }
+  };
+
+  const handleCloseCopyDialog = () => {
+    setCopyDialog({
+      isOpen: false,
+      type: null,
+      item: null,
+      isLoading: false
+    });
+  };
   
   // Show loading state
   if (loading) {
@@ -551,15 +647,25 @@ const CustomerProjectDetails = () => {
                   }`}>
                     {task.title}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    task.status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : task.status === 'active'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {formatStatus(task.status)}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      task.status === 'completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : task.status === 'active'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {formatStatus(task.status)}
+                    </span>
+                    {user?.role === 'pm' && (
+                      <ThreeDotMenu
+                        onCopy={() => handleCopyTask(task)}
+                        showCopy={true}
+                        itemType="task"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 {/* Task Meta */}
@@ -620,15 +726,25 @@ const CustomerProjectDetails = () => {
                   }`}>
                     {subtask.title}
                   </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    subtask.status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : subtask.status === 'active'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {formatStatus(subtask.status)}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      subtask.status === 'completed' 
+                        ? 'bg-green-100 text-green-800' 
+                        : subtask.status === 'active'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {formatStatus(subtask.status)}
+                    </span>
+                    {user?.role === 'pm' && (
+                      <ThreeDotMenu
+                        onCopy={() => handleCopySubtask(subtask)}
+                        showCopy={true}
+                        itemType="subtask"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    )}
+                  </div>
                 </div>
                 
                 {/* Subtask Meta */}
@@ -1014,6 +1130,16 @@ const CustomerProjectDetails = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Copy Confirmation Dialog */}
+      <CopyConfirmDialog
+        isOpen={copyDialog.isOpen}
+        onClose={handleCloseCopyDialog}
+        onConfirm={handleConfirmCopy}
+        isLoading={copyDialog.isLoading}
+        itemType={copyDialog.type}
+        itemTitle={copyDialog.item?.title}
+      />
     </div>
   );
 };

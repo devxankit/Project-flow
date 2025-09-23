@@ -469,6 +469,17 @@ export const taskApi = {
     }
   },
 
+  // Copy task
+  copyTask: async (taskId, customerId) => {
+    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/copy`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ customerId })
+    });
+    
+    return handleApiResponse(response);
+  },
+
   // Delete task
   deleteTask: async (taskId, customerId) => {
     const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
@@ -800,6 +811,17 @@ export const subtaskApi = {
       
       return handleApiResponse(response);
     }
+  },
+
+  // Copy subtask
+  copySubtask: async (subtaskId, taskId, customerId) => {
+    const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/copy`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ taskId, customerId })
+    });
+    
+    return handleApiResponse(response);
   },
 
   // Delete subtask

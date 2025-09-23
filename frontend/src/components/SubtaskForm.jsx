@@ -14,7 +14,7 @@ import { useToast } from '../contexts/ToastContext';
 import PMNavbar from './PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 
-const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
+const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask }) => {
   const { toast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
 
   const isEditMode = Boolean(id) && !isOpen; // Only edit mode if we have an ID and we're NOT in dialog mode
   const isDialogMode = Boolean(isOpen);
+  const isDialogEditMode = Boolean(isDialogMode && subtask && subtask._id);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -65,11 +66,28 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
 
   useEffect(() => {
     // Only load subtask data if we're in edit mode AND not in dialog mode
-    // Dialog mode is for creating new subtasks, not editing existing ones
     if (isEditMode && !isDialogMode) {
       loadSubtaskData();
     }
   }, [isEditMode, isDialogMode]);
+
+  // Populate when editing inside dialog (PMSubtaskDetail passes subtask)
+  useEffect(() => {
+    if (isDialogEditMode) {
+      const s = subtask;
+      setFormData({
+        title: s?.title || '',
+        description: s?.description || '',
+        task: s?.task?._id || taskId || '',
+        customer: s?.customer?._id || customerId || '',
+        priority: s?.priority || 'normal',
+        dueDate: s?.dueDate || '',
+        assignedTo: (s?.assignedTo || []).map(u => u._id || u) || [],
+        status: s?.status || 'pending',
+        attachments: []
+      });
+    }
+  }, [isDialogEditMode, subtask, taskId, customerId]);
 
   const loadTasks = async () => {
     setIsLoadingTasks(true);
@@ -165,6 +183,8 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
           dueDate: subtask.dueDate || '',
           assignedTo: subtask.assignedTo?.map(user => user._id) || [],
           status: subtask.status || 'pending',
+          // Ensure attachments key always exists for UI conditional rendering
+          attachments: []
         });
       }
     } catch (error) {
@@ -269,16 +289,17 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
       delete subtaskData.attachments;
 
       let response;
-      if (isEditMode) {
-        response = await subtaskApi.updateSubtask(id, taskId, customerId, subtaskData, formData.attachments);
+      if (isEditMode || isDialogEditMode) {
+        const targetId = isEditMode ? id : subtask._id;
+        response = await subtaskApi.updateSubtask(targetId, taskId, customerId, subtaskData, formData.attachments);
       } else {
         response = await subtaskApi.createSubtask(subtaskData, formData.attachments);
       }
 
       if (response.success) {
         toast.success(
-          isEditMode ? 'Subtask Updated!' : 'Subtask Created!',
-          isEditMode ? 'Subtask has been updated successfully.' : 'Subtask has been created successfully.'
+          (isEditMode || isDialogEditMode) ? 'Subtask Updated!' : 'Subtask Created!',
+          (isEditMode || isDialogEditMode) ? 'Subtask has been updated successfully.' : 'Subtask has been created successfully.'
         );
         
         if (onSubmit) {

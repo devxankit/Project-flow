@@ -280,8 +280,9 @@ const EmployeeSubtaskDetail = () => {
             <div className="flex gap-2 lg:flex-shrink-0">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/edit-subtask/${id}?taskId=${taskId}&customerId=${customerId}`)}
-                className="text-gray-600 hover:text-gray-900"
+                onClick={() => {/* employees probably shouldn't edit; disable or no-op */}}
+                className="text-gray-400 cursor-not-allowed"
+                disabled
               >
                 <Edit className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Edit</span>

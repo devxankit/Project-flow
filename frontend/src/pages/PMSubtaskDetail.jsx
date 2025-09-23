@@ -23,6 +23,8 @@ import {
   MessageSquare,
   X
 } from 'lucide-react';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
+import SubtaskForm from '../components/SubtaskForm';
 import { Button } from '../components/magicui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
 import { subtaskApi, commentApi, handleApiError } from '../utils/api';
@@ -44,6 +46,7 @@ const PMSubtaskDetail = () => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
 
   useEffect(() => {
     if (id && taskId && customerId) {
@@ -280,7 +283,7 @@ const PMSubtaskDetail = () => {
             <div className="flex gap-2 lg:flex-shrink-0">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/edit-subtask/${id}?taskId=${taskId}&customerId=${customerId}`)}
+                onClick={() => setIsEditFormOpen(true)}
                 className="text-gray-600 hover:text-gray-900"
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -515,46 +518,30 @@ const PMSubtaskDetail = () => {
         </div>
       </div>
 
+      {/* Edit Subtask (reuse existing form) */}
+      {isEditFormOpen && subtask && (
+        <SubtaskForm
+          isOpen={isEditFormOpen}
+          onClose={() => setIsEditFormOpen(false)}
+          onSubmit={() => {
+            setIsEditFormOpen(false);
+            loadSubtask();
+          }}
+          taskId={taskId}
+          customerId={customerId}
+          subtask={subtask}
+        />
+      )}
+
       {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              <span>Delete Subtask</span>
-            </DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this subtask? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteSubtask}
-              disabled={isDeleting}
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Subtask
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteSubtask}
+        isLoading={isDeleting}
+        itemType="subtask"
+        itemTitle={subtask?.title}
+      />
       </main>
     </div>
   );

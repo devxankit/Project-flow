@@ -30,8 +30,12 @@ import {
   Plus
 } from 'lucide-react';
 import { Button } from '../components/magicui/button';
+import ThreeDotMenu from '../components/ThreeDotMenu';
+import CopyConfirmDialog from '../components/CopyConfirmDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
 import SubtaskForm from '../components/SubtaskForm';
+import TaskForm from '../components/TaskForm';
+import DeleteConfirmDialog from '../components/DeleteConfirmDialog';
 
 const PMTaskDetail = () => {
   const { toast } = useToast();
@@ -52,6 +56,8 @@ const PMTaskDetail = () => {
   const [isSubtaskFormOpen, setIsSubtaskFormOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isTaskEditFormOpen, setIsTaskEditFormOpen] = useState(false);
+  const [copyDialog, setCopyDialog] = useState({ isOpen: false, isLoading: false });
 
   // Scroll to top when component mounts
   useScrollToTop();
@@ -375,7 +381,7 @@ const PMTaskDetail = () => {
             <div className="flex gap-2 lg:flex-shrink-0">
               <Button
                 variant="outline"
-                onClick={() => navigate(`/edit-task/${id}?customerId=${customerId}`)}
+                onClick={() => setIsTaskEditFormOpen(true)}
                 className="text-gray-600 hover:text-gray-900"
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -389,6 +395,13 @@ const PMTaskDetail = () => {
                 <Trash2 className="h-4 w-4 mr-2" />
                 <span className="hidden sm:inline">Delete</span>
               </Button>
+              {user?.role === 'pm' && (
+                <ThreeDotMenu
+                  onCopy={() => setCopyDialog({ isOpen: true, isLoading: false })}
+                  showCopy={true}
+                  itemType="task"
+                />
+              )}
             </div>
           </div>
         </div>
@@ -556,14 +569,14 @@ const PMTaskDetail = () => {
                 </div>
               ) : (
                 subtasks.map((subtask) => (
-                  <div 
-                    key={subtask._id} 
+                  <div
+                    key={subtask._id}
                     onClick={() => navigate(`/pm-subtask/${subtask._id}?taskId=${id}&customerId=${customerId}`)}
-                    className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer border border-gray-200 hover:border-primary/20"
+                    className="group bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-base font-semibold text-gray-900 group-hover:text-primary transition-colors">
                           {subtask.title}
                         </h4>
                         {subtask.description && (
@@ -571,21 +584,22 @@ const PMTaskDetail = () => {
                             {subtask.description}
                           </p>
                         )}
-                        <div className="flex items-center space-x-4 mt-2">
+                        <div className="flex items-center space-x-3 mt-2">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             subtask.status === 'completed' ? 'bg-green-100 text-green-800' :
                             subtask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
+                            'bg-yellow-100 text-yellow-800'
                           }`}>
                             {subtask.status === 'completed' ? 'Completed' :
                              subtask.status === 'in-progress' ? 'In Progress' :
                              'Pending'}
                           </span>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            subtask.priority === 'high' ? 'bg-red-100 text-red-800' :
-                            subtask.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                            subtask.priority === 'low' ? 'bg-green-100 text-green-800' :
-                            'bg-yellow-100 text-yellow-800'
+                            subtask.priority === 'urgent' || subtask.priority === 'high'
+                              ? 'bg-red-100 text-red-800'
+                              : subtask.priority === 'low'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
                           }`}>
                             {subtask.priority === 'urgent' ? 'Urgent' :
                              subtask.priority === 'high' ? 'High' :
@@ -601,7 +615,34 @@ const PMTaskDetail = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-500">
-                          Due: {new Date(subtask.dueDate).toLocaleDateString()}
+                          Due: {subtask.dueDate ? new Date(subtask.dueDate).toLocaleDateString() : 'No date'}
+                          {user?.role === 'pm' && (
+                            <>
+                              <span className="mx-2 text-gray-300">·</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  (async () => {
+                                    try {
+                                      const resp = await subtaskApi.copySubtask(subtask._id, id, customerId);
+                                      if (!resp.success) {
+                                        toast.error('Error', resp.message || 'Failed to copy subtask');
+                                        return;
+                                      }
+                                      toast.success('Success', 'Subtask copied');
+                                      await loadSubtasks();
+                                    } catch (err) {
+                                      toast.error('Error', 'Failed to copy subtask');
+                                    }
+                                  })();
+                                }}
+                                className="text-sm text-primary hover:text-primary-dark underline-offset-2 hover:underline"
+                              >
+                                Copy
+                              </button>
+                            </>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -794,6 +835,70 @@ const PMTaskDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task Edit Form Dialog */}
+      <Dialog open={isTaskEditFormOpen} onOpenChange={setIsTaskEditFormOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Task</DialogTitle>
+          </DialogHeader>
+          <TaskForm
+            task={task}
+            customerId={customerId}
+            onClose={() => setIsTaskEditFormOpen(false)}
+            onSuccess={(updatedTask) => {
+              setTask(updatedTask);
+              setIsTaskEditFormOpen(false);
+              toast.success('Success', 'Task updated successfully');
+            }}
+            mode="edit"
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteTask}
+        isLoading={isDeleting}
+        itemType="task"
+        itemTitle={task?.title}
+        showCascadeWarning={true}
+      />
+
+      {/* Copy Task Dialog */}
+      <CopyConfirmDialog
+        isOpen={copyDialog.isOpen}
+        onClose={() => setCopyDialog({ isOpen: false, isLoading: false })}
+        onConfirm={async () => {
+          setCopyDialog({ isOpen: true, isLoading: true });
+          try {
+            const resp = await taskApi.copyTask(id, customerId);
+            if (!resp.success) {
+              toast.error('Error', resp.message || 'Failed to copy task');
+              setCopyDialog({ isOpen: false, isLoading: false });
+              return;
+            }
+            toast.success('Success', 'Task copied');
+          } catch (e) {
+            toast.error('Error', 'Failed to copy task');
+            setCopyDialog({ isOpen: false, isLoading: false });
+            return;
+          }
+          // Refresh data after success; failures here shouldn't show copy error
+          try {
+            await loadTask();
+          } catch (_) {
+            // no-op
+          } finally {
+            setCopyDialog({ isOpen: false, isLoading: false });
+          }
+        }}
+        isLoading={copyDialog.isLoading}
+        itemType="task"
+        itemTitle={task?.title}
+      />
       </main>
     </div>
   );

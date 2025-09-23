@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
+import ThreeDotMenu from '../components/ThreeDotMenu';
+import CopyConfirmDialog from '../components/CopyConfirmDialog';
 import TaskForm from '../components/TaskForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
@@ -26,7 +28,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { customerApi, taskApi, handleApiError } from '../utils/api';
+import { customerApi, taskApi, subtaskApi, handleApiError } from '../utils/api';
 import { 
   Dialog, 
   DialogContent, 
@@ -45,6 +47,7 @@ const CustomerDetails = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [copyDialog, setCopyDialog] = useState({ isOpen: false, isLoading: false, type: null, item: null });
   const [loading, setLoading] = useState(true);
   const [customerData, setCustomerData] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -63,9 +66,16 @@ const CustomerDetails = () => {
       setLoading(true);
       loadCustomer();
       loadTasks();
-      loadSubtasks();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (id && tasks.length > 0) {
+      loadSubtasks();
+    } else {
+      setSubtasks([]);
+    }
+  }, [id, tasks]);
 
   const loadCustomer = async () => {
     try {
@@ -109,9 +119,10 @@ const CustomerDetails = () => {
       if (tasks.length > 0) {
         const allSubtasks = [];
         for (const task of tasks) {
-          const response = await taskApi.getSubtasksByTask(task._id);
+          const response = await subtaskApi.getSubtasksByTask(task._id, id);
           if (response.success && response.data) {
-            allSubtasks.push(...response.data.subtasks);
+            const subs = (response.data.subtasks || []).map(s => ({ ...s, taskId: s.task?._id || task._id }));
+            allSubtasks.push(...subs);
           }
         }
         setSubtasks(allSubtasks);
@@ -537,9 +548,22 @@ const CustomerDetails = () => {
                     <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
                       {task.title}
                     </h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                      {formatStatus(task.status)}
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                        {formatStatus(task.status)}
+                      </span>
+                      {user?.role === 'pm' && (
+                        <ThreeDotMenu
+                          onCopy={(e) => {
+                            e?.stopPropagation?.();
+                            setCopyDialog({ isOpen: true, isLoading: false, task });
+                          }}
+                          showCopy={true}
+                          itemType="task"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        />
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center space-x-1.5 mb-2">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
@@ -598,56 +622,63 @@ const CustomerDetails = () => {
       ) : (
         subtasks.map((subtask) => (
           <div 
-            key={subtask._id} 
-            className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+            key={subtask._id}
+            onClick={() => navigate(`/pm-subtask/${subtask._id}?taskId=${subtask.task?._id || subtask.taskId}&customerId=${id}`)}
+            className="group bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5"
           >
-            <div className="flex items-center space-x-4">
-              {/* Checkbox */}
-              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-                subtask.status === 'completed' 
-                  ? 'bg-primary border-primary' 
-                  : 'border-gray-300 group-hover:border-primary'
-              }`}>
-                {subtask.status === 'completed' && (
-                  <CheckSquare className="h-3 w-3 text-white" />
-                )}
+            {/* Header Section */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start space-x-3 flex-1">
+                <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl group-hover:from-primary/20 group-hover:to-primary/30 transition-all duration-300">
+                  <CheckSquare className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-1">
+                    <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                      {subtask.title}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(subtask.status)}`}>
+                      {formatStatus(subtask.status)}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-1.5 mb-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(subtask.priority)}`}>
+                      {formatPriority(subtask.priority)}
+                    </span>
+                    <span className="text-xs text-gray-500">Seq: {subtask.sequence || 'N/A'}</span>
+                  </div>
+                </div>
               </div>
+              {/* Three-dot menu for copy */}
+              {user?.role === 'pm' && (
+                <ThreeDotMenu
+                  onCopy={(e) => {
+                    e?.stopPropagation?.();
+                    setCopyDialog({ isOpen: true, isLoading: false, type: 'subtask', item: subtask });
+                  }}
+                  showCopy={true}
+                  itemType="subtask"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                />
+              )}
+            </div>
 
-              {/* Subtask Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className={`text-base font-semibold transition-colors duration-200 ${
-                    subtask.status === 'completed' 
-                      ? 'text-gray-500 line-through' 
-                      : 'text-gray-900 group-hover:text-primary'
-                  }`}>
-                    {subtask.title}
-                  </h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    subtask.status === 'completed' 
-                      ? 'bg-green-100 text-green-800' 
-                      : subtask.status === 'active'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {formatStatus(subtask.status)}
-                  </span>
-                </div>
-                
-                {/* Subtask Meta */}
-                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1.5">
-                    <User className="h-3.5 w-3.5" />
-                    <span>{subtask.assignedTo?.length > 0 ? subtask.assignedTo[0].fullName || subtask.assignedTo[0].name : 'Unassigned'}</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    <span>{subtask.dueDate ? new Date(subtask.dueDate).toLocaleDateString('en-US', { 
-                      month: 'short', 
-                      day: 'numeric' 
-                    }) : 'No date'}</span>
-                  </div>
-                </div>
+            {/* Description */}
+            {subtask.description && (
+              <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                {subtask.description}
+              </p>
+            )}
+
+            {/* Footer Section */}
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <div className="flex items-center space-x-1">
+                <Calendar className="h-4 w-4" />
+                <span>Due: {subtask.dueDate ? new Date(subtask.dueDate).toLocaleDateString() : 'No date'}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <User className="h-4 w-4" />
+                <span>{(subtask.assignedTo?.[0]?.fullName) || 'Unassigned'}</span>
               </div>
             </div>
           </div>
@@ -958,6 +989,41 @@ const CustomerDetails = () => {
         onClose={() => setIsTaskFormOpen(false)}
         onSubmit={handleTaskSubmit}
         customerId={customerData?._id}
+      />
+
+      {/* Copy Task Dialog */}
+      <CopyConfirmDialog
+        isOpen={copyDialog.isOpen}
+        onClose={() => setCopyDialog({ isOpen: false, isLoading: false, type: null, item: null })}
+        onConfirm={async () => {
+          setCopyDialog((p) => ({ ...p, isLoading: true }));
+          try {
+            if (copyDialog.type === 'task') {
+              const resp = await taskApi.copyTask(copyDialog.item._id, id);
+              if (!resp.success) throw new Error(resp.message || 'Failed to copy task');
+              toast.success('Success', 'Task copied');
+            } else if (copyDialog.type === 'subtask') {
+              const resp = await subtaskApi.copySubtask(copyDialog.item._id, copyDialog.item.taskId || copyDialog.item.task?._id, id);
+              if (!resp.success) throw new Error(resp.message || 'Failed to copy subtask');
+              toast.success('Success', 'Subtask copied');
+            }
+          } catch (e) {
+            toast.error('Error', copyDialog.type === 'subtask' ? 'Failed to copy subtask' : 'Failed to copy task');
+            setCopyDialog({ isOpen: false, isLoading: false, type: null, item: null });
+            return;
+          }
+          try {
+            if (copyDialog.type === 'task') {
+              await loadTasks();
+            } else if (copyDialog.type === 'subtask') {
+              await loadSubtasks();
+            }
+          } catch (_) {}
+          setCopyDialog({ isOpen: false, isLoading: false, type: null, item: null });
+        }}
+        isLoading={copyDialog.isLoading}
+        itemType={copyDialog.type || 'task'}
+        itemTitle={copyDialog.item?.title}
       />
 
       {/* Delete Confirmation Dialog */}
