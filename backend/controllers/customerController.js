@@ -585,10 +585,16 @@ const getUsersForCustomer = async (req, res) => {
       query.role = 'customer';
     } else if (role === 'team') {
       query.role = { $in: ['employee', 'pm'] };
+    } else {
+      // If no role specified, return empty array to prevent showing all users
+      return res.json({
+        success: true,
+        data: []
+      });
     }
 
     const users = await User.find(query)
-      .select('fullName email avatar role')
+      .select('fullName email avatar role company jobTitle workTitle department')
       .sort({ fullName: 1 });
 
     res.json({

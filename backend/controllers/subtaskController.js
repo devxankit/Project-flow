@@ -22,6 +22,11 @@ const handleValidationErrors = (req, res) => {
 
 // Helper function to check if user has permission to access customer
 const checkCustomerPermission = async (customerId, userId, userRole) => {
+  // Validate customerId before querying
+  if (!customerId || customerId === 'undefined' || customerId === 'null' || !mongoose.Types.ObjectId.isValid(customerId)) {
+    return { hasPermission: false, error: 'Invalid customer ID' };
+  }
+
   const customer = await Customer.findById(customerId);
   if (!customer) {
     return { hasPermission: false, error: 'Customer not found' };
@@ -193,6 +198,14 @@ const getSubtasksByTask = async (req, res) => {
   try {
     const { taskId, customerId } = req.params;
 
+    // Validate taskId
+    if (!taskId || taskId === 'undefined' || taskId === 'null' || !mongoose.Types.ObjectId.isValid(taskId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid task ID'
+      });
+    }
+
     // Check if user has permission to access the customer
     const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
     if (!permissionCheck.hasPermission) {
@@ -234,6 +247,14 @@ const getSubtasksByTask = async (req, res) => {
 const getSubtask = async (req, res) => {
   try {
     const { subtaskId, customerId } = req.params;
+
+    // Validate subtaskId
+    if (!subtaskId || subtaskId === 'undefined' || subtaskId === 'null' || !mongoose.Types.ObjectId.isValid(subtaskId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid subtask ID'
+      });
+    }
 
     // Check if user has permission to access the customer
     const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
