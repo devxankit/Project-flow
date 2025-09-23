@@ -113,14 +113,7 @@ const taskSchema = new mongoose.Schema({
   
   assignedTo: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    validate: {
-      validator: async function(userId) {
-        const user = await mongoose.model('User').findById(userId);
-        return user && (user.role === 'employee' || user.role === 'pm');
-      },
-      message: 'Assigned users must be valid employee or PM users'
-    }
+    ref: 'User'
   }],
   
   dueDate: {
