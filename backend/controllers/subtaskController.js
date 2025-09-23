@@ -120,6 +120,16 @@ const createSubtask = async (req, res) => {
         .filter(attachment => attachment && attachment.url);
     }
 
+    // Auto-generate sequence number if not provided
+    let sequenceNumber = sequence;
+    if (!sequenceNumber) {
+      // Find the highest sequence number for this task and add 1
+      const lastSubtask = await Subtask.findOne({ task })
+        .sort({ sequence: -1 })
+        .select('sequence');
+      sequenceNumber = lastSubtask ? lastSubtask.sequence + 1 : 1;
+    }
+
     // Create subtask
     const subtask = new Subtask({
       title,
@@ -130,7 +140,7 @@ const createSubtask = async (req, res) => {
       priority: priority || 'normal',
       assignedTo: assignedTo || [],
       dueDate,
-      sequence: sequence || 1,
+      sequence: sequenceNumber,
       attachments,
       createdBy: req.user.id
     });
