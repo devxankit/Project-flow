@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
+import { taskApi, subtaskApi, commentApi, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
 import { 
-  CheckSquare, 
+  Target, 
   Calendar, 
   User, 
   Clock,
@@ -16,73 +19,91 @@ import {
   Upload,
   Send,
   X,
-  Loader2
+  CheckSquare,
+  Building2,
+  Users,
+  Edit,
+  Trash2,
+  MoreVertical,
+  TrendingUp,
+  BarChart3,
+  Plus
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useToast } from '../contexts/ToastContext';
-import { taskApi, subtaskApi, commentApi, handleApiError } from '../utils/api';
-import AttachmentDisplay from '../components/AttachmentDisplay';
+import { Button } from '../components/magicui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
+import SubtaskForm from '../components/SubtaskForm';
 
 const EmployeeTaskDetail = () => {
+  const { toast } = useToast();
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { toast } = useToast();
-  
-  // Get customerId from URL params
-  const urlParams = new URLSearchParams(window.location.search);
-  const customerId = urlParams.get('customerId');
-  
+  const [searchParams] = useSearchParams();
+  const customerId = searchParams.get('customerId');
+  const [task, setTask] = useState(null);
+  const [customer, setCustomer] = useState(null);
+  const [subtasks, setSubtasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState('');
   const [newComment, setNewComment] = useState('');
   const [newAttachment, setNewAttachment] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [task, setTask] = useState(null);
-  const [updatingStatus, setUpdatingStatus] = useState(false);
-  const [subtasks, setSubtasks] = useState([]);
+  const [downloadingAttachment, setDownloadingAttachment] = useState(null);
+  const [isSubtaskFormOpen, setIsSubtaskFormOpen] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Scroll to top when component mounts
   useScrollToTop();
 
-  // Fetch task data
-  const fetchTask = async () => {
+  useEffect(() => {
+    if (id && customerId) {
+      loadTask();
+    } else {
+      toast.error('Error', 'Missing task or customer ID');
+      navigate('/employee-customers');
+    }
+  }, [id, customerId]);
+
+  const loadTask = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
+      
+      if (!id || !customerId) {
+        toast.error('Error', 'Missing task or customer ID');
+        navigate('/employee-customers');
+        return;
+      }
+
+      // Fetch the task from the API
       const response = await taskApi.getTask(id, customerId);
       
       if (response.success) {
-        setTask(response.data);
+        setTask(response.data.task);
+        setCustomer(response.data.customer);
+        // Load subtasks for this task
+        await loadSubtasks();
+        // Calculate time left
+        calculateTimeLeft(response.data.task.dueDate);
       } else {
-        toast.error('Error', 'Task not found or access denied');
+        toast.error('Error', response.message || 'Failed to load task');
         navigate('/employee-customers');
       }
     } catch (error) {
-      console.error('Error fetching task:', error);
-      handleApiError(error, toast);
+      console.error('Error loading task:', error);
+      toast.error('Error', 'Failed to load task details');
       navigate('/employee-customers');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log('EmployeeTaskDetail - Parameters:', { id, customerId, customerIdType: typeof customerId });
-    
-    if (id && customerId && customerId !== 'undefined' && customerId !== 'null') {
-      fetchTask();
-      loadSubtasks();
-    } else {
-      console.error('Missing or invalid required parameters:', { id, customerId, customerIdType: typeof customerId });
-      toast.error('Error', 'Missing or invalid task or customer ID');
-      navigate('/employee-projects');
-    }
-  }, [id, customerId, navigate]);
-
   const loadSubtasks = async () => {
     try {
+      if (!id || !customerId) return;
+      
       const response = await subtaskApi.getSubtasksByTask(id, customerId);
-      if (response.success) {
+      if (response.success && response.data) {
         setSubtasks(response.data.subtasks || []);
       }
     } catch (error) {
@@ -91,75 +112,55 @@ const EmployeeTaskDetail = () => {
     }
   };
 
-  // Countdown logic
-  useEffect(() => {
-    if (!task || !task.dueDate) return;
+  const calculateTimeLeft = (dueDate) => {
+    const now = new Date();
+    const due = new Date(dueDate);
+    const difference = due.getTime() - now.getTime();
+    const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
+    const hoursLeft = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const dueDate = new Date(task.dueDate);
-      const difference = dueDate.getTime() - now.getTime();
+    if (difference < 0) {
+      setTimeLeft('Overdue');
+    } else if (daysLeft > 0) {
+      setTimeLeft(`${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`);
+    } else if (hoursLeft > 0) {
+      setTimeLeft(`${hoursLeft} hour${hoursLeft !== 1 ? 's' : ''} left`);
+    } else {
+      setTimeLeft('Due today');
+    }
+  };
 
-      if (difference > 0) {
-        // Task is not overdue - show remaining time
-        const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-
-        if (days > 0) {
-          setTimeLeft(`${days}d ${hours}h`);
-        } else if (hours > 0) {
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeLeft(`${hours}h ${minutes}m`);
-        } else {
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-          setTimeLeft(`${minutes}m left`);
-        }
+  const handleDeleteTask = async () => {
+    try {
+      setIsDeleting(true);
+      const response = await taskApi.deleteTask(id, customerId);
+      
+      if (response.success) {
+        toast.success('Success', 'Task deleted successfully');
+        navigate(`/employee-customer/${customerId}`);
       } else {
-        // Task is overdue - show how many days overdue
-        const overdueDays = Math.floor(Math.abs(difference) / (1000 * 60 * 60 * 24));
-        const overdueHours = Math.floor((Math.abs(difference) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        
-        if (overdueDays > 0) {
-          setTimeLeft(`${overdueDays}d overdue`);
-        } else {
-          setTimeLeft(`${overdueHours}h overdue`);
-        }
+        toast.error('Error', response.message || 'Failed to delete task');
       }
-    };
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      handleApiError(error, toast);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
 
-    calculateTimeLeft();
-    const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
-
-    return () => clearInterval(interval);
-  }, [task]);
-
-  // Show loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
-        <EmployeeNavbar />
-        <main className="pt-4 pb-24 md:pt-8 md:pb-8">
-          <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-gray-600">Loading task details...</span>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-  
-  // Return early if task not found
-  if (!task) {
-    return null;
-  }
+  const handleSubtaskSubmit = () => {
+    // Refresh subtasks after creating a new one
+    loadSubtasks();
+    setIsSubtaskFormOpen(false);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'in-progress': return 'bg-primary/10 text-primary border-primary/20';
-      case 'pending': return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -167,15 +168,37 @@ const EmployeeTaskDetail = () => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'normal': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatStatus = (status) => {
+    switch (status) {
+      case 'in-progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      case 'pending': return 'Pending';
+      case 'cancelled': return 'Cancelled';
+      default: return status;
+    }
+  };
+
+  const formatPriority = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgent';
+      case 'high': return 'High';
+      case 'normal': return 'Normal';
+      case 'low': return 'Low';
+      default: return priority;
     }
   };
 
   const getCountdownColor = () => {
+    if (!task) return 'text-blue-600';
+    
     const now = new Date();
     const dueDate = new Date(task.dueDate);
     const difference = dueDate.getTime() - now.getTime();
@@ -203,58 +226,37 @@ const EmployeeTaskDetail = () => {
     });
   };
 
-  const getFileIcon = (mimetype) => {
-    if (mimetype.startsWith('image/')) return '🖼️';
-    if (mimetype.includes('pdf')) return '📄';
-    if (mimetype.includes('word') || mimetype.includes('document')) return '📝';
-    if (mimetype.includes('spreadsheet') || mimetype.includes('excel')) return '📊';
-    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
-    return '📎';
-  };
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    try {
-      setUpdatingStatus(true);
-      const response = await api.employee.updateTaskStatus(task._id, newStatus);
-      
-      if (response.data && response.data.success) {
-        setTask(response.data.data?.task);
-        toast.success('Success', `Task status updated to: ${newStatus}`);
-        
-        // Show additional info about task progress update
-        if (newStatus === 'completed') {
-          toast.success('Task Progress', 'Task progress has been updated. Navigate back to task details to see the updated progress bar.');
-        }
-      } else {
-        toast.error('Error', 'Failed to update task status');
-      }
-    } catch (error) {
-      console.error('Error updating task status:', error);
-      toast.error('Error', 'Failed to update task status');
-    } finally {
-      setUpdatingStatus(false);
+  const getFileIcon = (type) => {
+    switch (type) {
+      case 'pdf': return '📄';
+      case 'png': return '🖼️';
+      case 'jpg': return '🖼️';
+      case 'jpeg': return '🖼️';
+      case 'md': return '📝';
+      case 'docx': return '📝';
+      case 'fig': return '🎨';
+      default: return '📎';
     }
+  };
+
+  const handleStatusChange = (newStatus) => {
+    // In a real app, this would update the task status via API
+    console.log('Status changed to:', newStatus);
+    // For demo purposes, we'll just show an alert
+    alert(`Task status updated to: ${newStatus}`);
   };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     
     try {
-      const response = await commentApi.addEmployeeTaskComment(id, newComment.trim());
+      const response = await commentApi.addTaskComment(id, newComment.trim());
       
       if (response.data.success) {
         toast.success('Success', 'Comment added successfully');
         setNewComment('');
         // Reload task to show new comment
-        fetchTask();
+        loadTask();
       } else {
         toast.error('Error', response.data.message || 'Failed to add comment');
       }
@@ -267,12 +269,12 @@ const EmployeeTaskDetail = () => {
   const handleDeleteComment = async (commentId) => {
     if (window.confirm('Are you sure you want to delete this comment?')) {
       try {
-        const response = await commentApi.deleteEmployeeTaskComment(id, commentId);
+        const response = await commentApi.deleteTaskComment(id, commentId);
         
         if (response.data.success) {
           toast.success('Success', 'Comment deleted successfully');
           // Reload task to remove deleted comment
-          fetchTask();
+          loadTask();
         } else {
           toast.error('Error', response.data.message || 'Failed to delete comment');
         }
@@ -287,72 +289,123 @@ const EmployeeTaskDetail = () => {
     return new Date(dateString).toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: 'numeric'
     });
   };
 
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      // In a real app, this would upload the file via API
-      console.log('File to upload:', file);
-      setNewAttachment(file);
-      setIsUploading(true);
-      
-      // Simulate upload
-      setTimeout(() => {
-        setIsUploading(false);
-        setNewAttachment(null);
-        alert('File uploaded successfully!');
-      }, 2000);
-    }
-  };
-
   const statusOptions = [
-    { value: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-800' },
-    { value: 'in-progress', label: 'In Progress', color: 'bg-primary/10 text-primary' },
-    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' },
-    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' }
+    { value: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'in-progress', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
+    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' },
+    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' }
   ];
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-lg text-gray-600">Loading task details...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!task) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
+        <EmployeeNavbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <X className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Task Not Found</h2>
+            <p className="text-gray-600 mb-4">The task you're looking for doesn't exist or has been deleted.</p>
+            <Button onClick={() => navigate('/employee-customers')} className="bg-primary hover:bg-primary-dark">
+              Back to Customers
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <EmployeeNavbar />
       
-      <main className="pt-4 pb-24 md:pt-8 md:pb-8">
-        <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
-          {/* Back Button */}
-          <div className="mb-6">
-            <button 
-              onClick={() => navigate(customerId ? `/employee-customer-details/${customerId}` : '/employee-customers')}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm font-medium">Back to Customer</span>
-            </button>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/employee-customer/${customerId}`)}
+            className="mb-4 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Customer
+          </Button>
+          
+          {/* Header Section - Responsive Layout */}
+          <div className="space-y-4">
+            {/* Task Info Section */}
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl flex-shrink-0">
+                <Target className="h-8 w-8 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 break-words">{task.title}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(task.status)}`}>
+                    {formatStatus(task.status)}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getPriorityColor(task.priority)}`}>
+                    {formatPriority(task.priority)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons Section */}
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/edit-task/${id}?customerId=${customerId}`)}
+                  className="text-gray-600 hover:text-gray-900 flex-1 sm:flex-none"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-1 sm:flex-none"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Delete</span>
+                </Button>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* Task Header Card */}
-          <div className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 mb-6">
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className={`p-2 rounded-lg ${getStatusColor(task.status)}`}>
-                    <CheckSquare className="h-5 w-5" />
-                  </div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{task.title}</h1>
-                </div>
-                
-                <div className="flex items-center space-x-2 mb-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                    {task.status}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
+        {/* Main Content */}
+        <div className="space-y-6">
+          {/* Task Overview Card */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-2 mb-4">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                  {formatStatus(task.status)}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                  {formatPriority(task.priority)}
+                </span>
               </div>
               
               <div className="text-right">
@@ -365,93 +418,24 @@ const EmployeeTaskDetail = () => {
               </div>
             </div>
 
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-gray-600">Progress</span>
+                <span className="text-gray-900 font-medium">{task.progress || 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3">
+                <div 
+                  className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-300"
+                  style={{ width: `${task.progress || 0}%` }}
+                ></div>
+              </div>
+            </div>
+
             {/* Task Description */}
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-              <p className="text-gray-600 leading-relaxed">{task.description}</p>
-            </div>
-
-            {/* Subtasks Section */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <CheckSquare className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Subtasks</h3>
-                    <p className="text-sm text-gray-600">Subtasks assigned to this task</p>
-                  </div>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {subtasks.length} subtask{subtasks.length !== 1 ? 's' : ''}
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                {subtasks.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <CheckSquare className="h-6 w-6 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No subtasks yet</h3>
-                    <p className="text-gray-600">Subtasks will appear here when they are created for this task</p>
-                  </div>
-                ) : (
-                  subtasks.map((subtask) => (
-                    <div 
-                      key={subtask._id} 
-                      onClick={() => navigate(`/employee-subtask/${subtask._id}?taskId=${id}&customerId=${customerId}`)}
-                      className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer border border-gray-200 hover:border-primary/20"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
-                            {subtask.title}
-                          </h4>
-                          {subtask.description && (
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                              {subtask.description}
-                            </p>
-                          )}
-                          <div className="flex items-center space-x-4 mt-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              subtask.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              subtask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {subtask.status === 'completed' ? 'Completed' :
-                               subtask.status === 'in-progress' ? 'In Progress' :
-                               'Pending'}
-                            </span>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              subtask.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              subtask.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                              subtask.priority === 'low' ? 'bg-green-100 text-green-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {subtask.priority === 'urgent' ? 'Urgent' :
-                               subtask.priority === 'high' ? 'High' :
-                               subtask.priority === 'low' ? 'Low' :
-                               'Normal'}
-                            </span>
-                            {subtask.assignedTo && subtask.assignedTo.length > 0 && (
-                              <span className="text-xs text-gray-500">
-                                Assigned to: {subtask.assignedTo[0].fullName}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-500">
-                            Due: {new Date(subtask.dueDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
+              <p className="text-gray-600 leading-relaxed">{task.description || 'No description provided'}</p>
             </div>
 
             {/* Task Meta Information */}
@@ -464,7 +448,10 @@ const EmployeeTaskDetail = () => {
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Assigned to</p>
                     <p className="text-base font-medium text-gray-900">
-                      {task.assignedTo?.[0]?.fullName || 'Unassigned'}
+                      {task.assignedTo && task.assignedTo.length > 0 
+                        ? task.assignedTo.map(user => user.fullName || user.name).join(', ')
+                        : 'No one assigned'
+                      }
                     </p>
                   </div>
                 </div>
@@ -485,23 +472,29 @@ const EmployeeTaskDetail = () => {
               <div className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <FileText className="h-4 w-4 text-green-600" />
+                    <Building2 className="h-4 w-4 text-green-600" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-600">Customer</p>
-                    <p className="text-base font-medium text-gray-900">{task.customer?.name || 'Unknown Customer'}</p>
+                    <p className="text-base font-medium text-gray-900">
+                      {customer?.name || 'Unknown Customer'}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-orange-100 rounded-lg">
-                    <Clock className="h-4 w-4 text-orange-600" />
+                {task.completedAt && (
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <CheckSquare className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-600">Completed</p>
+                      <p className="text-base font-medium text-gray-900">
+                        {new Date(task.completedAt).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-600">Task</p>
-                    <p className="text-base font-medium text-gray-900">{task.title || 'Unknown Task'}</p>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -513,100 +506,175 @@ const EmployeeTaskDetail = () => {
                   <button
                     key={option.value}
                     onClick={() => handleStatusChange(option.value)}
-                    disabled={updatingStatus}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       task.status === option.value
                         ? `${option.color} border-2 border-current`
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    } ${updatingStatus ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    }`}
                   >
-                    {updatingStatus && task.status === option.value ? (
-                      <div className="flex items-center space-x-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Updating...</span>
-                      </div>
-                    ) : (
-                      option.label
-                    )}
+                    {option.label}
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Attachments Section */}
+          {/* Subtasks Section */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
-                  <Paperclip className="h-5 w-5 text-primary" />
+                  <CheckSquare className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">Attachments</h3>
-                <span className="text-sm text-gray-500">({task.attachments.length})</span>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Subtasks</h3>
+                  <p className="text-sm text-gray-600">Subtasks assigned to this task</p>
+                </div>
               </div>
-              
-              {/* File Upload Button */}
-              <label className="flex items-center space-x-2 bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors cursor-pointer">
-                <Upload className="h-4 w-4" />
-                <span className="text-sm font-medium">Upload</span>
-                <input
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  accept=".pdf,.png,.jpg,.jpeg,.docx,.mp4"
-                />
-              </label>
+              <div className="flex items-center space-x-2">
+                <div className="text-sm text-gray-500">
+                  {subtasks.length} subtask{subtasks.length !== 1 ? 's' : ''}
+                </div>
+                <Button
+                  onClick={() => setIsSubtaskFormOpen(true)}
+                  className="bg-primary hover:bg-primary-dark text-white"
+                  size="sm"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Subtask
+                </Button>
+              </div>
             </div>
 
-            {/* Upload Progress */}
-            {isUploading && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  <span className="text-sm text-blue-600">Uploading file...</span>
+            <div className="space-y-3">
+              {subtasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckSquare className="h-6 w-6 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No subtasks yet</h3>
+                  <p className="text-gray-600">Subtasks will appear here when they are created for this task</p>
                 </div>
-              </div>
-            )}
-
-            {/* New Attachment Preview */}
-            {newAttachment && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{getFileIcon(newAttachment.type || 'file')}</span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{newAttachment.name}</p>
-                      <p className="text-xs text-gray-500">{(newAttachment.size / 1024 / 1024).toFixed(2)} MB</p>
+              ) : (
+                subtasks.map((subtask) => (
+                  <div 
+                    key={subtask._id} 
+                    onClick={() => navigate(`/employee-subtask/${subtask._id}?taskId=${id}&customerId=${customerId}`)}
+                    className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer border border-gray-200 hover:border-primary/20"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                          {subtask.title}
+                        </h4>
+                        {subtask.description && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                            {subtask.description}
+                          </p>
+                        )}
+                        <div className="flex items-center space-x-4 mt-2">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            subtask.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            subtask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {subtask.status === 'completed' ? 'Completed' :
+                             subtask.status === 'in-progress' ? 'In Progress' :
+                             'Pending'}
+                          </span>
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            subtask.priority === 'high' ? 'bg-red-100 text-red-800' :
+                            subtask.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                            subtask.priority === 'low' ? 'bg-green-100 text-green-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {subtask.priority === 'urgent' ? 'Urgent' :
+                             subtask.priority === 'high' ? 'High' :
+                             subtask.priority === 'low' ? 'Low' :
+                             'Normal'}
+                          </span>
+                          {subtask.assignedTo && subtask.assignedTo.length > 0 && (
+                            <span className="text-xs text-gray-500">
+                              Assigned to: {subtask.assignedTo[0].fullName}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-500">
+                          Due: {new Date(subtask.dueDate).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setNewAttachment(null)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Attachments Section */}
+          {task.attachments && task.attachments.length > 0 && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Paperclip className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Attachments</h3>
+                  <p className="text-sm text-gray-600">{task.attachments.length} file{task.attachments.length !== 1 ? 's' : ''}</p>
                 </div>
               </div>
-            )}
-
-            <AttachmentDisplay 
-              attachments={task.attachments || []} 
-              canDelete={false}
-            />
-          </div>
+              
+              <div className="space-y-3">
+                {task.attachments.map((attachment, index) => (
+                  <div key={attachment.cloudinaryId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
+                        <p className="text-xs text-gray-500">
+                          {attachment.size} bytes • 
+                          Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <a 
+                        href={attachment.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </a>
+                      <a 
+                        href={attachment.url} 
+                        download={attachment.originalName}
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Comments Section */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <div className="flex items-center space-x-3 mb-4">
+            <div className="flex items-center space-x-3 mb-6">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <MessageSquare className="h-5 w-5 text-primary" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-              <span className="text-sm text-gray-500">({task?.comments?.length || 0})</span>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
+                <p className="text-sm text-gray-600">{task.comments?.length || 0} comment{(task.comments?.length || 0) !== 1 ? 's' : ''}</p>
+              </div>
             </div>
 
             {/* Existing Comments */}
-            {task?.comments && task.comments.length > 0 && (
+            {task.comments && task.comments.length > 0 && (
               <div className="space-y-4 mb-6">
                 {task.comments.map((comment) => (
                   <div key={comment._id || comment.id} className="border-l-4 border-primary/20 pl-4">
@@ -619,7 +687,7 @@ const EmployeeTaskDetail = () => {
                           {comment.user?.fullName || comment.user || 'Unknown User'}
                         </span>
                         <span className="text-xs text-gray-500">
-                          {formatDate(comment.timestamp)}
+                          {formatTimestamp(comment.timestamp)}
                         </span>
                       </div>
                       {/* Show delete button only for current user's comments */}
@@ -640,7 +708,7 @@ const EmployeeTaskDetail = () => {
             )}
 
             {/* Empty State for Comments */}
-            {(!task?.comments || task.comments.length === 0) && (
+            {(!task.comments || task.comments.length === 0) && (
               <div className="text-center py-8 mb-6">
                 <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <MessageSquare className="h-6 w-6 text-gray-400" />
@@ -662,19 +730,71 @@ const EmployeeTaskDetail = () => {
                 />
                 
                 <div className="flex justify-end">
-                  <button
+                  <Button
                     onClick={handleAddComment}
                     disabled={!newComment.trim()}
                     className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Add Comment
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
+
+      {/* Subtask Form Dialog */}
+      {isSubtaskFormOpen && (
+        <SubtaskForm
+          isOpen={isSubtaskFormOpen}
+          onClose={() => setIsSubtaskFormOpen(false)}
+          onSubmit={handleSubtaskSubmit}
+          taskId={id}
+          customerId={customerId}
+        />
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <X className="h-5 w-5 text-red-500" />
+              <span>Delete Task</span>
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteTask}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Task
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -32,7 +32,6 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
     dueDate: '',
     assignedTo: [],
     status: 'pending',
-    sequence: 1,
     attachments: []
   });
 
@@ -83,7 +82,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
           const formattedTasks = (Array.isArray(tasksData) ? tasksData : []).map(task => ({
             value: task._id,
             label: task.title,
-            subtitle: `Sequence: ${task.sequence}`,
+            subtitle: `Task: ${task.title}`,
             icon: CheckSquare,
             avatar: task.avatar
           }));
@@ -166,7 +165,6 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
           dueDate: subtask.dueDate || '',
           assignedTo: subtask.assignedTo?.map(user => user._id) || [],
           status: subtask.status || 'pending',
-          sequence: subtask.sequence || 1,
         });
       }
     } catch (error) {
@@ -309,7 +307,6 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
       dueDate: '',
       assignedTo: [],
       status: 'pending',
-      sequence: 1,
       attachments: []
     });
     setErrors({});
@@ -480,20 +477,6 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
             />
           </div>
 
-          {/* Sequence */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700 flex items-center">
-              Sequence
-            </label>
-            <Input
-              type="number"
-              value={formData.sequence}
-              onChange={(e) => handleInputChange('sequence', parseInt(e.target.value) || 1)}
-              placeholder="1"
-              min="1"
-              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
-            />
-          </div>
 
           {/* Due Date */}
           <div className="space-y-2">
