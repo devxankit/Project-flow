@@ -243,7 +243,8 @@ const EmployeeSubtaskDetail = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <EmployeeNavbar />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <Button
@@ -256,9 +257,9 @@ const EmployeeSubtaskDetail = () => {
           </Button>
           
           {/* Header Section - Responsive Layout */}
-          <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             {/* Subtask Info Section */}
-            <div className="flex items-start space-x-4">
+            <div className="flex items-start space-x-4 flex-1">
               <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl flex-shrink-0">
                 <CheckSquare className="h-8 w-8 text-primary" />
               </div>
@@ -276,25 +277,23 @@ const EmployeeSubtaskDetail = () => {
             </div>
             
             {/* Action Buttons Section */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate(`/edit-subtask/${id}?taskId=${taskId}&customerId=${customerId}`)}
-                  className="text-gray-600 hover:text-gray-900 flex-1 sm:flex-none"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Edit</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-1 sm:flex-none"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  <span className="hidden sm:inline">Delete</span>
-                </Button>
-              </div>
+            <div className="flex gap-2 lg:flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/edit-subtask/${id}?taskId=${taskId}&customerId=${customerId}`)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Edit</span>
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -556,6 +555,7 @@ const EmployeeSubtaskDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </main>
     </div>
   );
 };

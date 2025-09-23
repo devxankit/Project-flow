@@ -287,7 +287,8 @@ const CustomerTaskDetail = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <CustomerNavbar />
       
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <main className="pt-4 pb-24 md:pt-8 md:pb-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <Button
@@ -300,9 +301,9 @@ const CustomerTaskDetail = () => {
           </Button>
           
           {/* Header Section - Responsive Layout */}
-          <div className="space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
             {/* Task Info Section */}
-            <div className="flex items-start space-x-4">
+            <div className="flex items-start space-x-4 flex-1">
               <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl flex-shrink-0">
                 <Target className="h-8 w-8 text-primary" />
               </div>
@@ -428,7 +429,7 @@ const CustomerTaskDetail = () => {
 
           {/* Subtasks Section */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-primary/10 rounded-lg">
                   <CheckSquare className="h-5 w-5 text-primary" />
@@ -639,7 +640,8 @@ const CustomerTaskDetail = () => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };
