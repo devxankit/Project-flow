@@ -160,6 +160,105 @@ router.get('/activity',
   getEmployeeActivity
 );
 
+// Subtask-centric endpoints
+router.get('/subtasks',
+  validatePagination,
+  validateQueryParams,
+  async (req, res, next) => {
+    try {
+      const userId = req.user.id;
+      const { page = 1, limit = 10, status, priority, customerId, taskId } = req.query;
+
+      // Build query for subtasks assigned to this employee
+      const query = { assignedTo: userId };
+      if (status) query.status = status;
+      if (priority) query.priority = priority;
+      if (customerId) query.customer = customerId;
+      if (taskId) query.task = taskId;
+
+      const skip = (page - 1) * limit;
+      const Subtask = require('../models/Subtask');
+
+      const subtasks = await Subtask.find(query)
+        .populate('customer', 'name')
+        .populate('task', 'title')
+        .populate('assignedTo', 'fullName email avatar')
+        .sort({ dueDate: 1 })
+        .skip(skip)
+        .limit(parseInt(limit));
+
+      const total = await Subtask.countDocuments(query);
+
+      res.json({
+        success: true,
+        data: {
+          subtasks,
+          pagination: {
+            current: parseInt(page),
+            pages: Math.ceil(total / limit),
+            total
+          }
+        }
+      });
+    } catch (err) { next(err); }
+  }
+);
+
+router.get('/subtasks/:id',
+  validateTaskId,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      const Subtask = require('../models/Subtask');
+
+      const subtask = await Subtask.findOne({ _id: id, assignedTo: userId })
+        .populate('customer', 'name')
+        .populate('task', 'title')
+        .populate('assignedTo', 'fullName email avatar')
+        .populate('createdBy', 'fullName email avatar')
+        .populate('completedBy', 'fullName email avatar');
+
+      if (!subtask) {
+        return res.status(404).json({ success: false, message: 'Subtask not found or access denied' });
+      }
+
+      res.json({ success: true, data: { subtask } });
+    } catch (err) { next(err); }
+  }
+);
+
+router.put('/subtasks/:id/status',
+  validateTaskId,
+  validateTaskStatus,
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+      const userId = req.user.id;
+      const Subtask = require('../models/Subtask');
+
+      const subtask = await Subtask.findOne({ _id: id, assignedTo: userId });
+      if (!subtask) {
+        return res.status(404).json({ success: false, message: 'Subtask not found or access denied' });
+      }
+
+      const oldStatus = subtask.status;
+      subtask.status = status;
+      if (status === 'completed' && oldStatus !== 'completed') {
+        subtask.completedAt = new Date();
+        subtask.completedBy = userId;
+      } else if (status !== 'completed' && oldStatus === 'completed') {
+        subtask.completedAt = null;
+        subtask.completedBy = null;
+      }
+
+      await subtask.save();
+      res.json({ success: true, message: 'Subtask status updated', data: subtask });
+    } catch (err) { next(err); }
+  }
+);
+
 // @route   GET /api/employee/files
 // @desc    Get employee files
 // @access  Private (Employee only)

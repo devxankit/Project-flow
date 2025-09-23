@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const Task = require('../models/Task');
 const Subtask = require('../models/Subtask');
 const User = require('../models/User');
+const Activity = require('../models/Activity');
 const { formatFileData, deleteFile } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
 
@@ -46,10 +47,10 @@ const getEmployeeDashboard = async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
-    // Get customers assigned to this employee
+    // Get customers assigned to this employee (include all except cancelled)
     const assignedCustomers = await Customer.find({ 
       assignedTeam: userId,
-      status: { $in: ['planning', 'active'] }
+      status: { $ne: 'cancelled' }
     }).select('_id name status priority dueDate progress');
 
     const customerIds = assignedCustomers.map(c => c._id);
@@ -74,7 +75,7 @@ const getEmployeeDashboard = async (req, res) => {
             overallProgress: 0
           },
           recentTasks: [],
-          assignedCustomers: 0
+          assignedCustomers: []
         }
       });
     }
@@ -115,6 +116,41 @@ const getEmployeeDashboard = async (req, res) => {
       low: 0
     };
 
+    // Get subtask statistics for assigned customers for this employee
+    const subtaskStatsAgg = await Subtask.aggregate([
+      {
+        $match: {
+          customer: { $in: customerIds },
+          assignedTo: { $in: [userId] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } },
+          urgent: { $sum: { $cond: [{ $eq: ['$priority', 'urgent'] }, 1, 0] } },
+          high: { $sum: { $cond: [{ $eq: ['$priority', 'high'] }, 1, 0] } },
+          normal: { $sum: { $cond: [{ $eq: ['$priority', 'normal'] }, 1, 0] } },
+          low: { $sum: { $cond: [{ $eq: ['$priority', 'low'] }, 1, 0] } }
+        }
+      }
+    ]);
+    const subtaskStats = subtaskStatsAgg[0] || {
+      total: 0,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      cancelled: 0,
+      urgent: 0,
+      high: 0,
+      normal: 0,
+      low: 0
+    };
+
     // Calculate due soon and overdue tasks
     const now = new Date();
     const threeDaysFromNow = new Date(now.getTime() + (3 * 24 * 60 * 60 * 1000));
@@ -133,6 +169,21 @@ const getEmployeeDashboard = async (req, res) => {
       status: { $nin: ['completed', 'cancelled'] }
     });
 
+    // Subtask due soon / overdue
+    const dueSoonSubtasks = await Subtask.countDocuments({
+      customer: { $in: customerIds },
+      assignedTo: { $in: [userId] },
+      dueDate: { $gte: now, $lte: threeDaysFromNow },
+      status: { $nin: ['completed', 'cancelled'] }
+    });
+
+    const overdueSubtasks = await Subtask.countDocuments({
+      customer: { $in: customerIds },
+      assignedTo: { $in: [userId] },
+      dueDate: { $lt: now },
+      status: { $nin: ['completed', 'cancelled'] }
+    });
+
     // Get recent tasks
     const recentTasks = await Task.find({
       customer: { $in: customerIds },
@@ -142,8 +193,19 @@ const getEmployeeDashboard = async (req, res) => {
       .sort({ updatedAt: -1 })
       .limit(6);
 
+    // Get recent subtasks
+    const recentSubtasks = await Subtask.find({
+      customer: { $in: customerIds },
+      assignedTo: { $in: [userId] }
+    })
+      .populate('customer', 'name')
+      .populate('task', 'title')
+      .sort({ updatedAt: -1 })
+      .limit(6);
+
     // Calculate overall progress
     const overallProgress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+    const subtaskOverallProgress = subtaskStats.total > 0 ? Math.round((subtaskStats.completed / subtaskStats.total) * 100) : 0;
 
     res.json({
       success: true,
@@ -154,8 +216,15 @@ const getEmployeeDashboard = async (req, res) => {
           overdue: overdueTasks,
           overallProgress
         },
+        subtaskStats: {
+          ...subtaskStats,
+          dueSoon: dueSoonSubtasks,
+          overdue: overdueSubtasks,
+          overallProgress: subtaskOverallProgress
+        },
         recentTasks,
-        assignedCustomers: assignedCustomers.length
+        recentSubtasks,
+        assignedCustomers
       }
     });
 
@@ -248,14 +317,7 @@ const getEmployeeCustomerDetails = async (req, res) => {
     const customer = await Customer.findById(id)
       .populate('customer', 'fullName email avatar')
       .populate('projectManager', 'fullName email avatar')
-      .populate('assignedTeam', 'fullName email avatar role')
-      .populate({
-        path: 'tasks',
-        populate: {
-          path: 'assignedTo',
-          select: 'fullName email avatar'
-        }
-      });
+      .populate('assignedTeam', 'fullName email avatar role');
 
     if (!customer) {
       return res.status(404).json({
@@ -264,9 +326,19 @@ const getEmployeeCustomerDetails = async (req, res) => {
       });
     }
 
+    // Get tasks for this customer
+    const tasks = await Task.find({ customer: id })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .sort({ sequence: 1 });
+
     res.json({
       success: true,
-      data: customer
+      data: {
+        customer,
+        tasks
+      }
     });
 
   } catch (error) {

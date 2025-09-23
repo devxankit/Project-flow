@@ -8,7 +8,9 @@ const {
   deleteCustomer,
   getCustomerStats,
   getUsersForCustomer,
-  getCustomerTasks
+  getCustomerTasks,
+  getCustomerDashboard,
+  getCustomerProjectDetails
 } = require('../controllers/customerController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { upload } = require('../middlewares/enhancedFileUpload');
@@ -38,6 +40,11 @@ router.get('/',
   validateCustomerQuery,
   getCustomers
 );
+
+// @route   GET /api/customers/dashboard
+// @desc    Get customer dashboard data
+// @access  Private
+router.get('/dashboard', getCustomerDashboard);
 
 // @route   GET /api/customers/stats
 // @desc    Get customer statistics
@@ -76,6 +83,14 @@ router.put('/:id',
 router.get('/:id/tasks', 
   validateCustomerId,
   getCustomerTasks
+);
+
+// @route   GET /api/customers/:id/project-details
+// @desc    Get customer project details with tasks and subtasks
+// @access  Private
+router.get('/:id/project-details', 
+  validateCustomerId,
+  getCustomerProjectDetails
 );
 
 // @route   DELETE /api/customers/:id

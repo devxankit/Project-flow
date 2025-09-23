@@ -650,6 +650,175 @@ const getCustomerTasks = async (req, res) => {
   }
 };
 
+// Get customer dashboard data
+const getCustomerDashboard = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    let matchQuery = {};
+
+    // Role-based filtering
+    if (userRole === 'customer') {
+      matchQuery.customer = userId;
+    } else if (userRole === 'employee') {
+      matchQuery.assignedTeam = userId;
+    } else if (userRole === 'pm') {
+      // PMs can see all customers
+      matchQuery = {};
+    }
+
+    // Get customer projects with stats
+    const customers = await Customer.find(matchQuery)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .sort({ createdAt: -1 })
+      .limit(10);
+
+    // Get customer statistics
+    const stats = await Customer.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          active: {
+            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+          },
+          completed: {
+            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+          },
+          onHold: {
+            $sum: { $cond: [{ $eq: ['$status', 'on-hold'] }, 1, 0] }
+          },
+          cancelled: {
+            $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] }
+          },
+          planning: {
+            $sum: { $cond: [{ $eq: ['$status', 'planning'] }, 1, 0] }
+          },
+          avgProgress: { $avg: '$progress' }
+        }
+      }
+    ]);
+
+    // Get recent tasks for the customer
+    let recentTasks = [];
+    if (userRole === 'customer') {
+      recentTasks = await Task.find({ customer: userId })
+        .populate('assignedTo', 'fullName email avatar')
+        .populate('customer', 'name')
+        .sort({ createdAt: -1 })
+        .limit(5);
+    }
+
+    const result = stats[0] || {
+      total: 0,
+      active: 0,
+      completed: 0,
+      onHold: 0,
+      cancelled: 0,
+      planning: 0,
+      avgProgress: 0
+    };
+
+    res.json({
+      success: true,
+      data: {
+        customers,
+        stats: result,
+        recentTasks
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer dashboard:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer dashboard',
+      error: error.message
+    });
+  }
+};
+
+// Get customer project details with tasks and subtasks
+const getCustomerProjectDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Check permissions
+    const permissionCheck = await checkCustomerPermission(id, userId, userRole);
+    if (!permissionCheck.hasPermission) {
+      const statusCode = permissionCheck.error === 'Customer not found' ? 404 : 403;
+      return res.status(statusCode).json({
+        success: false,
+        message: permissionCheck.error || 'Access denied'
+      });
+    }
+
+    // Get customer with populated data
+    const customer = await Customer.findById(id)
+      .populate('customer', 'fullName email avatar')
+      .populate('projectManager', 'fullName email avatar')
+      .populate('assignedTeam', 'fullName email avatar role')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('lastModifiedBy', 'fullName email avatar');
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Get tasks for this customer
+    const tasks = await Task.find({ customer: id })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('createdBy', 'fullName email avatar')
+      .populate('completedBy', 'fullName email avatar')
+      .sort({ sequence: 1 });
+
+    // Get subtasks for all tasks
+    const taskIds = tasks.map(task => task._id);
+    const subtasks = await Subtask.find({ task: { $in: taskIds } })
+      .populate('assignedTo', 'fullName email avatar')
+      .populate('task', 'title')
+      .sort({ sequence: 1 });
+
+    // Calculate progress
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(task => task.status === 'completed').length;
+    const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+    // Update customer progress if it's different
+    if (customer.progress !== progress) {
+      await Customer.findByIdAndUpdate(id, { progress });
+      customer.progress = progress;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        customer,
+        tasks,
+        subtasks,
+        progress
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer project details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer project details',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createCustomer,
   getCustomers,
@@ -658,5 +827,7 @@ module.exports = {
   deleteCustomer,
   getCustomerStats,
   getUsersForCustomer,
-  getCustomerTasks
+  getCustomerTasks,
+  getCustomerDashboard,
+  getCustomerProjectDetails
 };
