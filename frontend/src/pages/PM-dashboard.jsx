@@ -297,19 +297,23 @@ const PMDashboard = () => {
         </div>
       </main>
 
-      {/* Task Form */}
-      <TaskForm
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleTaskSubmit}
-      />
+      {/* Task Form - Only render when open */}
+      {isTaskFormOpen && (
+        <TaskForm
+          isOpen={isTaskFormOpen}
+          onClose={() => setIsTaskFormOpen(false)}
+          onSubmit={handleTaskSubmit}
+        />
+      )}
 
-      {/* Customer Form */}
-      <CustomerForm
-        isOpen={isCustomerFormOpen}
-        onClose={() => setIsCustomerFormOpen(false)}
-        onSubmit={handleCustomerSubmit}
-      />
+      {/* Customer Form - Only render when open */}
+      {isCustomerFormOpen && (
+        <CustomerForm
+          isOpen={isCustomerFormOpen}
+          onClose={() => setIsCustomerFormOpen(false)}
+          onSubmit={handleCustomerSubmit}
+        />
+      )}
     </div>
   );
 };
