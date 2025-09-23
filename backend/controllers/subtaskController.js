@@ -449,6 +449,87 @@ const updateSubtask = async (req, res) => {
   }
 };
 
+// @desc    Copy an existing subtask
+// @route   POST /api/subtasks/:subtaskId/copy
+// @access  Private (PM only)
+const copySubtask = async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const { taskId, customerId } = req.body;
+
+    // Check if user has permission to access the customer
+    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error
+      });
+    }
+
+    // Find the original subtask
+    const originalSubtask = await Subtask.findOne({ _id: subtaskId, customer: customerId });
+    if (!originalSubtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    // Verify task exists and belongs to the customer
+    const taskExists = await Task.findOne({ _id: taskId, customer: customerId });
+    if (!taskExists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Task not found or does not belong to the specified customer'
+      });
+    }
+
+    // Get the next sequence number for this task
+    const lastSubtask = await Subtask.findOne({ task: taskId })
+      .sort({ sequence: -1 })
+      .select('sequence');
+    const nextSequence = lastSubtask ? lastSubtask.sequence + 1 : 1;
+
+    // Create the copied subtask with inherited properties
+    const copiedSubtask = new Subtask({
+      title: originalSubtask.title,
+      description: originalSubtask.description,
+      task: taskId,
+      customer: customerId,
+      status: 'pending', // Reset status to pending
+      priority: originalSubtask.priority,
+      assignedTo: originalSubtask.assignedTo, // Inherit assignments
+      dueDate: originalSubtask.dueDate,
+      sequence: nextSequence,
+      createdBy: req.user.id
+      // Exclude: attachments, comments, completion data
+    });
+
+    await copiedSubtask.save();
+
+    // Populate the copied subtask with user data
+    await copiedSubtask.populate([
+      { path: 'assignedTo', select: 'fullName email avatar' },
+      { path: 'createdBy', select: 'fullName email avatar' },
+      { path: 'task', select: 'title' },
+      { path: 'customer', select: 'name' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Subtask copied successfully',
+      data: { subtask: copiedSubtask }
+    });
+
+  } catch (error) {
+    console.error('Error copying subtask:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // @desc    Delete subtask
 // @route   DELETE /api/subtasks/:subtaskId/customer/:customerId
 // @access  Private (PM only)
@@ -696,6 +777,7 @@ module.exports = {
   getSubtasksByTask,
   getSubtask,
   updateSubtask,
+  copySubtask,
   deleteSubtask,
   getSubtaskStats,
   addSubtaskComment,

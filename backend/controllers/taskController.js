@@ -396,6 +396,77 @@ const updateTask = async (req, res) => {
   }
 };
 
+// @desc    Copy an existing task
+// @route   POST /api/tasks/:taskId/copy
+// @access  Private (PM only)
+const copyTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { customerId } = req.body;
+
+    // Check if user has permission to access the customer
+    const permissionCheck = await checkCustomerPermission(customerId, req.user.id, req.user.role);
+    if (!permissionCheck.hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: permissionCheck.error
+      });
+    }
+
+    // Find the original task
+    const originalTask = await Task.findOne({ _id: taskId, customer: customerId });
+    if (!originalTask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Get the next sequence number for this customer
+    const lastTask = await Task.findOne({ customer: customerId })
+      .sort({ sequence: -1 })
+      .select('sequence');
+    const nextSequence = lastTask ? lastTask.sequence + 1 : 1;
+
+    // Create the copied task with inherited properties
+    const copiedTask = new Task({
+      title: originalTask.title,
+      description: originalTask.description,
+      customer: customerId,
+      status: 'pending', // Reset status to pending
+      priority: originalTask.priority,
+      assignedTo: originalTask.assignedTo, // Inherit assignments
+      dueDate: originalTask.dueDate,
+      sequence: nextSequence,
+      progress: 0, // Reset progress to 0
+      createdBy: req.user.id
+      // Exclude: attachments, comments, completion data
+    });
+
+    await copiedTask.save();
+
+    // Populate the copied task with user data
+    await copiedTask.populate([
+      { path: 'assignedTo', select: 'fullName email avatar' },
+      { path: 'createdBy', select: 'fullName email avatar' },
+      { path: 'customer', select: 'name' }
+    ]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Task copied successfully',
+      data: { task: copiedTask }
+    });
+
+  } catch (error) {
+    console.error('Error copying task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 // @desc    Delete task
 // @route   DELETE /api/tasks/:taskId/customer/:customerId
 // @access  Private (PM only)
@@ -412,8 +483,8 @@ const deleteTask = async (req, res) => {
       });
     }
 
-    // Find and delete the task
-    const task = await Task.findOneAndDelete({ _id: taskId, customer: customerId });
+    // Find the task first
+    const task = await Task.findOne({ _id: taskId, customer: customerId });
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -421,9 +492,15 @@ const deleteTask = async (req, res) => {
       });
     }
 
+    // Delete all subtasks associated with this task (cascade delete)
+    await Subtask.deleteMany({ task: taskId });
+
+    // Delete the task
+    await Task.findByIdAndDelete(taskId);
+
     res.json({
       success: true,
-      message: 'Task deleted successfully'
+      message: 'Task and all associated subtasks deleted successfully'
     });
 
   } catch (error) {
@@ -742,6 +819,7 @@ module.exports = {
   getTasksByCustomer,
   getTask,
   updateTask,
+  copyTask,
   deleteTask,
   getTeamMembersForTask,
   getAllTasks,

@@ -7,6 +7,7 @@ const {
   getTasksByCustomer,
   getTask,
   updateTask,
+  copyTask,
   deleteTask,
   getTeamMembersForTask,
   getAllTasks,
@@ -62,6 +63,11 @@ router.use(protect);
 // @desc    Create a new task
 // @access  Private (PM only)
 router.post('/', authorize('pm'), upload.array('attachments', 10), validateTask, createTask);
+
+// @route   POST /api/tasks/:taskId/copy
+// @desc    Copy an existing task
+// @access  Private (PM only)
+router.post('/:taskId/copy', authorize('pm'), copyTask);
 
 // @route   GET /api/tasks
 // @desc    Get all tasks with filtering and pagination

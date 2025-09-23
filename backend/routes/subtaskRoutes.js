@@ -6,6 +6,7 @@ const {
   getSubtasksByTask,
   getSubtask,
   updateSubtask,
+  copySubtask,
   deleteSubtask,
   getSubtaskStats,
   addSubtaskComment,
@@ -67,6 +68,11 @@ router.post('/',
   validateSubtask,
   createSubtask
 );
+
+// @route   POST /api/subtasks/:subtaskId/copy
+// @desc    Copy an existing subtask
+// @access  Private (PM only)
+router.post('/:subtaskId/copy', authorize('pm'), copySubtask);
 
 // @route   GET /api/subtasks/stats
 // @desc    Get subtask statistics
