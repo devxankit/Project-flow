@@ -220,7 +220,7 @@ const PMTaskDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
         <PMNavbar />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex items-center space-x-3">
@@ -234,7 +234,7 @@ const PMTaskDetail = () => {
 
   if (!task) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
         <PMNavbar />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -251,7 +251,7 @@ const PMTaskDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <PMNavbar />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -647,14 +647,16 @@ const PMTaskDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Subtask Form */}
-      <SubtaskForm
-        isOpen={isSubtaskFormOpen}
-        onClose={() => setIsSubtaskFormOpen(false)}
-        onSubmit={handleSubtaskSubmit}
-        taskId={id}
-        customerId={customerId}
-      />
+      {/* Subtask Form - Only render when dialog is open */}
+      {isSubtaskFormOpen && (
+        <SubtaskForm
+          isOpen={isSubtaskFormOpen}
+          onClose={() => setIsSubtaskFormOpen(false)}
+          onSubmit={handleSubtaskSubmit}
+          taskId={id}
+          customerId={customerId}
+        />
+      )}
     </div>
   );
 };

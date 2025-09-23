@@ -26,7 +26,6 @@ import { subtaskApi, commentApi, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import CustomerNavbar from '../components/Customer-Navbar';
-import AttachmentDisplay from '../components/AttachmentDisplay';
 
 const CustomerSubtaskDetail = () => {
   const { id } = useParams();
@@ -45,7 +44,6 @@ const CustomerSubtaskDetail = () => {
     if (id && taskId && customerId) {
       loadSubtask();
     } else {
-      console.error('Missing required parameters:', { id, taskId, customerId });
       toast.error('Error', 'Missing subtask, task, or customer ID');
       navigate('/customer-dashboard');
     }
@@ -78,9 +76,40 @@ const CustomerSubtaskDetail = () => {
   const handleCommentSubmit = async () => {
     if (!newComment.trim()) return;
     
-    // TODO: Implement comment functionality when backend endpoints are available
-    toast.info('Info', 'Comment functionality will be available soon');
-    setNewComment('');
+    try {
+      const response = await commentApi.addSubtaskComment(id, newComment.trim());
+      
+      if (response.data.success) {
+        toast.success('Success', 'Comment added successfully');
+        setNewComment('');
+        // Reload subtask to show new comment
+        loadSubtask();
+      } else {
+        toast.error('Error', response.data.message || 'Failed to add comment');
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Error', 'Failed to add comment');
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (window.confirm('Are you sure you want to delete this comment?')) {
+      try {
+        const response = await commentApi.deleteSubtaskComment(id, commentId);
+        
+        if (response.data.success) {
+          toast.success('Success', 'Comment deleted successfully');
+          // Reload subtask to remove deleted comment
+          loadSubtask();
+        } else {
+          toast.error('Error', response.data.message || 'Failed to delete comment');
+        }
+      } catch (error) {
+        console.error('Error deleting comment:', error);
+        toast.error('Error', 'Failed to delete comment');
+      }
+    }
   };
 
   const formatDate = (dateString) => {
@@ -133,9 +162,29 @@ const CustomerSubtaskDetail = () => {
     }
   };
 
+  const getFileIcon = (mimetype) => {
+    if (mimetype.startsWith('image/')) return '🖼️';
+    if (mimetype.startsWith('video/')) return '🎥';
+    if (mimetype.startsWith('audio/')) return '🎵';
+    if (mimetype.includes('pdf')) return '📄';
+    if (mimetype.includes('word')) return '📝';
+    if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return '📊';
+    if (mimetype.includes('powerpoint') || mimetype.includes('presentation')) return '📽️';
+    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
+    return '📎';
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
         <CustomerNavbar />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="flex items-center space-x-3">
@@ -149,7 +198,7 @@ const CustomerSubtaskDetail = () => {
 
   if (!subtask) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
         <CustomerNavbar />
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
@@ -166,7 +215,7 @@ const CustomerSubtaskDetail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
       <CustomerNavbar />
       
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
@@ -219,12 +268,47 @@ const CustomerSubtaskDetail = () => {
             </div>
 
             {/* Attachments */}
-            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-              <AttachmentDisplay 
-                attachments={subtask.attachments || []} 
-                canDelete={false}
-              />
-            </div>
+            {subtask.attachments && subtask.attachments.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                  <Paperclip className="h-5 w-5 text-primary" />
+                  <span>Attachments ({subtask.attachments.length})</span>
+                </h3>
+                <div className="space-y-3">
+                  {subtask.attachments.map((attachment, index) => (
+                    <div key={attachment.cloudinaryId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
+                          <p className="text-xs text-gray-500">
+                            {formatFileSize(attachment.size)} • 
+                            Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <a 
+                          href={attachment.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </a>
+                        <a 
+                          href={attachment.url} 
+                          download={attachment.originalName}
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                        >
+                          <Download className="h-4 w-4" />
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -288,19 +372,15 @@ const CustomerSubtaskDetail = () => {
 
             {/* Task & Customer Info */}
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Context Info</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Task & Customer Info</h3>
               <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Customer</label>
-                  <p className="text-base font-medium text-gray-900">{subtask.customer?.name || 'Unknown Customer'}</p>
-                </div>
                 <div>
                   <label className="text-sm font-medium text-gray-600">Task</label>
                   <p className="text-base font-medium text-gray-900">{subtask.task?.title || 'Unknown Task'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Subtask</label>
-                  <p className="text-base font-medium text-gray-900">{subtask.title || 'Unknown Subtask'}</p>
+                  <label className="text-sm font-medium text-gray-600">Customer</label>
+                  <p className="text-base font-medium text-gray-900">{subtask.customer?.name || 'Unknown Customer'}</p>
                 </div>
               </div>
             </div>
@@ -336,6 +416,16 @@ const CustomerSubtaskDetail = () => {
                         {formatDate(comment.timestamp)}
                       </span>
                     </div>
+                    {/* Show delete button only for current user's comments */}
+                    {(comment.user?._id || comment.user?.id || comment.user) === user?.id && (
+                      <button
+                        onClick={() => handleDeleteComment(comment._id || comment.id)}
+                        className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Delete comment"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600">{comment.message}</p>
                 </div>

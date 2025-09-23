@@ -20,13 +20,14 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
   const navigate = useNavigate();
   useScrollToTop();
 
-  const isEditMode = Boolean(id);
+  const isEditMode = Boolean(id) && !isOpen; // Only edit mode if we have an ID and we're NOT in dialog mode
   const isDialogMode = Boolean(isOpen);
 
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     task: taskId || '',
+    customer: customerId || '',
     priority: 'normal',
     dueDate: '',
     assignedTo: [],
@@ -64,25 +65,44 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
   }, [isDialogMode, isEditMode]);
 
   useEffect(() => {
-    if (isEditMode && id) {
+    // Only load subtask data if we're in edit mode AND not in dialog mode
+    // Dialog mode is for creating new subtasks, not editing existing ones
+    if (isEditMode && !isDialogMode) {
       loadSubtaskData();
     }
-  }, [isEditMode, id]);
+  }, [isEditMode, isDialogMode]);
 
   const loadTasks = async () => {
     setIsLoadingTasks(true);
     try {
-      const response = await taskApi.getAllTasks();
-      if (response.success && response.data) {
-        const tasksData = response.data.tasks || response.data || [];
-        const formattedTasks = (Array.isArray(tasksData) ? tasksData : []).map(task => ({
-          value: task._id,
-          label: task.title,
-          subtitle: task.customer?.name || 'No Customer',
-          icon: CheckSquare,
-          avatar: task.avatar
-        }));
-        setTasks(formattedTasks);
+      if (customerId) {
+        // Load tasks for specific customer
+        const response = await taskApi.getTasksByCustomer(customerId);
+        if (response.success && response.data) {
+          const tasksData = response.data.tasks || [];
+          const formattedTasks = (Array.isArray(tasksData) ? tasksData : []).map(task => ({
+            value: task._id,
+            label: task.title,
+            subtitle: `Sequence: ${task.sequence}`,
+            icon: CheckSquare,
+            avatar: task.avatar
+          }));
+          setTasks(formattedTasks);
+        }
+      } else {
+        // Fallback to all tasks if no customerId
+        const response = await taskApi.getAllTasks();
+        if (response.success && response.data) {
+          const tasksData = response.data.tasks || response.data || [];
+          const formattedTasks = (Array.isArray(tasksData) ? tasksData : []).map(task => ({
+            value: task._id,
+            label: task.title,
+            subtitle: task.customer?.name || 'No Customer',
+            icon: CheckSquare,
+            avatar: task.avatar
+          }));
+          setTasks(formattedTasks);
+        }
       }
     } catch (error) {
       console.error('Error loading tasks:', error);
@@ -96,16 +116,32 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
   const loadTeamMembers = async () => {
     setIsLoadingTeamMembers(true);
     try {
-      const response = await customerApi.getUsersForCustomer('team');
-      if (response.success && response.data) {
-        const teamData = response.data.teamMembers || [];
-        const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
-          value: member._id,
-          label: member.fullName,
-          subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
-          avatar: member.avatar
-        }));
-        setTeamMembers(formattedTeamMembers);
+      if (customerId) {
+        // Load team members for specific customer
+        const response = await taskApi.getTeamMembersForTask(customerId);
+        if (response.success && response.data) {
+          const teamData = response.data.teamMembers || [];
+          const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
+            value: member._id,
+            label: member.fullName,
+            subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
+            avatar: member.avatar
+          }));
+          setTeamMembers(formattedTeamMembers);
+        }
+      } else {
+        // Fallback to all team members
+        const response = await customerApi.getUsersForCustomer('team');
+        if (response.success && response.data) {
+          const teamData = response.data.teamMembers || [];
+          const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
+            value: member._id,
+            label: member.fullName,
+            subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
+            avatar: member.avatar
+          }));
+          setTeamMembers(formattedTeamMembers);
+        }
       }
     } catch (error) {
       console.error('Error loading team members:', error);
@@ -118,13 +154,14 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
 
   const loadSubtaskData = async () => {
     try {
-      const response = await subtaskApi.getSubtask(id);
+      const response = await subtaskApi.getSubtask(id, taskId, customerId);
       if (response.success && response.data) {
-        const subtask = response.data;
+        const subtask = response.data.subtask;
         setFormData({
           title: subtask.title || '',
           description: subtask.description || '',
           task: subtask.task?._id || '',
+          customer: subtask.customer?._id || customerId || '',
           priority: subtask.priority || 'normal',
           dueDate: subtask.dueDate || '',
           assignedTo: subtask.assignedTo?.map(user => user._id) || [],
@@ -267,6 +304,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
       title: '',
       description: '',
       task: taskId || '',
+      customer: customerId || '',
       priority: 'normal',
       dueDate: '',
       assignedTo: [],
@@ -641,12 +679,12 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
           {isSubmitting ? (
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>Creating...</span>
+              <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Save className="h-4 w-4" />
-              <span>Create Subtask</span>
+              <span>{isEditMode ? 'Update Subtask' : 'Create Subtask'}</span>
             </div>
           )}
         </Button>
@@ -662,7 +700,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId }) => {
           <DialogHeader className="space-y-2">
             <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
               <List className="h-6 w-6" />
-              <span>Create New Subtask</span>
+              <span>{isEditMode ? 'Edit Subtask' : 'Create New Subtask'}</span>
             </DialogTitle>
             <DialogDescription className="text-primary-foreground/80">
               Fill in the subtask details below. Fields marked with * are required.
