@@ -62,7 +62,7 @@ const CustomerTaskRequests = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await api.get('/customer/customers');
+        const response = await api.get('/customers');
         if (response.data.success) {
           setCustomers(response.data.data.customers || []);
         }
@@ -202,20 +202,20 @@ const CustomerTaskRequests = () => {
     }
   };
 
-  // Fetch milestones for a specific project
-  const fetchMilestonesForProject = async (projectId) => {
+  // Fetch tasks for a specific customer
+  const fetchTasksForCustomer = async (customerId) => {
     try {
-      const response = await api.get(`/customers/${projectId}/tasks`);
+      const response = await api.get(`/customers/${customerId}/tasks`);
       if (response.data.success) {
-        setMilestones(response.data.data || []);
-        // Close the project selection dialog and open the task request form
+        setTasks(response.data.data || []);
+        // Close the customer selection dialog and open the task request form
         setIsTaskRequestFormOpen(false);
       } else {
-        toast.error('Error', 'Failed to load milestones for this project');
+        toast.error('Error', 'Failed to load tasks for this customer');
       }
     } catch (error) {
-      console.error('Error fetching milestones:', error);
-      toast.error('Error', 'Failed to load milestones for this project');
+      console.error('Error fetching tasks:', error);
+      toast.error('Error', 'Failed to load tasks for this customer');
     }
   };
 
@@ -406,7 +406,7 @@ const CustomerTaskRequests = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-500">
                       <div className="flex items-center space-x-2 min-w-0">
                         <Target className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{typeof request.project === 'string' ? request.project : request.project?.name || 'Unknown Project'}</span>
+                        <span className="truncate">{typeof request.customer === 'string' ? request.customer : request.customer?.name || 'Unknown Customer'}</span>
                       </div>
                       <div className="flex items-center space-x-2 min-w-0">
                         <Calendar className="h-4 w-4 flex-shrink-0" />

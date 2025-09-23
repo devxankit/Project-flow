@@ -8,7 +8,7 @@ const Dialog = React.forwardRef(({ className, children, open, onOpenChange, ...p
   return (
     <div
       ref={ref}
-      className={cn("fixed inset-0 z-[60] flex items-center justify-center", className)}
+      className={cn("fixed inset-0 z-[100] flex items-center justify-center", className)}
       {...props}
     >
       {children}
@@ -21,7 +21,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm",
+      "fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm",
       className
     )}
     {...props}
@@ -42,7 +42,7 @@ const DialogContent = React.forwardRef(({ className, children, onClose, ...props
       <div
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-[60] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg md:max-w-2xl lg:max-w-4xl",
+          "fixed left-[50%] top-[50%] z-[100] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg md:max-w-2xl lg:max-w-4xl",
           "max-h-[90vh] overflow-y-auto",
           className
         )}

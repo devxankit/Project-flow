@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical, Loader2 } from 'lucide-react';
+import { CheckSquare, Plus, Search, Filter, Calendar, User, Clock, MoreVertical, Loader2, Target } from 'lucide-react';
 import { taskApi, handleApiError } from '../utils/api';
 
 import { useToast } from '../contexts/ToastContext';
@@ -36,13 +36,19 @@ const Tasks = () => {
       // Load all tasks using the updated API
       const response = await taskApi.getAllTasks();
       if (response.success) {
-        setTasks(response.data || []);
+        // Extract tasks from the response data structure
+        const tasksData = response.data?.tasks || response.data || [];
+        setTasks(Array.isArray(tasksData) ? tasksData : []);
       } else {
         toast.error('Error', response.message || 'Failed to load tasks');
+        // Set empty array on error to prevent filter issues
+        setTasks([]);
       }
     } catch (error) {
       console.error('Error loading tasks:', error);
       handleApiError(error, toast);
+      // Set empty array on error to prevent filter issues
+      setTasks([]);
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +80,7 @@ const Tasks = () => {
     }
   };
 
-  const filteredTasks = filter === 'all' ? tasks : tasks.filter(task => {
+  const filteredTasks = filter === 'all' ? (Array.isArray(tasks) ? tasks : []) : (Array.isArray(tasks) ? tasks : []).filter(task => {
     const taskStatus = task.status?.toLowerCase() || '';
     return taskStatus === filter.toLowerCase();
   });
@@ -122,7 +128,10 @@ const Tasks = () => {
                   <h3 className="text-sm font-semibold text-gray-900">Stay productive today</h3>
                   <p className="text-xs text-gray-600">Add new tasks and track progress</p>
                 </div>
-                <button className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2">
+                <button 
+                  onClick={() => setIsTaskFormOpen(true)}
+                  className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                >
                   <Plus className="h-5 w-5" />
                   <span className="font-medium">New Task</span>
                 </button>
@@ -134,10 +143,10 @@ const Tasks = () => {
           <div className="md:hidden mb-6">
             <div className="grid grid-cols-2 gap-3">
               {[
-                { key: 'all', label: 'All', count: tasks.length },
-                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status?.toLowerCase() === 'pending').length },
-                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status?.toLowerCase() === 'in progress').length },
-                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status?.toLowerCase() === 'completed').length }
+                { key: 'all', label: 'All', count: Array.isArray(tasks) ? tasks.length : 0 },
+                { key: 'pending', label: 'Pending', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'pending').length : 0 },
+                { key: 'in progress', label: 'Active', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'in progress').length : 0 },
+                { key: 'completed', label: 'Done', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'completed').length : 0 }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -161,10 +170,10 @@ const Tasks = () => {
           <div className="hidden md:block mb-8">
             <div className="flex gap-2 flex-wrap">
               {[
-                { key: 'all', label: 'All', count: tasks.length },
-                { key: 'pending', label: 'Pending', count: tasks.filter(t => t.status?.toLowerCase() === 'pending').length },
-                { key: 'in progress', label: 'Active', count: tasks.filter(t => t.status?.toLowerCase() === 'in progress').length },
-                { key: 'completed', label: 'Done', count: tasks.filter(t => t.status?.toLowerCase() === 'completed').length }
+                { key: 'all', label: 'All', count: Array.isArray(tasks) ? tasks.length : 0 },
+                { key: 'pending', label: 'Pending', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'pending').length : 0 },
+                { key: 'in progress', label: 'Active', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'in progress').length : 0 },
+                { key: 'completed', label: 'Done', count: Array.isArray(tasks) ? tasks.filter(t => t.status?.toLowerCase() === 'completed').length : 0 }
               ].map(({ key, label, count }) => (
                 <button
                   key={key}
@@ -197,49 +206,50 @@ const Tasks = () => {
               {filteredTasks.map((task) => (
               <div 
                 key={task._id} 
-                onClick={() => navigate(`/pm-task/${task._id}?customerId=${task.customer?._id || task.customer}`)}
-                className="group relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer overflow-hidden"
+                onClick={() => {
+                  const customerId = task.customer?._id || task.customer;
+                  console.log('Task clicked:', task);
+                  console.log('Customer ID:', customerId);
+                  
+                  if (customerId && customerId !== 'undefined' && customerId !== 'null') {
+                    console.log('Navigation URL:', `/pm-task/${task._id}?customerId=${customerId}`);
+                    navigate(`/pm-task/${task._id}?customerId=${customerId}`);
+                  } else {
+                    console.error('Invalid customer ID for task:', task);
+                    toast.error('Error', 'Invalid customer ID for this task');
+                  }
+                }}
+                className="group bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer transform hover:-translate-y-0.5"
               >
-                {/* Magic UI Border Effect */}
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
-                {/* Header */}
-                <div className="relative flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-3 flex-1 min-w-0">
-                    <div className={`p-2 rounded-lg ${getStatusColor(task.status)} flex-shrink-0`}>
-                      <CheckSquare className="h-4 w-4" />
+                {/* Header Section */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start space-x-3 flex-1">
+                    <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl group-hover:from-primary/20 group-hover:to-primary/30 transition-all duration-300">
+                      <Target className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-primary transition-colors">
-                        {task.title}
-                      </h3>
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="text-base md:text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
+                          {task.title}
+                        </h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
+                          {task.status}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-1.5 mb-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                          {task.priority}
+                        </span>
+                        <span className="text-xs text-gray-500">Seq: {task.sequence || 'N/A'}</span>
+                      </div>
                     </div>
                   </div>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Handle menu click
-                    }}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-md transition-all duration-200 flex-shrink-0"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
                 </div>
 
                 {/* Description */}
-                <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                  {task.description}
+                <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                  {task.description || 'No description available'}
                 </p>
-
-                {/* Tags Row */}
-                <div className="flex items-center space-x-2 mb-3">
-                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getStatusColor(task.status)}`}>
-                    {task.status}
-                  </span>
-                  <span className={`px-2 py-1 rounded-md text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                    {task.priority}
-                  </span>
-                </div>
 
                 {/* Customer */}
                 <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
@@ -247,57 +257,36 @@ const Tasks = () => {
                     <div className="flex items-center space-x-1 text-gray-600">
                       <span className="text-primary font-semibold">{task.customer?.name || 'No Customer'}</span>
                     </div>
+                    <div className="flex items-center space-x-1 text-gray-500">
+                      <CheckSquare className="h-3 w-3" />
+                      <span>{task.subtasks?.length || 0} subtasks</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-1.5 text-gray-500">
-                      <User className="h-3.5 w-3.5" />
-                      <span className="text-xs">{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
-                    </div>
-                    <div className="flex items-center space-x-1.5 text-gray-500">
-                      <Calendar className="h-3.5 w-3.5" />
-                      <span className="text-xs">
-                        {new Date(task.dueDate).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
+                {/* Progress Bar */}
+                <div className="mb-3">
+                  <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <span>Progress</span>
+                    <span>{task.progress || 0}%</span>
                   </div>
-                  <div className="text-right">
-                    <div className={`text-xs font-semibold ${
-                      (() => {
-                        const now = new Date();
-                        const dueDate = new Date(task.dueDate);
-                        const diffTime = dueDate.getTime() - now.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        
-                        if (diffDays < 0) return 'text-red-600';
-                        if (diffDays <= 1) return 'text-orange-600';
-                        if (diffDays <= 3) return 'text-yellow-600';
-                        return 'text-green-600';
-                      })()
-                    }`}>
-                      {(() => {
-                        const now = new Date();
-                        const dueDate = new Date(task.dueDate);
-                        const diffTime = dueDate.getTime() - now.getTime();
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        
-                        if (diffDays < 0) {
-                          return `${Math.abs(diffDays)}d`;
-                        } else if (diffDays === 0) {
-                          return 'Today';
-                        } else if (diffDays === 1) {
-                          return '1d';
-                        } else {
-                          return `${diffDays}d`;
-                        }
-                      })()}
-                    </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-primary to-primary-dark h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${task.progress || 0}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Footer Section */}
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-4 w-4" />
+                    <span>Due: {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No date'}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <User className="h-4 w-4" />
+                    <span>{task.assignedTo?.length || 0} assigned</span>
                   </div>
                 </div>
               </div>

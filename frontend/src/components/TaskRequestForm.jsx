@@ -10,13 +10,13 @@ import { DatePicker } from './magicui/date-picker';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
 
-const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, milestones, initialData, isEdit = false, isSubmitting: externalSubmitting = false }) => {
+const TaskRequestForm = ({ isOpen, onClose, onSubmit, customerId, customerName, tasks, initialData, isEdit = false, isSubmitting: externalSubmitting = false }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
     title: initialData?.title || '',
     description: initialData?.description || '',
-    project: initialData?.project || projectId || '',
-    milestone: initialData?.milestone || '',
+    customer: initialData?.customer || customerId || '',
+    task: initialData?.task || '',
     priority: initialData?.priority || 'Medium',
     dueDate: initialData?.dueDate || '',
     reason: initialData?.reason || '',
@@ -29,20 +29,20 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
   // Use external submitting state if provided (for edit mode)
   const submitting = externalSubmitting || isSubmitting;
 
-  // Transform milestones data to match Combobox expected format
+  // Transform tasks data to match Combobox expected format
   
-  // More robust check for milestones
-  let milestoneOptions = [];
+  // More robust check for tasks
+  let taskOptions = [];
   try {
-    if (milestones && Array.isArray(milestones)) {
-      milestoneOptions = milestones.map(milestone => ({
-        value: milestone._id,
-        label: milestone.title || 'Untitled Milestone'
+    if (tasks && Array.isArray(tasks)) {
+      taskOptions = tasks.map(task => ({
+        value: task._id,
+        label: task.title || 'Untitled Task'
       }));
     }
   } catch (error) {
-    console.error('Error processing milestones:', error);
-    milestoneOptions = [];
+    console.error('Error processing tasks:', error);
+    taskOptions = [];
   }
 
   // Priority options
@@ -93,8 +93,8 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
       newErrors.description = 'Description must be at least 20 characters';
     }
 
-    if (!formData.milestone) {
-      newErrors.milestone = 'Please select a milestone';
+    if (!formData.task) {
+      newErrors.task = 'Please select a task';
     }
 
     if (!formData.reason) {
@@ -132,8 +132,8 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
       const requestData = {
         title: formData.title,
         description: formData.description,
-        project: formData.project,
-        milestone: formData.milestone,
+        customer: formData.customer,
+        task: formData.task,
         priority: formData.priority,
         dueDate: formData.dueDate,
         reason: formData.reason
@@ -178,8 +178,8 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
     setFormData({
       title: '',
       description: '',
-      project: projectId || '',
-      milestone: '',
+      customer: customerId || '',
+      task: '',
       priority: 'Medium',
       dueDate: '',
       reason: '',
@@ -202,8 +202,8 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
             </DialogTitle>
             <DialogDescription className="text-primary-foreground/80">
               {isEdit 
-                ? `Update your task request for ${projectName}. Changes will be reviewed by the project manager.`
-                : `Submit a task request for ${projectName}. The project manager will review and approve your request.`
+                ? `Update your task request for ${customerName}. Changes will be reviewed by the project manager.`
+                : `Submit a task request for ${customerName}. The project manager will review and approve your request.`
               }
             </DialogDescription>
           </DialogHeader>
@@ -282,7 +282,7 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
             </AnimatePresence>
           </motion.div>
 
-          {/* Milestone Selection - Required */}
+          {/* Task Selection - Required */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -291,21 +291,21 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
           >
             <label className="text-sm font-semibold text-gray-700 flex items-center">
               <Target className="h-4 w-4 mr-1" />
-              Milestone *
+              Task *
             </label>
             <Combobox
-              options={milestoneOptions}
-              value={formData.milestone}
-              onChange={(value) => handleInputChange('milestone', value)}
-              placeholder={milestoneOptions.length === 0 ? "No milestones available for this project" : "Select the milestone this task belongs to"}
+              options={taskOptions}
+              value={formData.task}
+              onChange={(value) => handleInputChange('task', value)}
+              placeholder={taskOptions.length === 0 ? "No tasks available for this customer" : "Select the task this request belongs to"}
               className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                errors.milestone 
+                errors.task 
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' 
                   : 'border-gray-200 focus:border-primary focus:ring-primary/20'
               }`}
             />
             <AnimatePresence>
-              {errors.milestone && (
+              {errors.task && (
                 <motion.p 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -313,7 +313,7 @@ const TaskRequestForm = ({ isOpen, onClose, onSubmit, projectId, projectName, mi
                   className="text-sm text-red-500 flex items-center"
                 >
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.milestone}
+                  {errors.task}
                 </motion.p>
               )}
             </AnimatePresence>

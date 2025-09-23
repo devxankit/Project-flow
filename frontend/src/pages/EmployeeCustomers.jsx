@@ -28,7 +28,8 @@ const EmployeeCustomers = () => {
         const response = await customerApi.getCustomers();
         
         if (response.success) {
-          setCustomers(response.data || []);
+          // Backend returns { data: { customers: [...], pagination: {...} } }
+          setCustomers(response.data?.customers || []);
         } else {
           toast.error('Error', 'Failed to load customers');
         }

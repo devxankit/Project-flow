@@ -35,7 +35,7 @@ const TaskRequests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
@@ -68,14 +68,14 @@ const TaskRequests = () => {
     fetchTaskRequests();
   }, [toast]);
 
-  // Get unique projects for filter
-  const projects = useMemo(() => {
-    const uniqueProjects = [...new Set(taskRequests.map(req => {
-      return typeof req.project === 'string' ? req.project : req.project?.name;
+  // Get unique customers for filter
+  const customers = useMemo(() => {
+    const uniqueCustomers = [...new Set(taskRequests.map(req => {
+      return typeof req.customer === 'string' ? req.customer : req.customer?.name;
     }).filter(Boolean))];
-    return uniqueProjects.map(project => ({
-      value: project,
-      label: project,
+    return uniqueCustomers.map(customer => ({
+      value: customer,
+      label: customer,
       icon: Building2
     }));
   }, [taskRequests]);
@@ -96,28 +96,29 @@ const TaskRequests = () => {
     { value: 'Urgent', label: 'Urgent', icon: AlertCircle }
   ];
 
-  const projectOptions = [
-    { value: 'all', label: 'All Projects', icon: Building2 },
-    ...projects
+  const customerOptions = [
+    { value: 'all', label: 'All Customers', icon: Building2 },
+    ...customers
   ];
 
   // Filter and search logic
   const filteredRequests = useMemo(() => {
     return taskRequests.filter(request => {
-      const projectName = typeof request.project === 'string' ? request.project : request.project?.name || '';
+      const customerName = typeof request.customer === 'string' ? request.customer : request.customer?.name || '';
       const requestedByName = typeof request.requestedBy === 'string' ? request.requestedBy : request.requestedBy?.fullName || '';
       
       const matchesSearch = request.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            request.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           requestedByName.toLowerCase().includes(searchTerm.toLowerCase());
+                           requestedByName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           customerName.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
       const matchesPriority = priorityFilter === 'all' || request.priority === priorityFilter;
-      const matchesProject = projectFilter === 'all' || projectName === projectFilter;
+      const matchesCustomer = customerFilter === 'all' || customerName === customerFilter;
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesProject;
+      return matchesSearch && matchesStatus && matchesPriority && matchesCustomer;
     });
-  }, [searchTerm, statusFilter, priorityFilter, projectFilter, taskRequests]);
+  }, [searchTerm, statusFilter, priorityFilter, customerFilter, taskRequests]);
 
   // Get status color
   const getStatusColor = (status) => {
@@ -384,17 +385,17 @@ const TaskRequests = () => {
                 />
               </div>
 
-              {/* Project Filter */}
+              {/* Customer Filter */}
               <div className="md:w-48">
                 <Combobox
-                  options={projectOptions.map(option => ({
+                  options={customerOptions.map(option => ({
                     value: option.value,
                     label: option.label,
                     icon: option.icon
                   }))}
-                  value={projectFilter}
-                  onChange={setProjectFilter}
-                  placeholder="Filter by project"
+                  value={customerFilter}
+                  onChange={setCustomerFilter}
+                  placeholder="Filter by customer"
                   className="h-10"
                 />
               </div>
@@ -437,11 +438,11 @@ const TaskRequests = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Building2 className="h-4 w-4" />
-                          <span>{typeof request.project === 'string' ? request.project : request.project?.name || 'Unknown Project'}</span>
+                          <span>{typeof request.customer === 'string' ? request.customer : request.customer?.name || 'Unknown Customer'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <Target className="h-4 w-4" />
-                          <span>{typeof request.milestone === 'string' ? request.milestone : request.milestone?.title || 'Unknown Milestone'}</span>
+                          <span>{typeof request.task === 'string' ? request.task : request.task?.title || 'Unknown Task'}</span>
                         </div>
                         <div className="flex items-center space-x-2 text-gray-600">
                           <User className="h-4 w-4" />

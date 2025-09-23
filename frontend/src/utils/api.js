@@ -342,17 +342,19 @@ export const customerApi = {
 
   // Get customer statistics
   getCustomerStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/customers/stats`, {
-      method: 'GET',
-      headers: getAuthHeaders()
+    return throttleRequest('customer-stats', async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/stats`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
     });
-    
-    return handleApiResponse(response);
   },
 
   // Get users for customer assignment
-  getUsersForCustomer: async (type = null) => {
-    const url = type ? `${API_BASE_URL}/customers/users?type=${type}` : `${API_BASE_URL}/customers/users`;
+  getUsersForCustomer: async (role = null) => {
+    const url = role ? `${API_BASE_URL}/customers/users?role=${role}` : `${API_BASE_URL}/customers/users`;
     
     const response = await fetch(url, {
       method: 'GET',
@@ -380,14 +382,36 @@ export const customerApi = {
 // Task API functions (updated for customer structure)
 export const taskApi = {
   // Create a new task
-  createTask: async (taskData) => {
-    const response = await fetch(`${API_BASE_URL}/tasks`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: taskData // FormData for file uploads
-    });
-    
-    return handleApiResponse(response);
+  createTask: async (taskData, attachments = []) => {
+    if (attachments.length > 0) {
+      const formData = new FormData();
+      formData.append('taskData', JSON.stringify(taskData));
+      attachments.forEach((attachment) => {
+        formData.append('attachments', attachment.file);
+      });
+      
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+      
+      return handleApiResponse(response);
+    } else {
+      const response = await fetch(`${API_BASE_URL}/tasks`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(taskData) // JSON data for task creation
+      });
+      
+      return handleApiResponse(response);
+    }
   },
 
   // Get tasks for a customer
@@ -413,14 +437,36 @@ export const taskApi = {
   },
 
   // Update task
-  updateTask: async (taskId, customerId, taskData) => {
-    const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: taskData // FormData for file uploads
-    });
-    
-    return handleApiResponse(response);
+  updateTask: async (taskId, customerId, taskData, attachments = []) => {
+    if (attachments.length > 0) {
+      const formData = new FormData();
+      formData.append('taskData', JSON.stringify(taskData));
+      attachments.forEach((attachment) => {
+        formData.append('attachments', attachment.file);
+      });
+      
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
+        method: 'PUT',
+        headers,
+        body: formData
+      });
+      
+      return handleApiResponse(response);
+    } else {
+      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/customer/${customerId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(taskData) // JSON data for task updates
+      });
+      
+      return handleApiResponse(response);
+    }
   },
 
   // Delete task
@@ -466,12 +512,14 @@ export const taskApi = {
 
   // Get task statistics
   getTaskStats: async () => {
-    const response = await fetch(`${API_BASE_URL}/tasks/stats`, {
-      method: 'GET',
-      headers: getAuthHeaders()
+    return throttleRequest('task-stats', async () => {
+      const response = await fetch(`${API_BASE_URL}/tasks/stats`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
     });
-    
-    return handleApiResponse(response);
   }
 };
 
@@ -665,14 +713,36 @@ const api = {
 // Subtask API functions
 export const subtaskApi = {
   // Create a new subtask
-  createSubtask: async (subtaskData) => {
-    const response = await fetch(`${API_BASE_URL}/subtasks`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: subtaskData // FormData for file uploads
-    });
-    
-    return handleApiResponse(response);
+  createSubtask: async (subtaskData, attachments = []) => {
+    if (attachments.length > 0) {
+      const formData = new FormData();
+      formData.append('subtaskData', JSON.stringify(subtaskData));
+      attachments.forEach((attachment) => {
+        formData.append('attachments', attachment.file);
+      });
+      
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/subtasks`, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+      
+      return handleApiResponse(response);
+    } else {
+      const response = await fetch(`${API_BASE_URL}/subtasks`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(subtaskData) // JSON data for subtask creation
+      });
+      
+      return handleApiResponse(response);
+    }
   },
 
   // Get subtasks for a task
@@ -700,14 +770,36 @@ export const subtaskApi = {
   },
 
   // Update subtask
-  updateSubtask: async (subtaskId, taskId, customerId, subtaskData) => {
-    const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
-      method: 'PUT',
-      headers: getAuthHeaders(),
-      body: subtaskData // FormData for file uploads
-    });
-    
-    return handleApiResponse(response);
+  updateSubtask: async (subtaskId, taskId, customerId, subtaskData, attachments = []) => {
+    if (attachments.length > 0) {
+      const formData = new FormData();
+      formData.append('subtaskData', JSON.stringify(subtaskData));
+      attachments.forEach((attachment) => {
+        formData.append('attachments', attachment.file);
+      });
+      
+      const token = localStorage.getItem('token');
+      const headers = {};
+      if (token && token !== 'null' && token !== 'undefined' && token.trim() !== '') {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
+        method: 'PUT',
+        headers,
+        body: formData
+      });
+      
+      return handleApiResponse(response);
+    } else {
+      const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(subtaskData) // JSON data for subtask updates
+      });
+      
+      return handleApiResponse(response);
+    }
   },
 
   // Delete subtask

@@ -120,11 +120,11 @@ const CustomerFiles = () => {
   const filteredFiles = files.filter(file => {
     // Safe string conversion with fallbacks - handle different possible property names
     const fileName = file.name || file.originalName || '';
-    const projectName = file.project || file.projectName || '';
+    const customerName = file.customer || file.customerName || '';
     const taskName = file.task || file.taskTitle || '';
     
     const matchesSearch = fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         projectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          taskName.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filter === 'all') return matchesSearch;
@@ -149,7 +149,7 @@ const CustomerFiles = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex-1">
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">Project Files</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Customer Files</h2>
                   <p className="text-sm text-gray-600">Download shared files and documents</p>
                 </div>
               </div>
@@ -189,7 +189,7 @@ const CustomerFiles = () => {
             <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <h3 className="text-sm font-semibold text-gray-900">Project Files</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">Customer Files</h3>
                   <p className="text-xs text-gray-600">Download shared files and documents</p>
                 </div>
                 <div className="text-2xl font-bold text-primary">{files.length}</div>

@@ -17,8 +17,8 @@ const CustomerTaskRequestEdit = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [taskRequest, setTaskRequest] = useState(null);
-  const [milestones, setMilestones] = useState([]);
-  const [milestonesLoading, setMilestonesLoading] = useState(false);
+  const [tasks, setTasks] = useState([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useScrollToTop();
@@ -32,23 +32,23 @@ const CustomerTaskRequestEdit = () => {
           const request = response.data.data;
           setTaskRequest(request);
           
-          // Fetch milestones for the project
-          if (request.project) {
-            const projectId = typeof request.project === 'string' ? request.project : request.project._id;
-            setMilestonesLoading(true);
+          // Fetch tasks for the customer
+          if (request.customer) {
+            const customerId = typeof request.customer === 'string' ? request.customer : request.customer._id;
+            setTasksLoading(true);
             try {
-              const milestonesResponse = await api.get(`/customers/${projectId}/tasks`);
-              if (milestonesResponse.data.success) {
-                setMilestones(milestonesResponse.data.data || []);
+              const tasksResponse = await api.get(`/customers/${customerId}/tasks`);
+              if (tasksResponse.data.success) {
+                setTasks(tasksResponse.data.data || []);
               } else {
-                console.warn('Failed to fetch milestones:', milestonesResponse.data.message);
-                setMilestones([]);
+                console.warn('Failed to fetch tasks:', tasksResponse.data.message);
+                setTasks([]);
               }
             } catch (error) {
-              console.error('Error fetching milestones:', error);
-              setMilestones([]);
+              console.error('Error fetching tasks:', error);
+              setTasks([]);
             } finally {
-              setMilestonesLoading(false);
+              setTasksLoading(false);
             }
           }
         } else {
@@ -91,7 +91,7 @@ const CustomerTaskRequestEdit = () => {
     navigate(`/customer-task-request/${id}`);
   };
 
-  if (loading || milestonesLoading) {
+  if (loading || tasksLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <CustomerNavbar />
@@ -151,8 +151,8 @@ const CustomerTaskRequestEdit = () => {
   const initialFormData = {
     title: taskRequest.title,
     description: taskRequest.description,
-    project: typeof taskRequest.project === 'string' ? taskRequest.project : taskRequest.project?._id,
-    milestone: typeof taskRequest.milestone === 'string' ? taskRequest.milestone : taskRequest.milestone?._id,
+    customer: typeof taskRequest.customer === 'string' ? taskRequest.customer : taskRequest.customer?._id,
+    task: typeof taskRequest.task === 'string' ? taskRequest.task : taskRequest.task?._id,
     priority: taskRequest.priority,
     dueDate: taskRequest.dueDate ? new Date(taskRequest.dueDate).toISOString().split('T')[0] : '',
     reason: taskRequest.reason
@@ -183,9 +183,9 @@ const CustomerTaskRequestEdit = () => {
             isOpen={true}
             onClose={handleClose}
             onSubmit={handleSubmit}
-            projectId={initialFormData.project}
-            projectName={typeof taskRequest.project === 'string' ? taskRequest.project : taskRequest.project?.name}
-            milestones={milestones}
+            customerId={initialFormData.customer}
+            customerName={typeof taskRequest.customer === 'string' ? taskRequest.customer : taskRequest.customer?.name}
+            tasks={tasks}
             initialData={initialFormData}
             isEdit={true}
             isSubmitting={isSubmitting}

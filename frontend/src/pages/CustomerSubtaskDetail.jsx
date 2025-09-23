@@ -1,0 +1,385 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  ArrowLeft, 
+  CheckSquare, 
+  Calendar, 
+  User, 
+  Flag, 
+  Target, 
+  Clock, 
+  FileText, 
+  Download, 
+  Eye, 
+  Users,
+  Paperclip,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  MessageSquare,
+  X
+} from 'lucide-react';
+import { Button } from '../components/magicui/button';
+import { subtaskApi, commentApi, handleApiError } from '../utils/api';
+import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
+import CustomerNavbar from '../components/Customer-Navbar';
+import AttachmentDisplay from '../components/AttachmentDisplay';
+
+const CustomerSubtaskDetail = () => {
+  const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const taskId = searchParams.get('taskId');
+  const customerId = searchParams.get('customerId');
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const [subtask, setSubtask] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newComment, setNewComment] = useState('');
+
+  useEffect(() => {
+    if (id && taskId && customerId) {
+      loadSubtask();
+    } else {
+      console.error('Missing required parameters:', { id, taskId, customerId });
+      toast.error('Error', 'Missing subtask, task, or customer ID');
+      navigate('/customer-dashboard');
+    }
+  }, [id, taskId, customerId]);
+
+  const loadSubtask = async () => {
+    try {
+      setIsLoading(true);
+      console.log('Loading subtask with ID:', id, 'Task ID:', taskId, 'Customer ID:', customerId);
+      
+      const response = await subtaskApi.getSubtask(id, taskId, customerId);
+      console.log('Subtask API response:', response);
+      
+      if (response.success) {
+        setSubtask(response.data.subtask);
+      } else {
+        console.error('Subtask API error:', response.message);
+        toast.error('Error', response.message || 'Failed to load subtask');
+        navigate('/customer-dashboard');
+      }
+    } catch (error) {
+      console.error('Error loading subtask:', error);
+      handleApiError(error, toast);
+      navigate('/customer-dashboard');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCommentSubmit = async () => {
+    if (!newComment.trim()) return;
+    
+    // TODO: Implement comment functionality when backend endpoints are available
+    toast.info('Info', 'Comment functionality will be available soon');
+    setNewComment('');
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const formatStatus = (status) => {
+    switch (status) {
+      case 'in-progress': return 'In Progress';
+      case 'completed': return 'Completed';
+      case 'pending': return 'Pending';
+      case 'cancelled': return 'Cancelled';
+      default: return status;
+    }
+  };
+
+  const formatPriority = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'Urgent';
+      case 'high': return 'High';
+      case 'normal': return 'Normal';
+      case 'low': return 'Low';
+      default: return priority;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CustomerNavbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <span className="text-lg text-gray-600">Loading subtask details...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!subtask) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <CustomerNavbar />
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Subtask Not Found</h2>
+            <p className="text-gray-600 mb-4">The subtask you're looking for doesn't exist or has been deleted.</p>
+            <Button onClick={() => navigate('/customer-dashboard')} className="bg-primary hover:bg-primary-dark">
+              Back to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <CustomerNavbar />
+      
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+        {/* Header */}
+        <div className="mb-6 sm:mb-8">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(`/customer-task/${taskId}?customerId=${customerId}`)}
+            className="mb-4 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Task
+          </Button>
+          
+          {/* Header Section - Responsive Layout */}
+          <div className="space-y-4">
+            {/* Subtask Info Section */}
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl flex-shrink-0">
+                <CheckSquare className="h-8 w-8 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2 break-words">{subtask.title}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(subtask.status)}`}>
+                    {formatStatus(subtask.status)}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getPriorityColor(subtask.priority)}`}>
+                    {formatPriority(subtask.priority)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 lg:gap-8">
+          {/* Main Content */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Description */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-primary" />
+                <span>Description</span>
+              </h3>
+              <p className="text-gray-700 leading-relaxed">
+                {subtask.description || 'No description provided'}
+              </p>
+            </div>
+
+            {/* Attachments */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <AttachmentDisplay 
+                attachments={subtask.attachments || []} 
+                canDelete={false}
+              />
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="xl:col-span-1 space-y-6">
+            {/* Subtask Details */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Subtask Details</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Due Date</label>
+                  <p className="text-base font-medium text-gray-900 flex items-center space-x-2 mt-1">
+                    <Calendar className="h-4 w-4 text-primary" />
+                    <span>{new Date(subtask.dueDate).toLocaleDateString()}</span>
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Created</label>
+                  <p className="text-base font-medium text-gray-900 flex items-center space-x-2 mt-1">
+                    <Clock className="h-4 w-4 text-primary" />
+                    <span>{new Date(subtask.createdAt).toLocaleDateString()}</span>
+                  </p>
+                </div>
+
+                {subtask.completedAt && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600">Completed</label>
+                    <p className="text-base font-medium text-gray-900 flex items-center space-x-2 mt-1">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>{new Date(subtask.completedAt).toLocaleDateString()}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Assigned Team */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                <Users className="h-5 w-5 text-primary" />
+                <span>Assigned Team</span>
+              </h3>
+              {subtask.assignedTo && subtask.assignedTo.length > 0 ? (
+                <div className="space-y-3">
+                  {subtask.assignedTo.map((member) => (
+                    <div key={member._id} className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{member.fullName}</p>
+                        <p className="text-xs text-gray-500">{member.email}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No team members assigned</p>
+              )}
+            </div>
+
+            {/* Task & Customer Info */}
+            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Context Info</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Customer</label>
+                  <p className="text-base font-medium text-gray-900">{subtask.customer?.name || 'Unknown Customer'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Task</label>
+                  <p className="text-base font-medium text-gray-900">{subtask.task?.title || 'Unknown Task'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Subtask</label>
+                  <p className="text-base font-medium text-gray-900">{subtask.title || 'Unknown Subtask'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Comments Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center space-x-3 mb-6">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <MessageSquare className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
+              <span className="text-sm text-gray-500">({subtask.comments?.length || 0})</span>
+            </div>
+          </div>
+
+          {/* Existing Comments */}
+          {subtask.comments && subtask.comments.length > 0 && (
+            <div className="space-y-4 mb-6">
+              {subtask.comments.map((comment) => (
+                <div key={comment._id || comment.id} className="border-l-4 border-primary/20 pl-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                        <User className="h-3 w-3 text-primary" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {comment.user?.fullName || comment.user || 'Unknown User'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {formatDate(comment.timestamp)}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600">{comment.message}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Empty State for Comments */}
+          {(!subtask.comments || subtask.comments.length === 0) && (
+            <div className="text-center py-8 mb-6">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="h-6 w-6 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No comments yet</h3>
+              <p className="text-gray-600">Comments from team members will appear here</p>
+            </div>
+          )}
+
+          {/* Add Comment Form */}
+          <div className="border-t border-gray-200 pt-6">
+            <div className="space-y-4">
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Add a comment to this subtask..."
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors resize-none"
+              />
+              
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleCommentSubmit}
+                  disabled={!newComment.trim()}
+                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Add Comment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CustomerSubtaskDetail;

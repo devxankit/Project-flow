@@ -47,7 +47,7 @@ const Navbar = () => {
                   <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-100 py-1 z-50">
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Task Management</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Team Collaboration</a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Project Tracking</a>
+                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Customer Tracking</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Time Tracking</a>
                     <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Analytics & Reports</a>
                   </div>

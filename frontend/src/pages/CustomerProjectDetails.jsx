@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import CustomerNavbar from '../components/Customer-Navbar';
-import TaskRequestForm from '../components/TaskRequestForm';
+import PMNavbar from '../components/PM-Navbar';
+import TaskForm from '../components/TaskForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   FolderKanban, 
@@ -12,15 +12,30 @@ import {
   Clock,
   Target,
   User,
+  MessageSquare,
+  Plus,
+  MoreVertical,
   BarChart3,
   FileText,
+  Settings,
   Flag,
-  Plus,
-  Loader2
+  Loader2,
+  Edit,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../utils/api';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogDescription, 
+  DialogFooter 
+} from '../components/magicui/dialog';
+import { Button } from '../components/magicui/button';
 
 const CustomerProjectDetails = () => {
   const { id } = useParams();
@@ -29,47 +44,148 @@ const CustomerProjectDetails = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
-  const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
+  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [projectData, setProjectData] = useState(null);
+  const [customerData, setCustomerData] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [loadingStates, setLoadingStates] = useState({
+    customer: false,
+    tasks: false,
+    subtasks: false
+  });
 
-  // Fetch project data
+  // Fetch customer data
   useEffect(() => {
-    const fetchProjectData = async () => {
-      try {
-        setLoading(true);
-        const response = await api.customer.getCustomerDetails(id);
-        if (response.data.success) {
-          setProjectData(response.data.data);
-        } else {
-          toast.error('Error', 'Project not found');
-          navigate('/customer-dashboard');
-        }
-      } catch (error) {
-        console.error('Error fetching project data:', error);
-        toast.error('Error', 'Failed to load project data');
-        navigate('/customer-dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (id) {
-      fetchProjectData();
+      setLoading(true);
+      loadCustomer();
+      loadTasks();
+      loadSubtasks();
     }
-  }, [id, navigate]);
+  }, [id]);
 
-  // Countdown logic - moved before early returns to maintain hook order
+  const loadCustomer = async () => {
+    try {
+      setLoadingStates(prev => ({ ...prev, customer: true }));
+      const response = await api.customer.getCustomerDetails(id);
+      if (response.data.success) {
+        setCustomerData(response.data.data);
+        setLoading(false);
+      } else {
+        toast.error('Error', 'Customer not found');
+        navigate('/customer-dashboard');
+      }
+    } catch (error) {
+      console.error('Error loading customer:', error);
+      toast.error('Error', 'Failed to load customer details');
+      setLoading(false);
+      navigate('/customer-dashboard');
+    } finally {
+      setLoadingStates(prev => ({ ...prev, customer: false }));
+    }
+  };
+
+  const loadTasks = async () => {
+    try {
+      setLoadingStates(prev => ({ ...prev, tasks: true }));
+      const response = await api.task.getTasksByCustomer(id);
+      if (response.data.success) {
+        setCustomerData(prev => ({
+          ...prev,
+          tasks: response.data.data.tasks || []
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, tasks: false }));
+    }
+  };
+
+  const loadSubtasks = async () => {
+    try {
+      setLoadingStates(prev => ({ ...prev, subtasks: true }));
+      // Load subtasks for all tasks
+      if (customerData?.tasks) {
+        const allSubtasks = [];
+        for (const task of customerData.tasks) {
+          const response = await api.subtask.getSubtasksByTask(task._id);
+          if (response.data.success && response.data.data) {
+            allSubtasks.push(...response.data.data.subtasks);
+          }
+        }
+        setCustomerData(prev => ({
+          ...prev,
+          subtasks: allSubtasks
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading subtasks:', error);
+    } finally {
+      setLoadingStates(prev => ({ ...prev, subtasks: false }));
+    }
+  };
+
+  // Handle task submission
+  const handleTaskSubmit = (taskData) => {
+    // Refresh customer data and tasks after creating a new task
+    loadCustomer();
+    loadTasks();
+    setIsTaskFormOpen(false);
+  };
+
+  // Handle customer deletion confirmation
+  const handleDeleteCustomer = () => {
+    if (!customerData?.customer?._id) return;
+    setShowDeleteDialog(true);
+  };
+
+  // Confirm customer deletion
+  const confirmDeleteCustomer = async () => {
+    if (!customerData?.customer?._id) return;
+
+    try {
+      setIsDeleting(true);
+      await api.customer.deleteCustomer(customerData.customer._id);
+      toast.success('Success', 'Customer deleted successfully');
+      navigate('/customer-dashboard');
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Error', 'Failed to delete customer');
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  // Cancel customer deletion
+  const cancelDeleteCustomer = () => {
+    setShowDeleteDialog(false);
+  };
+
+  // Handle customer edit navigation
+  const handleEditCustomer = () => {
+    navigate(`/customers/edit/${customerData.customer._id}`);
+  };
+
+  // Scroll to top when component mounts
+  useScrollToTop();
+
+  // Countdown logic - moved before conditional returns to follow Rules of Hooks
   useEffect(() => {
-    if (!projectData?.project?.dueDate) return;
-    
+    if (!customerData?.customer?.dueDate) {
+      setTimeLeft('No due date');
+      return;
+    }
+
     const calculateTimeLeft = () => {
       const now = new Date();
-      const dueDate = new Date(projectData.project.dueDate);
+      const dueDate = new Date(customerData.customer.dueDate);
       const difference = dueDate.getTime() - now.getTime();
 
       if (difference > 0) {
-        // Project is not overdue - show remaining time
+        // Customer is not overdue - show remaining time
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
 
@@ -83,7 +199,7 @@ const CustomerProjectDetails = () => {
           setTimeLeft(`${minutes}m left`);
         }
       } else {
-        // Project is overdue - show how many days overdue
+        // Customer is overdue - show how many days overdue
         const overdueDays = Math.floor(Math.abs(difference) / (1000 * 60 * 60 * 24));
         const overdueHours = Math.floor((Math.abs(difference) % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         
@@ -99,50 +215,41 @@ const CustomerProjectDetails = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [projectData?.project?.dueDate]);
-
-  // Scroll to top when component mounts
-  useScrollToTop();
-
+  }, [customerData?.customer?.dueDate]);
+  
   // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
-        <CustomerNavbar />
+        <PMNavbar />
         <main className="pt-4 pb-24 md:pt-8 md:pb-8">
           <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
-            <div className="flex items-center justify-center h-64">
+            <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-gray-600">Loading project details...</span>
+              <span className="ml-2 text-gray-600">Loading customer details...</span>
             </div>
           </div>
         </main>
       </div>
     );
   }
-
-  // Return early if no project data
-  if (!projectData) {
+  
+  // Return early if customer not found
+  if (!customerData) {
     return null;
   }
 
-  // Extract project data
-  const { project, milestones = [], tasks = [] } = projectData;
+  // Extract customer data
+  const { customer, tasks = [], subtasks = [] } = customerData;
 
-  // Milestones and tasks are now coming from API data
-
-  // Handle task request submission
-  const handleTaskRequestSubmit = (requestData) => {
-    // The TaskRequestForm component now handles the API call directly
-    // This callback is called after successful submission
-  };
-
-  // Team data comes from project.assignedTeam
+  // Get team from customer data
+  const team = customer?.assignedTeam || [];
 
   const tabs = [
     { key: 'overview', label: 'Overview', icon: BarChart3 },
-    { key: 'milestones', label: 'Milestones', icon: Target },
-    { key: 'tasks', label: 'Tasks', icon: CheckSquare }
+    { key: 'tasks', label: 'Tasks', icon: Target },
+    { key: 'subtasks', label: 'Subtasks', icon: CheckSquare },
+    { key: 'team', label: 'Team', icon: Users }
   ];
 
   const getStatusColor = (status) => {
@@ -158,20 +265,10 @@ const CustomerProjectDetails = () => {
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'urgent': return 'bg-red-100 text-red-800';
-      case 'high': return 'bg-red-100 text-red-800';
-      case 'normal': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const formatStatus = (status) => {
     switch (status) {
       case 'completed': return 'Completed';
-      case 'active': return 'In Progress';
+      case 'active': return 'Active';
       case 'planning': return 'Planning';
       case 'on-hold': return 'On Hold';
       case 'cancelled': return 'Cancelled';
@@ -181,19 +278,54 @@ const CustomerProjectDetails = () => {
     }
   };
 
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'urgent': return 'bg-red-100 text-red-800 border-red-200';
+      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
+      case 'normal': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'low': return 'bg-gray-100 text-gray-800 border-gray-200';
+      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
   const formatPriority = (priority) => {
     switch (priority) {
       case 'urgent': return 'Urgent';
       case 'high': return 'High';
-      case 'normal': return 'Medium';
+      case 'normal': return 'Normal';
       case 'low': return 'Low';
       default: return priority;
     }
   };
 
-  const getCountdownColor = () => {
+  const getDueDateColor = () => {
+    if (!customer?.dueDate) {
+      return 'bg-gray-100 text-gray-800 border-gray-200'; // No date
+    }
+    
     const now = new Date();
-    const dueDate = new Date(project.dueDate);
+    const dueDate = new Date(customer.dueDate);
+    const difference = dueDate.getTime() - now.getTime();
+    const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
+
+    if (difference < 0) {
+      return 'bg-red-100 text-red-800 border-red-200'; // Overdue
+    } else if (daysLeft <= 1) {
+      return 'bg-orange-100 text-orange-800 border-orange-200'; // Critical
+    } else if (daysLeft <= 3) {
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200'; // Warning
+    } else {
+      return 'bg-blue-100 text-blue-800 border-blue-200'; // Normal
+    }
+  };
+
+  const getCountdownColor = () => {
+    if (!customer?.dueDate) {
+      return 'text-gray-600'; // No date
+    }
+    
+    const now = new Date();
+    const dueDate = new Date(customer.dueDate);
     const difference = dueDate.getTime() - now.getTime();
     const daysLeft = Math.floor(difference / (1000 * 60 * 60 * 24));
 
@@ -210,9 +342,9 @@ const CustomerProjectDetails = () => {
 
   const renderOverview = () => (
     <div className="space-y-6">
-      {/* Project Stats - Mobile App Style */}
+      {/* Customer Stats - Mobile App Style */}
       <div className="space-y-4">
-        {/* Progress Card - Featured with Magic UI */}
+        {/* Progress Card - Featured */}
         <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-3xl p-6 border border-primary/20">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
@@ -220,28 +352,20 @@ const CustomerProjectDetails = () => {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Project Progress</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Customer Progress</h3>
                 <p className="text-sm text-gray-600">Overall completion status</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-primary">{project.progress}%</div>
+              <div className="text-3xl font-bold text-primary">{customer.progress || 0}%</div>
               <div className="text-xs text-gray-500">Complete</div>
             </div>
           </div>
-          
-          {/* Project Progress Bar */}
-          <div className="mb-4">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Project Progress</span>
-              <span className="text-gray-900 font-medium">{project.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div 
-                className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
-                style={{ width: `${project.progress}%` }}
-              ></div>
-            </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div 
+              className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
+              style={{ width: `${customer.progress || 0}%` }}
+            ></div>
           </div>
         </div>
 
@@ -254,12 +378,12 @@ const CustomerProjectDetails = () => {
                 <CheckSquare className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{project.totalTasks || 0}</div>
+                <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
                 <div className="text-xs text-gray-500">Total Tasks</div>
               </div>
             </div>
             <div className="text-xs text-gray-600">
-              {project.completedTasks || 0} completed
+              {tasks.filter(t => t.status === 'completed').length} completed
             </div>
           </div>
 
@@ -270,7 +394,7 @@ const CustomerProjectDetails = () => {
                 <Users className="h-5 w-5 text-blue-600" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{project.assignedTeam?.length || 0}</div>
+                <div className="text-2xl font-bold text-gray-900">{team.length}</div>
                 <div className="text-xs text-gray-500">Team Members</div>
               </div>
             </div>
@@ -288,15 +412,15 @@ const CustomerProjectDetails = () => {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900">Timeline</div>
-                  <div className="text-sm text-gray-600">Project deadline</div>
+                  <div className="text-sm text-gray-600">Customer deadline</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className={`text-base font-bold ${getCountdownColor()}`}>
+                <div className={`text-lg font-bold ${getCountdownColor()}`}>
                   {timeLeft}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {new Date(project.dueDate).toLocaleDateString()}
+                  {new Date(customer.dueDate).toLocaleDateString()}
                 </div>
               </div>
             </div>
@@ -304,14 +428,14 @@ const CustomerProjectDetails = () => {
         </div>
       </div>
 
-      {/* Project Information Card */}
+      {/* Customer Information Card */}
       <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl p-6 border border-primary/20 shadow-sm">
         {/* Card Title */}
         <div className="flex items-center space-x-3 mb-6">
           <div className="p-2 bg-primary/20 rounded-xl">
             <FileText className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-bold text-gray-900">Project Information</h3>
+          <h3 className="text-lg font-bold text-gray-900">Customer Information</h3>
         </div>
 
         {/* Client Section */}
@@ -319,13 +443,16 @@ const CustomerProjectDetails = () => {
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
             <div className="w-14 h-14 bg-primary rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">
-                {project.customer?.fullName?.split(' ').map(word => word[0]).join('').substring(0, 2) || 'C'}
+                {customer.customer?.fullName ? 
+                  customer.customer.fullName.split(' ').map(word => word[0]).join('').substring(0, 2) :
+                  'C'
+                }
               </span>
             </div>
           </div>
           <div>
             <p className="text-sm font-semibold text-primary/80 uppercase tracking-wide mb-1">Client</p>
-            <p className="text-lg font-bold text-gray-900">{project.customer?.fullName || 'Customer'}</p>
+            <p className="text-lg font-bold text-gray-900">{customer.customer?.fullName || 'No client assigned'}</p>
           </div>
         </div>
 
@@ -340,11 +467,13 @@ const CustomerProjectDetails = () => {
               <div>
                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Start Date</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {new Date(project.createdAt).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
+                  {customer.createdAt ? 
+                    new Date(customer.createdAt).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }) : 'Not set'
+                  }
                 </p>
               </div>
             </div>
@@ -359,11 +488,13 @@ const CustomerProjectDetails = () => {
               <div>
                 <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1">Due Date</p>
                 <p className="text-sm font-bold text-gray-900">
-                  {new Date(project.dueDate).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
+                  {customer.dueDate ? 
+                    new Date(customer.dueDate).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }) : 'Not set'
+                  }
                 </p>
               </div>
             </div>
@@ -373,170 +504,241 @@ const CustomerProjectDetails = () => {
     </div>
   );
 
-  const renderMilestones = () => (
-    <div className="space-y-4">
-      {milestones.map((milestone) => (
-        <div 
-          key={milestone._id} 
-          onClick={() => navigate(`/customer-milestone/${milestone._id}`)}
-          className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base md:text-lg font-semibold text-gray-900 hover:text-primary transition-colors">{milestone.title}</h3>
-            <span className={`px-3 py-1 rounded-full text-xs md:text-sm font-medium border ${getStatusColor(milestone.status)}`}>
-              {formatStatus(milestone.status)}
-            </span>
-          </div>
-          <div className="mb-3">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-gray-600">Progress</span>
-              <span className="text-gray-900 font-medium">{milestone.progress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
-              <div 
-                className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-300"
-                style={{ width: `${milestone.progress}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-sm text-gray-600">
-            <span>Due: {new Date(milestone.dueDate).toLocaleDateString()}</span>
-            <span>{milestone.progress}% complete</span>
-          </div>
+  const renderTasks = () => (
+    <div className="space-y-3">
+      {tasks.length === 0 ? (
+        <div className="text-center py-8">
+          <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
+          <p className="text-gray-600 mb-4">Request your first task to get started</p>
+          <button 
+            onClick={() => setIsTaskFormOpen(true)}
+            className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium"
+          >
+            Add Task
+          </button>
         </div>
-      ))}
+      ) : (
+        tasks.map((task) => (
+          <div 
+            key={task._id} 
+            onClick={() => {
+              console.log('Task clicked from customer project details:', task);
+              console.log('Customer ID:', id);
+              navigate(`/pm-task/${task._id}?customerId=${id}`);
+            }}
+            className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center space-x-4">
+              {/* Checkbox */}
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                task.status === 'completed' 
+                  ? 'bg-primary border-primary' 
+                  : 'border-gray-300 group-hover:border-primary'
+              }`}>
+                {task.status === 'completed' && (
+                  <CheckSquare className="h-3 w-3 text-white" />
+                )}
+              </div>
+
+              {/* Task Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className={`text-base font-semibold transition-colors duration-200 ${
+                    task.status === 'completed' 
+                      ? 'text-gray-500 line-through' 
+                      : 'text-gray-900 group-hover:text-primary'
+                  }`}>
+                    {task.title}
+                  </h3>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    task.status === 'completed' 
+                      ? 'bg-green-100 text-green-800' 
+                      : task.status === 'active'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {formatStatus(task.status)}
+                  </span>
+                </div>
+                
+                {/* Task Meta */}
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    <span>{task.assignedTo?.length > 0 ? task.assignedTo[0].fullName || task.assignedTo[0].name : 'Unassigned'}</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }) : 'No date'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 
-  const renderTasks = () => (
-    <div className="space-y-4">
-      {/* Request Task Button */}
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setIsTaskRequestFormOpen(true)}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Request New Task</span>
-        </button>
-      </div>
-
-      {/* Tasks List */}
-      <div className="space-y-3">
-        {tasks.map((task) => (
-        <div 
-          key={task._id} 
-          onClick={() => navigate(`/customer-task/${task._id}`)}
-          className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
-        >
-          <div className="flex items-center space-x-4">
-            {/* Checkbox */}
-            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
-              task.status === 'completed' 
-                ? 'bg-primary border-primary' 
-                : 'border-gray-300 group-hover:border-primary'
-            }`}>
-              {task.status === 'completed' && (
-                <CheckSquare className="h-3 w-3 text-white" />
-              )}
-            </div>
-
-            {/* Task Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className={`text-base font-semibold transition-colors duration-200 ${
-                  task.status === 'completed' 
-                    ? 'text-gray-500 line-through' 
-                    : 'text-gray-900 group-hover:text-primary'
-                }`}>
-                  {task.title}
-                </h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  task.status === 'completed' 
-                    ? 'bg-green-100 text-green-800' 
-                    : task.status === 'in-progress'
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {formatStatus(task.status)}
-                </span>
+  const renderSubtasks = () => (
+    <div className="space-y-3">
+      {subtasks.length === 0 ? (
+        <div className="text-center py-8">
+          <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No subtasks yet</h3>
+          <p className="text-gray-600">Subtasks will appear here when tasks are created</p>
+        </div>
+      ) : (
+        subtasks.map((subtask) => (
+          <div 
+            key={subtask._id} 
+            className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200 cursor-pointer"
+          >
+            <div className="flex items-center space-x-4">
+              {/* Checkbox */}
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all duration-200 ${
+                subtask.status === 'completed' 
+                  ? 'bg-primary border-primary' 
+                  : 'border-gray-300 group-hover:border-primary'
+              }`}>
+                {subtask.status === 'completed' && (
+                  <CheckSquare className="h-3 w-3 text-white" />
+                )}
               </div>
-              
-              {/* Task Description */}
-              <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-              
-              {/* Task Meta */}
-              <div className="flex items-center space-x-4 text-sm text-gray-500">
-                <div className="flex items-center space-x-1.5">
-                  <User className="h-3.5 w-3.5" />
-                  <span>{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
+
+              {/* Subtask Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className={`text-base font-semibold transition-colors duration-200 ${
+                    subtask.status === 'completed' 
+                      ? 'text-gray-500 line-through' 
+                      : 'text-gray-900 group-hover:text-primary'
+                  }`}>
+                    {subtask.title}
+                  </h3>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    subtask.status === 'completed' 
+                      ? 'bg-green-100 text-green-800' 
+                      : subtask.status === 'active'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {formatStatus(subtask.status)}
+                  </span>
                 </div>
-                <div className="flex items-center space-x-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  <span>{new Date(task.dueDate).toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}</span>
+                
+                {/* Subtask Meta */}
+                <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-1.5">
+                    <User className="h-3.5 w-3.5" />
+                    <span>{subtask.assignedTo?.length > 0 ? subtask.assignedTo[0].fullName || subtask.assignedTo[0].name : 'Unassigned'}</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>{subtask.dueDate ? new Date(subtask.dueDate).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    }) : 'No date'}</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        ))
+      )}
+    </div>
+  );
+
+  const renderTeam = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {team.length === 0 ? (
+        <div className="col-span-2 text-center py-8">
+          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No team members assigned</h3>
+          <p className="text-gray-600">Team members will appear here when assigned to the customer</p>
         </div>
-      ))}
-      </div>
+      ) : (
+        team.map((member) => (
+          <div key={member._id} className="group bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full flex items-center justify-center group-hover:from-primary/20 group-hover:to-primary/30 transition-all duration-200">
+                <span className="text-base font-bold text-primary">
+                  {member.fullName ? member.fullName.split(' ').map(word => word[0]).join('').substring(0, 2) : 'U'}
+                </span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-gray-900 group-hover:text-primary transition-colors duration-200">{member.fullName}</h3>
+                <p className="text-sm text-gray-600">{member.jobTitle || member.workTitle || 'Team Member'}</p>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'overview': return renderOverview();
-      case 'milestones': return renderMilestones();
       case 'tasks': return renderTasks();
+      case 'subtasks': return renderSubtasks();
+      case 'team': return renderTeam();
       default: return renderOverview();
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
-      <CustomerNavbar />
+      <PMNavbar />
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
           {/* Mobile Layout - Professional Design */}
           <div className="md:hidden mb-8">
-            {/* Project Header Card */}
+            {/* Customer Header Card */}
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 mb-4">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
-                  <h1 className="text-xl font-bold text-gray-900 mb-3 leading-tight">{project.name}</h1>
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/20 rounded-xl">
+                      <FolderKanban className="h-6 w-6 text-primary" />
+                    </div>
+                    <h1 className="text-lg md:text-xl font-semibold text-gray-900 leading-tight line-clamp-2">{customer.name}</h1>
+                  </div>
                 </div>
                 <div className="flex-shrink-0 text-right">
                   <div className={`text-sm font-semibold ${getCountdownColor()}`}>
                     {timeLeft}
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Due: {new Date(project.dueDate).toLocaleDateString()}
+                    Due: {customer.dueDate ? new Date(customer.dueDate).toLocaleDateString() : 'No date'}
                   </div>
                 </div>
               </div>
               
               {/* Full-width description */}
               <div className="mb-6">
-                <p className="text-sm text-gray-600 leading-relaxed">{project.description}</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{customer.description}</p>
               </div>
               
               {/* Status and Priority Tags */}
               <div className="flex items-center space-x-2 mb-6 overflow-x-auto">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
-                  {project.status}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(customer.status)}`}>
+                  {formatStatus(customer.status)}
                 </span>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(project.priority)}`}>
-                  {project.priority}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(customer.priority)}`}>
+                  {formatPriority(customer.priority)}
                 </span>
-                {/* Show overdue tag only if project is overdue */}
+                {/* Show overdue tag only if customer is overdue */}
                 {(() => {
+                  if (!customer.dueDate) return null;
+                  
                   const now = new Date();
-                  const dueDate = new Date(project.dueDate);
+                  const dueDate = new Date(customer.dueDate);
                   const difference = dueDate.getTime() - now.getTime();
                   if (difference < 0) {
                     return (
@@ -549,28 +751,70 @@ const CustomerProjectDetails = () => {
                   return null;
                 })()}
               </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {/* Primary Actions */}
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={() => setIsTaskFormOpen(true)}
+                    className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="font-semibold text-sm">Add Task</span>
+                  </button>
+                </div>
+                
+                {/* Secondary Actions */}
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={handleEditCustomer}
+                    className="flex-1 bg-white border-2 border-primary text-primary py-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="font-semibold text-sm">Edit Customer</span>
+                  </button>
+                  <button 
+                    onClick={handleDeleteCustomer}
+                    disabled={isDeleting}
+                    className="flex-1 bg-white border-2 border-red-500 text-red-500 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Desktop Layout - Professional Design */}
           <div className="hidden md:block mb-8">
-            {/* Project Header */}
+            {/* Customer Header */}
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 mb-6">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex-1">
                   <div className="flex items-center space-x-4 mb-4">
-                    <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-2xl">
+                      <FolderKanban className="h-8 w-8 text-primary" />
+                    </div>
+                    <h1 className="text-xl lg:text-2xl font-semibold text-gray-900 line-clamp-2">{customer.name}</h1>
                     <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(project.status)}`}>
-                        {formatStatus(project.status)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(customer.status)}`}>
+                        {formatStatus(customer.status)}
                       </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(project.priority)}`}>
-                        {formatPriority(project.priority)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${getPriorityColor(customer.priority)}`}>
+                        {formatPriority(customer.priority)}
                       </span>
-                      {/* Show overdue tag only if project is overdue */}
+                      {/* Show overdue tag only if customer is overdue */}
                       {(() => {
+                        if (!customer.dueDate) return null;
+                        
                         const now = new Date();
-                        const dueDate = new Date(project.dueDate);
+                        const dueDate = new Date(customer.dueDate);
                         const difference = dueDate.getTime() - now.getTime();
                         if (difference < 0) {
                           return (
@@ -586,25 +830,73 @@ const CustomerProjectDetails = () => {
                   </div>
                 </div>
                 <div className="flex-shrink-0 text-right">
-                  <div className={`text-base font-semibold ${getCountdownColor()}`}>
+                  <div className={`text-lg font-semibold ${getCountdownColor()}`}>
                     {timeLeft}
                   </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Due: {new Date(project.dueDate).toLocaleDateString()}
+                  <div className="text-sm text-gray-500 mt-1">
+                    Due: {customer.dueDate ? new Date(customer.dueDate).toLocaleDateString() : 'No date'}
                   </div>
                 </div>
               </div>
               
               {/* Full-width description */}
               <div className="mb-6">
-                <p className="text-lg text-gray-600 leading-relaxed">{project.description}</p>
+                <p className="text-lg text-gray-600 leading-relaxed">{customer.description}</p>
+              </div>
+
+              {/* Action Section */}
+              <div className="pt-6 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Ready to request more tasks?</h3>
+                    <p className="text-sm text-gray-600">Request new tasks to keep the customer work moving forward</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={() => setIsTaskFormOpen(true)}
+                      className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span className="font-semibold">Add Task</span>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Customer Management Actions */}
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Customer Management</h4>
+                    <p className="text-xs text-gray-600">Edit customer details or remove the customer</p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={handleEditCustomer}
+                      className="bg-white border-2 border-primary text-primary px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="font-semibold text-sm">Edit Customer</span>
+                    </button>
+                    <button 
+                      onClick={handleDeleteCustomer}
+                      disabled={isDeleting}
+                      className="bg-white border-2 border-red-500 text-red-500 px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                      <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Customer'}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Mobile Tabs - Tiles Layout */}
           <div className="md:hidden mb-6">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               {tabs.map((tab) => {
                 const IconComponent = tab.icon;
                 return (
@@ -657,15 +949,71 @@ const CustomerProjectDetails = () => {
         </div>
       </main>
 
-      {/* Task Request Form */}
-      <TaskRequestForm
-        isOpen={isTaskRequestFormOpen}
-        onClose={() => setIsTaskRequestFormOpen(false)}
-        onSubmit={handleTaskRequestSubmit}
-        projectId={project._id}
-        projectName={project.name}
-        milestones={milestones}
+      {/* Task Form */}
+      <TaskForm
+        isOpen={isTaskFormOpen}
+        onClose={() => setIsTaskFormOpen(false)}
+        onSubmit={handleTaskSubmit}
+        customerId={customerData?._id}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="max-w-md" onClose={cancelDeleteCustomer}>
+          <DialogHeader>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg font-semibold text-gray-900">
+                  Delete Customer
+                </DialogTitle>
+                <DialogDescription className="text-sm text-gray-500 mt-1">
+                  This action cannot be undone.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-gray-700">
+              Are you sure you want to delete the customer{' '}
+              <span className="font-semibold text-gray-900">"{customer?.name}"</span>?
+              This will permanently remove the customer and all its associated data including tasks, subtasks, and files.
+            </p>
+          </div>
+
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={cancelDeleteCustomer}
+              disabled={isDeleting}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteCustomer}
+              disabled={isDeleting}
+              className="w-full sm:w-auto"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Customer
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

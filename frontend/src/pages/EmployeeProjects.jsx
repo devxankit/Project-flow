@@ -17,31 +17,31 @@ const EmployeeProjects = () => {
   
   // State management
   const [loading, setLoading] = useState(true);
-  const [projects, setProjects] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [pagination, setPagination] = useState(null);
 
-  // Fetch projects data
+  // Fetch customers data
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchCustomers = async () => {
       try {
         setLoading(true);
-        const response = await api.employee.getProjects();
+        const response = await api.employee.getCustomers();
         
         if (response.data && response.data.success) {
-          setProjects(response.data.data?.projects || []);
+          setCustomers(response.data.data?.customers || []);
           setPagination(response.data.data?.pagination || null);
         } else {
-          toast.error('Error', 'Failed to load projects');
+          toast.error('Error', 'Failed to load customers');
         }
       } catch (error) {
-        console.error('Error fetching projects:', error);
-        toast.error('Error', 'Failed to load projects');
+        console.error('Error fetching customers:', error);
+        toast.error('Error', 'Failed to load customers');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProjects();
+    fetchCustomers();
   }, []);
 
   const getStatusColor = (status) => {
@@ -66,25 +66,25 @@ const EmployeeProjects = () => {
   };
 
   // Calculate overall stats
-  const totalProjects = projects.length;
-  const activeProjects = projects.filter(p => p.status === 'active').length;
-  const completedProjects = projects.filter(p => p.status === 'completed').length;
+  const totalCustomers = customers.length;
+  const activeCustomers = customers.filter(c => c.status === 'active').length;
+  const completedCustomers = customers.filter(c => c.status === 'completed').length;
   
   // Calculate task counts from real API data
-  const totalMyTasks = projects.reduce((sum, p) => {
-    return sum + (p.myTasks || 0);
+  const totalMyTasks = customers.reduce((sum, c) => {
+    return sum + (c.myTasks || 0);
   }, 0);
   
-  const completedMyTasks = projects.reduce((sum, p) => {
-    return sum + (p.myCompletedTasks || 0);
+  const completedMyTasks = customers.reduce((sum, c) => {
+    return sum + (c.myCompletedTasks || 0);
   }, 0);
 
-  const inProgressMyTasks = projects.reduce((sum, p) => {
-    return sum + (p.myInProgressTasks || 0);
+  const inProgressMyTasks = customers.reduce((sum, c) => {
+    return sum + (c.myInProgressTasks || 0);
   }, 0);
 
-  const pendingMyTasks = projects.reduce((sum, p) => {
-    return sum + (p.myPendingTasks || 0);
+  const pendingMyTasks = customers.reduce((sum, c) => {
+    return sum + (c.myPendingTasks || 0);
   }, 0);
 
   // Show loading state
@@ -96,7 +96,7 @@ const EmployeeProjects = () => {
           <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-gray-600">Loading projects...</span>
+              <span className="ml-2 text-gray-600">Loading customers...</span>
             </div>
           </div>
         </main>
@@ -104,36 +104,18 @@ const EmployeeProjects = () => {
     );
   }
   
-  // Calculate milestone-based progress for employee's projects
-  const totalMilestones = projects.reduce((sum, p) => {
-    // Estimate milestones based on project complexity and team size
-    const projectTasks = p.myTasks || 0;
-    const milestonesPerProject = Math.max(1, Math.ceil(projectTasks / 2)); // 1 milestone per 2 tasks
-    return sum + milestonesPerProject;
+  // Calculate task-based progress for employee's customers
+  const totalTasks = customers.reduce((sum, c) => {
+    return sum + (c.myTasks || 0);
   }, 0);
   
-  const completedMilestones = projects.reduce((sum, p) => {
-    const projectTasks = p.myTasks || 0;
-    const projectCompletedTasks = p.myCompletedTasks || 0;
-    const milestonesPerProject = Math.max(1, Math.ceil(projectTasks / 2));
-    
-    if (p.status === 'completed') {
-      return sum + milestonesPerProject; // All milestones completed
-    } else if (p.status === 'active') {
-      // Calculate completed milestones based on task completion
-      const taskProgress = projectTasks > 0 ? (projectCompletedTasks / projectTasks) * 100 : 0;
-      const completedMilestonesInProject = Math.floor((taskProgress / 100) * milestonesPerProject);
-      return sum + completedMilestonesInProject;
-    } else {
-      // Planning projects have no completed milestones
-      return sum + 0;
-    }
+  const completedTasks = customers.reduce((sum, c) => {
+    return sum + (c.myCompletedTasks || 0);
   }, 0);
   
-  // Calculate overall progress as average of milestone and task progress
-  const milestoneProgress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0;
+  // Calculate overall progress based on task completion
   const taskProgress = totalMyTasks > 0 ? (completedMyTasks / totalMyTasks) * 100 : 0;
-  const overallProgress = (milestoneProgress + taskProgress) / 2;
+  const overallProgress = taskProgress;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
@@ -147,9 +129,9 @@ const EmployeeProjects = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  My Projects
+                  My Customers
                 </h1>
-                <p className="text-sm md:text-base text-gray-600 mt-1">Projects you're assigned to</p>
+                <p className="text-sm md:text-base text-gray-600 mt-1">Customers you're assigned to</p>
               </div>
             </div>
           </div>
@@ -163,8 +145,8 @@ const EmployeeProjects = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{activeProjects}</p>
-              <p className="text-xs md:text-sm text-gray-600">Projects</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{activeCustomers}</p>
+              <p className="text-xs md:text-sm text-gray-600">Customers</p>
             </div>
 
             <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
@@ -196,8 +178,8 @@ const EmployeeProjects = () => {
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Teams</span>
               </div>
-              <p className="text-2xl md:text-3xl font-bold text-gray-900">{totalProjects}</p>
-              <p className="text-xs md:text-sm text-gray-600">Projects</p>
+              <p className="text-2xl md:text-3xl font-bold text-gray-900">{totalCustomers}</p>
+              <p className="text-xs md:text-sm text-gray-600">Customers</p>
             </div>
           </div>
 
@@ -210,7 +192,7 @@ const EmployeeProjects = () => {
                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               
-              {/* Overall Progress Bar - Average of Milestone and Task Progress */}
+              {/* Overall Progress Bar - Task Progress */}
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-600">Overall Progress</span>
@@ -225,24 +207,24 @@ const EmployeeProjects = () => {
               </div>
               
               <div className="space-y-4 md:space-y-6">
-                {/* Total Milestones - Simple display without bar */}
+                {/* Total Tasks - Simple display without bar */}
                 <div>
                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">My Milestones</span>
-                    <span className="text-gray-900 font-medium">{totalMilestones}</span>
+                    <span className="text-gray-600">My Tasks</span>
+                    <span className="text-gray-900 font-medium">{totalMyTasks}</span>
                   </div>
                 </div>
                 
-                {/* Completed Milestones - Shows ratio and percentage */}
+                {/* Completed Tasks - Shows ratio and percentage */}
                 <div>
                   <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                    <span className="text-gray-600">Completed Milestones</span>
-                    <span className="text-gray-900 font-medium">{completedMilestones}/{totalMilestones} ({Math.round(milestoneProgress)}%)</span>
+                    <span className="text-gray-600">Completed Tasks</span>
+                    <span className="text-gray-900 font-medium">{completedMyTasks}/{totalMyTasks} ({Math.round(taskProgress)}%)</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
                     <div 
                       className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
-                      style={{width: `${milestoneProgress}%`}}
+                      style={{width: `${taskProgress}%`}}
                     ></div>
                   </div>
                 </div>
@@ -271,9 +253,9 @@ const EmployeeProjects = () => {
               </div>
             </div>
 
-            {/* Project Summary - Responsive */}
+            {/* Customer Summary - Responsive */}
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Project Summary</h2>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4 md:mb-6">Customer Summary</h2>
               <div className="grid grid-cols-1 gap-3 md:gap-4">
                 <div className="bg-gradient-to-r from-primary/5 to-primary/10 rounded-xl p-4 border border-primary/20">
                   <div className="flex items-center space-x-3">
@@ -281,8 +263,8 @@ const EmployeeProjects = () => {
                       <FolderKanban className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-gray-600">Total Projects</p>
-                      <p className="text-2xl font-bold text-gray-900">{totalProjects}</p>
+                      <p className="text-sm font-semibold text-gray-600">Total Customers</p>
+                      <p className="text-2xl font-bold text-gray-900">{totalCustomers}</p>
                     </div>
                   </div>
                 </div>
@@ -293,7 +275,7 @@ const EmployeeProjects = () => {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-600">Completed</p>
-                      <p className="text-2xl font-bold text-gray-900">{completedProjects}</p>
+                      <p className="text-2xl font-bold text-gray-900">{completedCustomers}</p>
                     </div>
                   </div>
                 </div>
@@ -301,19 +283,19 @@ const EmployeeProjects = () => {
             </div>
           </div>
 
-          {/* Projects Section */}
+          {/* Customers Section */}
           <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Assigned Projects</h2>
-              <span className="text-sm text-gray-500">{totalProjects} projects</span>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Assigned Customers</h2>
+              <span className="text-sm text-gray-500">{totalCustomers} customers</span>
             </div>
 
-            {/* Responsive Project Cards */}
+            {/* Responsive Customer Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {projects.map((project) => (
+              {customers.map((customer) => (
                 <div 
-                  key={project._id} 
-                  onClick={() => navigate(`/employee-project/${project._id}`)}
+                  key={customer._id} 
+                  onClick={() => navigate(`/employee-customer-details/${customer._id}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -325,15 +307,15 @@ const EmployeeProjects = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
                           <h3 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
-                            {project.name}
+                            {customer.name}
                           </h3>
                         </div>
                         <div className="flex items-center space-x-1.5 mb-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                            {project.priority}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(customer.priority)}`}>
+                            {customer.priority}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(project.status)}`}>
-                            {project.status}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(customer.status)}`}>
+                            {customer.status}
                           </span>
                         </div>
                       </div>
@@ -342,19 +324,19 @@ const EmployeeProjects = () => {
 
                   {/* Description */}
                   <p className="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">
-                    {project.description}
+                    {customer.description}
                   </p>
 
                   {/* Progress Section */}
                   <div className="mb-3">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-medium text-gray-700">Progress</span>
-                      <span className="text-sm font-bold text-gray-900">{project.progress}%</span>
+                      <span className="text-sm font-bold text-gray-900">{customer.progress}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                       <div 
                         className="bg-gradient-to-r from-primary to-primary-dark h-2 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${project.progress}%` }}
+                        style={{ width: `${customer.progress}%` }}
                       ></div>
                     </div>
                   </div>
@@ -362,11 +344,11 @@ const EmployeeProjects = () => {
                   {/* My Tasks Count */}
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     <div className="bg-gray-50 rounded-lg p-2 text-center">
-                      <div className="text-sm font-bold text-gray-900">{project.myTasks || 0}</div>
+                      <div className="text-sm font-bold text-gray-900">{customer.myTasks || 0}</div>
                       <div className="text-xs text-gray-500">My Tasks</div>
                     </div>
                     <div className="bg-green-50 rounded-lg p-2 text-center">
-                      <div className="text-sm font-bold text-green-600">{project.myCompletedTasks || 0}</div>
+                      <div className="text-sm font-bold text-green-600">{customer.myCompletedTasks || 0}</div>
                       <div className="text-xs text-gray-500">Done</div>
                     </div>
                   </div>
@@ -376,12 +358,12 @@ const EmployeeProjects = () => {
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Users className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">{project.assignedTeam?.length || 0}</span>
+                        <span className="text-xs font-medium">{customer.assignedTeam?.length || 0}</span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Calendar className="h-3.5 w-3.5" />
                         <span className="text-xs font-medium">
-                          {new Date(project.dueDate).toLocaleDateString('en-US', { 
+                          {new Date(customer.dueDate).toLocaleDateString('en-US', { 
                             month: 'short', 
                             day: 'numeric'
                           })}
@@ -392,7 +374,7 @@ const EmployeeProjects = () => {
                       <div className="text-xs font-semibold text-gray-700">
                         {(() => {
                           const now = new Date();
-                          const dueDate = new Date(project.dueDate);
+                          const dueDate = new Date(customer.dueDate);
                           const diffTime = dueDate.getTime() - now.getTime();
                           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                           

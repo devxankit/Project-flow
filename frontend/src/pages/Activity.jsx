@@ -158,7 +158,7 @@ const ActivityPage = () => {
               {[
                 { key: 'all', label: 'All', count: allActivities.length },
                 { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_created', label: 'Projects', count: allActivities.filter(a => a.type === 'project_created').length },
+                { key: 'customer_created', label: 'Customers', count: allActivities.filter(a => a.type === 'customer_created').length },
                 { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
@@ -185,7 +185,7 @@ const ActivityPage = () => {
               {[
                 { key: 'all', label: 'All', count: allActivities.length },
                 { key: 'task_completed', label: 'Done', count: allActivities.filter(a => a.type === 'task_completed').length },
-                { key: 'project_created', label: 'Projects', count: allActivities.filter(a => a.type === 'project_created').length },
+                { key: 'customer_created', label: 'Customers', count: allActivities.filter(a => a.type === 'customer_created').length },
                 { key: 'comment_added', label: 'Comments', count: allActivities.filter(a => a.type === 'comment_added').length }
               ].map(({ key, label, count }) => (
                 <button
@@ -246,12 +246,12 @@ const ActivityPage = () => {
                         </span>
                       </div>
 
-                      {/* Project and Milestone Information - Inline layout */}
+                      {/* Customer and Task Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        {activity.project && (
+                        {activity.customer && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                            <span className="text-xs font-semibold text-primary">{activity.project.name}</span>
+                            <span className="text-xs font-semibold text-primary">{activity.customer.name}</span>
                           </div>
                         )}
                         {activity.target && activity.target.title && (

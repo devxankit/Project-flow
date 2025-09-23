@@ -59,13 +59,12 @@ const CustomerActivity = () => {
   const getActivityIcon = (type) => {
     switch (type) {
       case 'task_completed': return CheckCircle;
-      case 'project_created': return FolderPlus;
+      case 'customer_created': return FolderPlus;
       case 'comment_added': return MessageSquare;
       case 'task_assigned': return UserPlus;
-      case 'project_updated': return BarChart3;
+      case 'customer_updated': return BarChart3;
       case 'task_created': return Plus;
-      case 'milestone_created': return BarChart3;
-      case 'milestone_completed': return CheckCircle;
+      case 'task_completed': return CheckCircle;
       case 'team_member_added': return UserPlus;
       case 'file_uploaded': return Plus;
       default: return Activity;
@@ -75,9 +74,9 @@ const CustomerActivity = () => {
   const getActivityTypeColor = (type) => {
     switch (type) {
       case 'task_completed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'project_created': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'project_updated': return 'bg-primary/10 text-primary border-primary/20';
-      case 'milestone_reached': return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'customer_created': return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'customer_updated': return 'bg-primary/10 text-primary border-primary/20';
+      case 'task_reached': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'task_created': return 'bg-orange-100 text-orange-800 border-orange-200';
       case 'comment_added': return 'bg-gray-100 text-gray-800 border-gray-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -239,13 +238,13 @@ const CustomerActivity = () => {
                         </span>
                       </div>
 
-                      {/* Project and Milestone Information - Inline layout */}
+                      {/* Customer and Task Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        {activity.project && (
+                        {activity.customer && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
                             <span className="text-xs font-semibold text-primary">
-                              {typeof activity.project === 'string' ? activity.project : activity.project.name}
+                              {typeof activity.customer === 'string' ? activity.customer : activity.customer.name}
                             </span>
                           </div>
                         )}

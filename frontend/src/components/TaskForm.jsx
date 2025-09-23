@@ -1,152 +1,252 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Save, Upload, FileText, Calendar, User, Flag, CheckSquare, AlertCircle, Paperclip, CheckCircle, Loader2, X, Clock, Target, Users } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './magicui/dialog';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './magicui/dialog';
 import { Button } from './magicui/button';
 import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
 import { MultiSelect } from './magicui/multi-select';
 import { DatePicker } from './magicui/date-picker';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, UserPlus, CheckSquare, AlertCircle, Clock, CheckCircle, X, ArrowLeft, Loader2, FileText, Flag, Calendar, Save, Upload, Paperclip } from 'lucide-react';
 import { taskApi, customerApi, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
+import PMNavbar from './PM-Navbar';
+import useScrollToTop from '../hooks/useScrollToTop';
 
 const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  useScrollToTop();
+
+  const isDialogMode = Boolean(isOpen);
+  
+  // Only get id from URL params when not in dialog mode
+  const urlParams = useParams();
+  const id = isDialogMode ? null : urlParams.id;
+  
+  const isEditMode = Boolean(id) && !isDialogMode;
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    customer: '',
+    priority: 'normal',
     dueDate: '',
     assignedTo: [],
     status: 'pending',
-    priority: 'normal',
-    customer: customerId || '',
-    sequence: 1,
     attachments: []
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
   const [isLoadingTeamMembers, setIsLoadingTeamMembers] = useState(false);
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [customers, setCustomers] = useState([]);
 
-  // Load data when component mounts
+  const priorities = [
+    { value: 'low', label: 'Low', icon: Clock },
+    { value: 'normal', label: 'Normal', icon: CheckCircle },
+    { value: 'high', label: 'High', icon: AlertCircle },
+    { value: 'urgent', label: 'Urgent', icon: AlertCircle },
+  ];
+
+  const statuses = [
+    { value: 'pending', label: 'Pending', icon: Clock },
+    { value: 'in-progress', label: 'In Progress', icon: CheckSquare },
+    { value: 'completed', label: 'Completed', icon: CheckCircle },
+    { value: 'cancelled', label: 'Cancelled', icon: AlertCircle },
+  ];
+
   useEffect(() => {
-    if (isOpen) {
+    if (isDialogMode || isEditMode) {
       loadCustomers();
-      if (customerId) {
-        loadTeamMembers(customerId);
-      }
+      loadTeamMembers();
     }
-  }, [isOpen, customerId]);
+  }, [isDialogMode, isEditMode]);
 
-  // Load team members when customer changes
   useEffect(() => {
-    if (formData.customer) {
-      loadTeamMembers(formData.customer);
-    } else {
-      setTeamMembers([]);
+    // Only load task data if we're in edit mode (not dialog mode) and have both id and customerId
+    if (isEditMode && !isDialogMode && id && customerId && id !== customerId) {
+      loadTaskData();
     }
-  }, [formData.customer]);
+  }, [isEditMode, isDialogMode, id, customerId]);
+
+  // Pre-populate customer field when customerId is provided
+  useEffect(() => {
+    if (customerId && customers.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        customer: customerId
+      }));
+    }
+  }, [customerId, customers]);
+
+  // Reload team members when customerId changes
+  useEffect(() => {
+    if (isDialogMode || isEditMode) {
+      loadTeamMembers();
+    }
+  }, [customerId]);
 
   const loadCustomers = async () => {
+    setIsLoadingCustomers(true);
     try {
-      setIsLoadingCustomers(true);
       const response = await customerApi.getCustomers();
-      if (response.success) {
-        const formattedCustomers = response.data.map(customer => ({
+      if (response.success && response.data) {
+        // Backend returns { data: { customers: [...], pagination: {...} } }
+        const customersData = response.data?.customers || [];
+        const formattedCustomers = (Array.isArray(customersData) ? customersData : []).map(customer => ({
           value: customer._id,
           label: customer.name,
-          subtitle: customer.description || 'No description',
-          icon: Target
+          subtitle: customer.description,
+          icon: CheckSquare,
+          avatar: customer.avatar
         }));
         setCustomers(formattedCustomers);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
-      handleApiError(error, toast);
+      toast.error('Error', 'Failed to load customers');
+      setCustomers([]);
     } finally {
       setIsLoadingCustomers(false);
     }
   };
 
-  const loadTeamMembers = async (customerId) => {
-    if (!customerId) {
-      console.warn('loadTeamMembers called without customerId');
-      setTeamMembers([]);
-      return;
-    }
-    
+  const loadTeamMembers = async () => {
+    setIsLoadingTeamMembers(true);
     try {
-      setIsLoadingTeamMembers(true);
-      const response = await taskApi.getTeamMembersForTask(customerId);
+      let response;
+      
+      // If we have a customerId, get team members assigned to that specific customer
+      if (customerId) {
+        response = await taskApi.getTeamMembersForTask(customerId);
+      } else {
+        // Otherwise, get all team members
+        response = await customerApi.getUsersForCustomer('team');
+      }
+      
       if (response.success && response.data) {
-        const formattedTeamMembers = response.data.map(member => ({
+        const teamData = customerId 
+          ? response.data.teamMembers || []  // For specific customer
+          : response.data.teamMembers || []; // For all team members
+        
+        const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
           value: member._id,
           label: member.fullName,
-          subtitle: `${member.jobTitle} - ${member.department}`,
+          subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
           avatar: member.avatar
         }));
         setTeamMembers(formattedTeamMembers);
-      } else {
-        console.error('Invalid team members response structure:', response);
-        setTeamMembers([]);
       }
     } catch (error) {
       console.error('Error loading team members:', error);
-      handleApiError(error, toast);
+      toast.error('Error', 'Failed to load team members');
       setTeamMembers([]);
     } finally {
       setIsLoadingTeamMembers(false);
     }
   };
 
-  const priorities = [
-    { value: 'urgent', label: 'Urgent', icon: AlertCircle },
-    { value: 'high', label: 'High', icon: AlertCircle },
-    { value: 'normal', label: 'Normal', icon: CheckCircle },
-    { value: 'low', label: 'Low', icon: Clock }
-  ];
-
-  const statuses = [
-    { value: 'pending', label: 'Pending', icon: Clock },
-    { value: 'in-progress', label: 'In Progress', icon: Target },
-    { value: 'completed', label: 'Completed', icon: CheckCircle },
-    { value: 'cancelled', label: 'Cancelled', icon: X }
-  ];
+  const loadTaskData = async () => {
+    try {
+      console.log('loadTaskData called with:', { id, customerId, isEditMode, isDialogMode });
+      
+      // If we don't have customerId, we can't load task data
+      if (!customerId) {
+        console.warn('Cannot load task data: customerId is required');
+        return;
+      }
+      
+      // If we're in dialog mode, we shouldn't load task data
+      if (isDialogMode) {
+        console.warn('Cannot load task data: TaskForm is in dialog mode');
+        return;
+      }
+      
+      // If id and customerId are the same, this is likely wrong
+      if (id === customerId) {
+        console.warn('Cannot load task data: id and customerId are the same');
+        return;
+      }
+      
+      const response = await taskApi.getTask(id, customerId);
+      if (response.success && response.data) {
+        const task = response.data.task;
+        setFormData({
+          title: task.title || '',
+          description: task.description || '',
+          customer: task.customer?._id || '',
+          priority: task.priority || 'normal',
+          dueDate: task.dueDate || '',
+          assignedTo: task.assignedTo?.map(user => user._id) || [],
+          status: task.status || 'pending',
+        });
+      }
+    } catch (error) {
+      console.error('Error loading task:', error);
+      toast.error('Error', 'Failed to load task data');
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleFileUpload = (event) => {
-    const files = Array.from(event.target.files);
-    const newAttachments = files.map(file => ({
-      file,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      id: Date.now() + Math.random()
-    }));
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
     
+    // Validate files
+    const validFiles = files.filter(file => {
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        toast.error('File too large', `${file.name} is larger than 50MB`);
+        return false;
+      }
+      return true;
+    });
+
     setFormData(prev => ({
       ...prev,
-      attachments: [...prev.attachments, ...newAttachments]
+      attachments: [...prev.attachments, ...validFiles.map(file => ({
+        file,
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }))]
     }));
   };
 
-  const removeAttachment = (attachmentId) => {
+  const removeAttachment = (index) => {
     setFormData(prev => ({
       ...prev,
-      attachments: prev.attachments.filter(att => att.id !== attachmentId)
+      attachments: prev.attachments.filter((_, i) => i !== index)
     }));
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const getFileIcon = (mimetype) => {
+    if (mimetype.startsWith('image/')) return '🖼️';
+    if (mimetype.startsWith('video/')) return '🎥';
+    if (mimetype.startsWith('audio/')) return '🎵';
+    if (mimetype.includes('pdf')) return '📄';
+    if (mimetype.includes('word')) return '📝';
+    if (mimetype.includes('excel') || mimetype.includes('spreadsheet')) return '📊';
+    if (mimetype.includes('powerpoint') || mimetype.includes('presentation')) return '📽️';
+    if (mimetype.includes('zip') || mimetype.includes('rar')) return '📦';
+    return '📎';
   };
 
   const validateForm = () => {
@@ -154,32 +254,14 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
 
     if (!formData.title.trim()) {
       newErrors.title = 'Task title is required';
-    } else if (formData.title.length > 200) {
-      newErrors.title = 'Task title cannot exceed 200 characters';
-    }
-
-    if (formData.description && formData.description.length > 1000) {
-      newErrors.description = 'Description cannot exceed 1000 characters';
     }
 
     if (!formData.customer) {
-      newErrors.customer = 'Customer is required';
+      newErrors.customer = 'Customer selection is required';
     }
 
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required';
-    } else {
-      const dueDate = new Date(formData.dueDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (dueDate < today) {
-        newErrors.dueDate = 'Due date cannot be in the past';
-      }
-    }
-
-    if (!formData.sequence || formData.sequence < 1) {
-      newErrors.sequence = 'Sequence must be a positive number';
     }
 
     setErrors(newErrors);
@@ -190,6 +272,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
     e.preventDefault();
     
     if (!validateForm()) {
+      toast.error('Validation Error', 'Please fill in all required fields');
       return;
     }
 
@@ -197,34 +280,36 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
     try {
       const taskData = {
         ...formData,
-        dueDate: new Date(formData.dueDate).toISOString(),
-        sequence: parseInt(formData.sequence),
+        assignedTo: formData.assignedTo,
       };
 
-      // Create FormData for file uploads
-      const formDataToSend = new FormData();
-      formDataToSend.append('taskData', JSON.stringify(taskData));
-      
-      // Add file attachments
-      formData.attachments.forEach(attachment => {
-        if (attachment.file) {
-          formDataToSend.append('attachments', attachment.file);
-        }
-      });
+      // Remove attachments from taskData as they'll be handled separately
+      delete taskData.attachments;
 
-      const response = await taskApi.createTask(formDataToSend);
-      
+      let response;
+      if (isEditMode) {
+        response = await taskApi.updateTask(id, customerId, taskData, formData.attachments);
+      } else {
+        response = await taskApi.createTask(taskData, formData.attachments);
+      }
+
       if (response.success) {
-        toast.success('Success', 'Task created successfully');
+        toast.success(
+          isEditMode ? 'Task Updated!' : 'Task Created!',
+          isEditMode ? 'Task has been updated successfully.' : 'Task has been created successfully.'
+        );
+        
         if (onSubmit) {
           onSubmit(response.data);
         }
-        onClose();
+        
+        handleClose();
+      } else {
+        toast.error('Error', response.message || 'Failed to save task');
       }
     } catch (error) {
-      console.error('Error creating task:', error);
-      const errorMessage = handleApiError(error);
-      toast.error('Error', errorMessage);
+      console.error('Error saving task:', error);
+      handleApiError(error, toast);
     } finally {
       setIsSubmitting(false);
     }
@@ -234,268 +319,396 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
     setFormData({
       title: '',
       description: '',
+      customer: '',
+      priority: 'normal',
       dueDate: '',
       assignedTo: [],
       status: 'pending',
-      priority: 'normal',
-      customer: customerId || '',
-      sequence: 1,
       attachments: []
     });
     setErrors({});
-    onClose();
+    
+    if (isDialogMode) {
+      onClose();
+    } else {
+      navigate('/tasks');
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="flex items-center space-x-2">
-          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
-          <span className="text-slate-600">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <CheckSquare className="h-5 w-5 text-blue-600" />
-            <span>Create New Task</span>
-          </DialogTitle>
-          <DialogDescription>
-            Create a new task for the selected customer to track progress and manage work.
-          </DialogDescription>
-        </DialogHeader>
+  const formContent = (
+    <>
+      {/* Basic Information */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <CheckSquare className="h-5 w-5 text-primary" />
+          <span>Basic Information</span>
+        </h3>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Task Title */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Task Title *
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Task Title <span className="text-red-500 ml-1">*</span>
             </label>
             <Input
               value={formData.title}
               onChange={(e) => handleInputChange('title', e.target.value)}
               placeholder="Enter task title"
-              className={errors.title ? 'border-red-500' : ''}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.title
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
             />
-            {errors.title && (
-              <p className="text-sm text-red-600">{errors.title}</p>
-            )}
+            <AnimatePresence>
+              {errors.title && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.title}
+                </motion.p>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Description */}
+          {/* Customer */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Description
-            </label>
-            <Textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter task description"
-              rows={3}
-              className={errors.description ? 'border-red-500' : ''}
-            />
-            {errors.description && (
-              <p className="text-sm text-red-600">{errors.description}</p>
-            )}
-          </div>
-
-          {/* Customer Selection */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Customer *
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Customer <span className="text-red-500 ml-1">*</span>
             </label>
             <Combobox
               options={customers}
               value={formData.customer}
-              onValueChange={(value) => handleInputChange('customer', value)}
+              onChange={(value) => handleInputChange('customer', value)}
               placeholder="Select customer"
-              className={errors.customer ? 'border-red-500' : ''}
-              allowCustomValue={false}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.customer
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+              allowCustom={false}
             />
-            {errors.customer && (
-              <p className="text-sm text-red-600">{errors.customer}</p>
+            <AnimatePresence>
+              {errors.customer && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.customer}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Description - Full Width */}
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700 flex items-center">
+            Description
+          </label>
+          <Textarea
+            value={formData.description}
+            onChange={(e) => handleInputChange('description', e.target.value)}
+            placeholder="Enter task description"
+            rows={3}
+            className={`rounded-xl border-2 transition-all duration-200 ${
+              errors.description
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+            }`}
+          />
+          <AnimatePresence>
+            {errors.description && (
+              <motion.p 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="text-sm text-red-500 flex items-center"
+              >
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {errors.description}
+              </motion.p>
             )}
+          </AnimatePresence>
+        </div>
+      </motion.div>
+
+      {/* Additional Information */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <Flag className="h-5 w-5 text-primary" />
+          <span>Additional Information</span>
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Priority */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Priority
+            </label>
+            <Combobox
+              options={priorities.map(p => ({
+                value: p.value,
+                label: p.label,
+                icon: p.icon
+              }))}
+              value={formData.priority}
+              onChange={(value) => handleInputChange('priority', value)}
+              placeholder="Select priority"
+              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+            />
           </div>
 
-          {/* Priority, Status, and Sequence Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Priority */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">
-                Priority
-              </label>
-              <Combobox
-                options={priorities.map(p => ({
-                  value: p.value,
-                  label: p.label,
-                  icon: p.icon
-                }))}
-                value={formData.priority}
-                onValueChange={(value) => handleInputChange('priority', value)}
-                placeholder="Select priority"
-              />
-            </div>
-
-            {/* Status */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">
-                Status
-              </label>
-              <Combobox
-                options={statuses.map(s => ({
-                  value: s.value,
-                  label: s.label,
-                  icon: s.icon
-                }))}
-                value={formData.status}
-                onValueChange={(value) => handleInputChange('status', value)}
-                placeholder="Select status"
-              />
-            </div>
-
-            {/* Sequence */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">
-                Sequence *
-              </label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.sequence}
-                onChange={(e) => handleInputChange('sequence', parseInt(e.target.value))}
-                placeholder="1"
-                className={errors.sequence ? 'border-red-500' : ''}
-              />
-              {errors.sequence && (
-                <p className="text-sm text-red-600">{errors.sequence}</p>
-              )}
-            </div>
+          {/* Status */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Status
+            </label>
+            <Combobox
+              options={statuses.map(s => ({
+                value: s.value,
+                label: s.label,
+                icon: s.icon
+              }))}
+              value={formData.status}
+              onChange={(value) => handleInputChange('status', value)}
+              placeholder="Select status"
+              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+            />
           </div>
 
           {/* Due Date */}
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Due Date *
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Due Date <span className="text-red-500 ml-1">*</span>
             </label>
             <DatePicker
               value={formData.dueDate}
               onChange={(date) => handleInputChange('dueDate', date)}
               placeholder="Select due date"
-              className={errors.dueDate ? 'border-red-500' : ''}
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.dueDate
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
             />
-            {errors.dueDate && (
-              <p className="text-sm text-red-600">{errors.dueDate}</p>
-            )}
-          </div>
-
-          {/* Assigned To */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Assigned To
-            </label>
-            <MultiSelect
-              options={teamMembers}
-              value={formData.assignedTo}
-              onChange={(value) => handleInputChange('assignedTo', value)}
-              placeholder="Select team members"
-              maxSelected={5}
-            />
-            <p className="text-xs text-slate-500">
-              Select team members to work on this task
-            </p>
-          </div>
-
-          {/* File Attachments */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-              Attachments
-            </label>
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-4">
-              <input
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.jpg,.jpeg,.png,.gif,.webp,.mp4,.avi,.mov,.wmv,.zip,.rar,.7z"
-              />
-              <label
-                htmlFor="file-upload"
-                className="cursor-pointer flex flex-col items-center justify-center space-y-2"
-              >
-                <Upload className="h-8 w-8 text-slate-400" />
-                <span className="text-sm text-slate-600">
-                  Click to upload files or drag and drop
-                </span>
-                <span className="text-xs text-slate-500">
-                  PDF, DOC, XLS, PPT, TXT, Images, Videos, Archives (Max 10MB each)
-                </span>
-              </label>
-            </div>
-            
-            {/* Display selected files */}
-            {formData.attachments.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-700">Selected Files:</p>
-                <div className="space-y-1">
-                  {formData.attachments.map(attachment => (
-                    <div key={attachment.id} className="flex items-center justify-between bg-slate-50 p-2 rounded">
-                      <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-slate-500" />
-                        <span className="text-sm text-slate-700">{attachment.name}</span>
-                        <span className="text-xs text-slate-500">
-                          ({(attachment.size / 1024 / 1024).toFixed(2)} MB)
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeAttachment(attachment.id)}
-                        className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Submit Button */}
-          <DialogFooter className="flex justify-end space-x-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Create Task
-                </>
+            <AnimatePresence>
+              {errors.dueDate && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.dueDate}
+                </motion.p>
               )}
-            </Button>
-          </DialogFooter>
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Team Assignment */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <UserPlus className="h-5 w-5 text-primary" />
+          <span>Team Assignment</span>
+        </h3>
+        
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700 flex items-center">
+            Assigned To
+          </label>
+          <MultiSelect
+            options={teamMembers}
+            value={formData.assignedTo}
+            onChange={(value) => handleInputChange('assignedTo', value)}
+            placeholder="Select team members"
+            maxSelected={5}
+            className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+          />
+          <p className="text-xs text-gray-500">
+            Select team members to work on this task
+          </p>
+        </div>
+      </motion.div>
+
+      {/* File Attachments */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <Paperclip className="h-5 w-5 text-primary" />
+          <span>File Attachments</span>
+        </h3>
+        
+        <div className="space-y-4">
+          {/* File Upload Area */}
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-primary transition-colors duration-200">
+            <input
+              type="file"
+              multiple
+              onChange={handleFileChange}
+              className="hidden"
+              id="task-attachments"
+              accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+            />
+            <label
+              htmlFor="task-attachments"
+              className="cursor-pointer flex flex-col items-center space-y-3 text-gray-500 hover:text-primary transition-colors duration-200"
+            >
+              <div className="p-3 bg-gradient-to-br from-primary/10 to-primary/20 rounded-full">
+                <Upload className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium">Click to upload files</p>
+                <p className="text-xs text-gray-400">Images, documents, videos, archives (max 50MB each)</p>
+              </div>
+            </label>
+          </div>
+
+          {/* File List */}
+          {formData.attachments.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-3"
+            >
+              <h4 className="text-sm font-semibold text-gray-800 flex items-center space-x-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Selected Files ({formData.attachments.length})</span>
+              </h4>
+              <div className="space-y-2">
+                {formData.attachments.map((attachment, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <span className="text-2xl">{getFileIcon(attachment.type)}</span>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                        <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeAttachment(index)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Auto-populated Fields Info */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-gray-50 rounded-xl p-4 border border-gray-200"
+      >
+        <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+          <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+          Auto-populated Fields
+        </h4>
+        <div className="text-sm text-gray-600 space-y-1">
+          <p>• Created By: Current PM</p>
+          <p>• Created On: {new Date().toLocaleDateString()}</p>
+          <p>• Task ID: Auto-generated</p>
+        </div>
+      </motion.div>
+
+      {/* Footer Buttons */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+        className="flex flex-col sm:flex-row gap-3 pt-4"
+      >
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleClose}
+          className="w-full sm:w-auto h-12 rounded-xl border-2 hover:bg-gray-50 transition-all duration-200"
+          disabled={isSubmitting}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full sm:w-auto h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+        >
+          {isSubmitting ? (
+            <div className="flex items-center space-x-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+              <span>Creating...</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Save className="h-4 w-4" />
+              <span>Create Task</span>
+            </div>
+          )}
+        </Button>
+      </motion.div>
+    </>
+  );
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={onClose}>
+        {/* Header with gradient background */}
+        <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+              <CheckSquare className="h-6 w-6" />
+              <span>Create New Task</span>
+            </DialogTitle>
+            <DialogDescription className="text-primary-foreground/80">
+              Fill in the task details below. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {formContent}
         </form>
       </DialogContent>
     </Dialog>

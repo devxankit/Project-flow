@@ -17,11 +17,13 @@ import EmployeeManagement from './pages/EmployeeManagement';
 import Auth from './pages/Auth';
 // PM Module imports
 import PMTaskDetail from './pages/PMTaskDetail';
+import PMSubtaskDetail from './pages/PMSubtaskDetail';
 // Note: PMMilestoneDetail removed - replaced with PMTaskDetail
 // Customer Module imports
 import CustomerDashboard from './pages/CustomerDashboard';
 import CustomerActivity from './pages/CustomerActivity';
 import CustomerTaskDetail from './pages/CustomerTaskDetail';
+import CustomerSubtaskDetail from './pages/CustomerSubtaskDetail';
 // Note: CustomerMilestoneDetail removed - replaced with CustomerTaskDetail
 import CustomerFiles from './pages/CustomerFiles';
 import CustomerProfile from './pages/CustomerProfile';
@@ -31,6 +33,7 @@ import CustomerTaskRequestEdit from './pages/CustomerTaskRequestEdit';
 // Employee Module imports
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeTaskDetail from './pages/EmployeeTaskDetail';
+import EmployeeSubtaskDetail from './pages/EmployeeSubtaskDetail';
 import EmployeeCustomers from './pages/EmployeeCustomers';
 import EmployeeCustomerDetails from './pages/EmployeeCustomerDetails';
 // Note: EmployeeMilestoneDetail removed - replaced with EmployeeTaskDetail
@@ -69,11 +72,6 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/customer/:id" element={
-                <ProtectedRoute allowedRoles={['pm']}>
-                  <CustomerDetails />
-                </ProtectedRoute>
-              } />
-              <Route path="/customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
                   <CustomerDetails />
                 </ProtectedRoute>
@@ -119,9 +117,9 @@ function App() {
                   <PMTaskDetail />
                 </ProtectedRoute>
               } />
-              <Route path="/pm-milestone/:id" element={
+              <Route path="/pm-subtask/:id" element={
                 <ProtectedRoute allowedRoles={['pm']}>
-                  <PMTaskDetail />
+                  <PMSubtaskDetail />
                 </ProtectedRoute>
               } />
           
@@ -146,9 +144,9 @@ function App() {
                   <CustomerTaskDetail />
                 </ProtectedRoute>
               } />
-              <Route path="/customer-milestone/:id" element={
+              <Route path="/customer-subtask/:id" element={
                 <ProtectedRoute allowedRoles={['customer']}>
-                  <CustomerTaskDetail />
+                  <CustomerSubtaskDetail />
                 </ProtectedRoute>
               } />
               <Route path="/customer-files" element={
@@ -188,6 +186,11 @@ function App() {
                   <EmployeeTaskDetail />
                 </ProtectedRoute>
               } />
+              <Route path="/employee-subtask/:id" element={
+                <ProtectedRoute allowedRoles={['employee']}>
+                  <EmployeeSubtaskDetail />
+                </ProtectedRoute>
+              } />
               <Route path="/employee-customers" element={
                 <ProtectedRoute allowedRoles={['employee']}>
                   <EmployeeCustomers />
@@ -196,11 +199,6 @@ function App() {
               <Route path="/employee-customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['employee']}>
                   <EmployeeCustomerDetails />
-                </ProtectedRoute>
-              } />
-              <Route path="/employee/milestone-details/:id" element={
-                <ProtectedRoute allowedRoles={['employee']}>
-                  <EmployeeTaskDetail />
                 </ProtectedRoute>
               } />
               <Route path="/employee-activity" element={

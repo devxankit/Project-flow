@@ -49,7 +49,7 @@ const EmployeeManagement = () => {
       avatar: 'SJ',
       status: 'active',
       skills: ['React', 'Node.js', 'TypeScript'],
-      projects: 5
+      customers: 5
     },
     {
       id: 2,
@@ -63,7 +63,7 @@ const EmployeeManagement = () => {
       avatar: 'MC',
       status: 'active',
       skills: ['Figma', 'Adobe XD', 'Sketch'],
-      projects: 3
+      customers: 3
     },
     {
       id: 3,
@@ -77,7 +77,7 @@ const EmployeeManagement = () => {
       avatar: 'ED',
       status: 'active',
       skills: ['Python', 'Django', 'PostgreSQL'],
-      projects: 7
+      customers: 7
     },
     {
       id: 4,
@@ -91,7 +91,7 @@ const EmployeeManagement = () => {
       avatar: 'AT',
       status: 'active',
       skills: ['React Native', 'Flutter', 'Swift'],
-      projects: 4
+      customers: 4
     },
     {
       id: 5,
@@ -105,7 +105,7 @@ const EmployeeManagement = () => {
       avatar: 'LW',
       status: 'active',
       skills: ['User Research', 'Prototyping', 'Figma'],
-      projects: 6
+      customers: 6
     },
     {
       id: 6,
@@ -119,7 +119,7 @@ const EmployeeManagement = () => {
       avatar: 'DR',
       status: 'active',
       skills: ['AWS', 'Docker', 'Kubernetes'],
-      projects: 8
+      customers: 8
     }
   ]);
 
@@ -411,7 +411,7 @@ const EmployeeManagement = () => {
                                 </div>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs text-gray-500">{employee.projects} projects</p>
+                                <p className="text-xs text-gray-500">{employee.customers} customers</p>
                               </div>
                             </div>
                           </div>

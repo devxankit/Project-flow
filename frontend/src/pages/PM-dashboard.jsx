@@ -4,7 +4,7 @@ import PMNavbar from '../components/PM-Navbar';
 import TaskForm from '../components/TaskForm';
 import CustomerForm from '../components/CustomerForm';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { Building2, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
+import { FolderKanban, CheckSquare, Clock, TrendingUp, Plus, Users, Calendar, MessageSquare } from 'lucide-react';
 import { customerApi, taskApi, getCurrentUser, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 
@@ -68,8 +68,11 @@ const PMDashboard = () => {
       // Set task stats
       setTaskStats(taskStatsResponse.data);
 
-      // Set recent customers
-      setRecentCustomers(recentCustomersResponse.data);
+      // Set recent customers - backend returns { data: { customers: [...], pagination: {...} } }
+      console.log('Recent customers API response:', recentCustomersResponse);
+      const recentCustomersData = recentCustomersResponse.data?.customers || [];
+      console.log('Extracted recent customers data:', recentCustomersData);
+      setRecentCustomers(recentCustomersData);
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -120,7 +123,7 @@ const PMDashboard = () => {
             >
               <div className="flex items-center justify-between mb-2 md:mb-3">
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
-                  <Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                  <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
                 <span className="text-xs md:text-sm text-gray-500">Active</span>
               </div>
@@ -184,7 +187,7 @@ const PMDashboard = () => {
             {/* Progress Overview - Responsive */}
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
               <div className="flex items-center justify-between mb-4 md:mb-6">
-                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Recent Projects</h2>
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Recent Customers</h2>
                 <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
               
@@ -243,7 +246,7 @@ const PMDashboard = () => {
                   onClick={() => setIsCustomerFormOpen(true)}
                   className="bg-white border border-gray-200 rounded-2xl md:rounded-lg p-4 md:p-4 shadow-sm active:scale-95 md:hover:shadow-md transition-all flex flex-col md:flex-row items-center md:justify-start space-y-2 md:space-y-0 md:space-x-3"
                 >
-                  <Building2 className="h-6 w-6 md:h-5 md:w-5 text-primary" />
+                  <FolderKanban className="h-6 w-6 md:h-5 md:w-5 text-primary" />
                   <p className="text-sm md:text-base font-medium text-gray-900">New Customer</p>
                 </button>
               </div>

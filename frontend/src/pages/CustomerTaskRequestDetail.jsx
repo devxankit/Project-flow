@@ -251,9 +251,9 @@ const CustomerTaskRequestDetail = () => {
                   <Target className="h-6 w-6 text-primary" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Project</p>
+                  <p className="text-sm font-medium text-gray-500">Customer</p>
                   <p className="text-lg font-semibold text-gray-900 truncate">
-                    {typeof taskRequest.project === 'string' ? taskRequest.project : taskRequest.project?.name || 'Unknown'}
+                    {typeof taskRequest.customer === 'string' ? taskRequest.customer : taskRequest.customer?.name || 'Unknown'}
                   </p>
                 </div>
               </div>
@@ -265,9 +265,9 @@ const CustomerTaskRequestDetail = () => {
                   <BarChart3 className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Milestone</p>
+                  <p className="text-sm font-medium text-gray-500">Task</p>
                   <p className="text-lg font-semibold text-gray-900 truncate">
-                    {typeof taskRequest.milestone === 'string' ? taskRequest.milestone : taskRequest.milestone?.title || 'Unknown'}
+                    {typeof taskRequest.task === 'string' ? taskRequest.task : taskRequest.task?.title || 'Unknown'}
                   </p>
                 </div>
               </div>
@@ -385,25 +385,25 @@ const CustomerTaskRequestDetail = () => {
               )}
             </div>
 
-            {/* Right Column - Project & Milestone Info */}
+            {/* Right Column - Customer & Task Info */}
             <div className="space-y-6">
-              {/* Project Information */}
+              {/* Customer Information */}
               <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Building2 className="h-5 w-5 mr-2 text-primary" />
-                  Project Information
+                  Customer Information
                 </h2>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Project</p>
+                    <p className="text-sm font-medium text-gray-500">Customer</p>
                     <p className="font-semibold text-gray-900">
-                      {typeof taskRequest.project === 'string' ? taskRequest.project : taskRequest.project?.name || 'Unknown Project'}
+                      {typeof taskRequest.customer === 'string' ? taskRequest.customer : taskRequest.customer?.name || 'Unknown Customer'}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-500">Milestone</p>
+                    <p className="text-sm font-medium text-gray-500">Task</p>
                     <p className="font-semibold text-gray-900">
-                      {typeof taskRequest.milestone === 'string' ? taskRequest.milestone : taskRequest.milestone?.title || 'Unknown Milestone'}
+                      {typeof taskRequest.task === 'string' ? taskRequest.task : taskRequest.task?.title || 'Unknown Task'}
                     </p>
                   </div>
                 </div>

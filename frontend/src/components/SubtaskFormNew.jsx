@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './magicui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './magicui/dialog';
 import { Button } from './magicui/button';
 import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
@@ -8,137 +8,139 @@ import { Combobox } from './magicui/combobox';
 import { MultiSelect } from './magicui/multi-select';
 import { DatePicker } from './magicui/date-picker';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, UserPlus, Building2, AlertCircle, Star, Clock, CheckCircle, X, ArrowLeft, Loader2, FileText, Flag, Calendar, Save } from 'lucide-react';
-import { customerApi, handleApiError } from '../utils/api';
+import { Users, UserPlus, CheckSquare, AlertCircle, Clock, CheckCircle, X, ArrowLeft, Loader2, FileText, Flag, Calendar, Save, Tag, List } from 'lucide-react';
+import { subtaskApi, taskApi, customerApi, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import PMNavbar from './PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 
-const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
+const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId }) => {
   const { toast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
-  
-  // Determine if this is edit mode (page) or create mode (dialog)
-  const isEditMode = !!id;
-  const isDialogMode = !isEditMode;
+  useScrollToTop();
+
+  const isEditMode = Boolean(id);
+  const isDialogMode = Boolean(isOpen);
+
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
-    customer: '', // This is the customer user (User with role 'customer')
+    task: taskId || '',
     priority: 'normal',
     dueDate: '',
-    assignedTeam: [],
+    assignedTo: [],
     status: 'planning',
+    sequence: 1,
+    tags: [],
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
-  const [isLoadingTeamMembers, setIsLoadingTeamMembers] = useState(false);
-  const [customers, setCustomers] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isLoadingTeamMembers, setIsLoadingTeamMembers] = useState(false);
 
-  // Load users data when component mounts
+  const priorities = [
+    { value: 'low', label: 'Low', icon: Clock },
+    { value: 'normal', label: 'Normal', icon: CheckCircle },
+    { value: 'high', label: 'High', icon: AlertCircle },
+    { value: 'urgent', label: 'Urgent', icon: AlertCircle },
+  ];
+
+  const statuses = [
+    { value: 'planning', label: 'Planning', icon: Clock },
+    { value: 'in-progress', label: 'In Progress', icon: CheckSquare },
+    { value: 'completed', label: 'Completed', icon: CheckCircle },
+    { value: 'on-hold', label: 'On Hold', icon: AlertCircle },
+  ];
+
   useEffect(() => {
-    if (isOpen || isEditMode) {
-      loadUsersData();
+    if (isDialogMode || isEditMode) {
+      loadTasks();
+      loadTeamMembers();
     }
-  }, [isOpen, isEditMode]);
+  }, [isDialogMode, isEditMode]);
 
-  // Load customer data when in edit mode
   useEffect(() => {
     if (isEditMode && id) {
-      loadCustomerData();
+      loadSubtaskData();
     }
   }, [isEditMode, id]);
 
-  // Scroll to top when component mounts (for edit mode)
-  useScrollToTop();
+  const loadTasks = async () => {
+    setIsLoadingTasks(true);
+    try {
+      const response = await taskApi.getTasks();
+      if (response.success && response.data) {
+        const tasksData = response.data || [];
+        const formattedTasks = (Array.isArray(tasksData) ? tasksData : []).map(task => ({
+          value: task._id,
+          label: task.title,
+          subtitle: task.customer?.name || 'No Customer',
+          icon: CheckSquare,
+          avatar: task.avatar
+        }));
+        setTasks(formattedTasks);
+      }
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+      toast.error('Error', 'Failed to load tasks');
+      setTasks([]);
+    } finally {
+      setIsLoadingTasks(false);
+    }
+  };
 
-  const loadUsersData = async () => {
-    setIsLoadingCustomers(true);
+  const loadTeamMembers = async () => {
     setIsLoadingTeamMembers(true);
     try {
-      // Get customer users (users with role 'customer')
-      const customerUsersResponse = await customerApi.getUsersForCustomer('customer');
-      const customerUsers = customerUsersResponse.data || [];
-      
-      // Get team members (users with role 'employee' or 'pm')
-      const teamMembersResponse = await customerApi.getUsersForCustomer('team');
-      const teamMembers = teamMembersResponse.data || [];
-      
-      // Format customers data (these are User records with role 'customer')
-      const formattedCustomers = (Array.isArray(customerUsers) ? customerUsers : []).map(customer => ({
-        value: customer._id,
-        label: customer.company || customer.fullName,
-        subtitle: customer.fullName,
-        icon: Building2,
-        avatar: customer.avatar
-      }));
-      
-      // Format team members data (employees and PMs)
-      const formattedTeamMembers = (Array.isArray(teamMembers) ? teamMembers : []).map(member => ({
-        value: member._id,
-        label: member.fullName,
-        subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
-        avatar: member.avatar
-      }));
-      
-      setCustomers(formattedCustomers);
-      setTeamMembers(formattedTeamMembers);
+      const response = await customerApi.getUsersForCustomer('team');
+      if (response.success && response.data) {
+        const teamData = response.data.teamMembers || [];
+        const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
+          value: member._id,
+          label: member.fullName,
+          subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
+          avatar: member.avatar
+        }));
+        setTeamMembers(formattedTeamMembers);
+      }
     } catch (error) {
-      console.error('Error loading users data:', error);
-      toast.error('Error', 'Failed to load users data');
-      // Set empty arrays on error to prevent map issues
-      setCustomers([]);
+      console.error('Error loading team members:', error);
+      toast.error('Error', 'Failed to load team members');
       setTeamMembers([]);
     } finally {
-      setIsLoadingCustomers(false);
       setIsLoadingTeamMembers(false);
     }
   };
 
-  const loadCustomerData = async () => {
-    // For edit mode, we can use a simple loading state since it's a full page
+  const loadSubtaskData = async () => {
     try {
-      const response = await customerApi.getCustomerById(id);
-      const customer = response.data;
-      
-      setFormData({
-        name: customer.name || '',
-        description: customer.description || '',
-        customer: customer.customer?._id || '', // This is the customer user
-        priority: customer.priority || 'normal',
-        dueDate: customer.dueDate ? new Date(customer.dueDate).toISOString().split('T')[0] : '',
-        assignedTeam: customer.assignedTeam?.map(member => member._id) || [],
-        status: customer.status || 'planning',
-      });
+      const response = await subtaskApi.getSubtask(id);
+      if (response.success && response.data) {
+        const subtask = response.data;
+        setFormData({
+          title: subtask.title || '',
+          description: subtask.description || '',
+          task: subtask.task?._id || '',
+          priority: subtask.priority || 'normal',
+          dueDate: subtask.dueDate || '',
+          assignedTo: subtask.assignedTo?.map(user => user._id) || [],
+          status: subtask.status || 'planning',
+          sequence: subtask.sequence || 1,
+          tags: subtask.tags || [],
+        });
+      }
     } catch (error) {
-      console.error('Error loading customer:', error);
-      toast.error('Error', 'Failed to load customer data');
-      navigate('/customers');
+      console.error('Error loading subtask:', error);
+      toast.error('Error', 'Failed to load subtask data');
     }
   };
 
-  const priorities = [
-    { value: 'urgent', label: 'Urgent', icon: AlertCircle },
-    { value: 'high', label: 'High', icon: AlertCircle },
-    { value: 'normal', label: 'Normal', icon: CheckCircle },
-    { value: 'low', label: 'Low', icon: Clock }
-  ];
-
-  const statuses = [
-    { value: 'planning', label: 'Planning', icon: Star },
-    { value: 'active', label: 'Active', icon: CheckCircle },
-    { value: 'on-hold', label: 'On Hold', icon: Clock },
-    { value: 'completed', label: 'Completed', icon: CheckCircle },
-    { value: 'cancelled', label: 'Cancelled', icon: X }
-  ];
-
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -147,30 +149,16 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Customer name is required';
-    } else if (formData.name.length > 200) {
-      newErrors.name = 'Customer name cannot exceed 200 characters';
+    if (!formData.title.trim()) {
+      newErrors.title = 'Subtask title is required';
     }
 
-    if (formData.description && formData.description.length > 2000) {
-      newErrors.description = 'Description cannot exceed 2000 characters';
-    }
-
-    if (!formData.customer) {
-      newErrors.customer = 'Customer user is required';
+    if (!formData.task) {
+      newErrors.task = 'Task selection is required';
     }
 
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required';
-    } else {
-      const dueDate = new Date(formData.dueDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      if (dueDate < today) {
-        newErrors.dueDate = 'Due date cannot be in the past';
-      }
     }
 
     setErrors(newErrors);
@@ -181,64 +169,67 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
     e.preventDefault();
     
     if (!validateForm()) {
+      toast.error('Validation Error', 'Please fill in all required fields');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const customerData = {
+      const subtaskData = {
         ...formData,
-        dueDate: new Date(formData.dueDate).toISOString(),
+        assignedTo: formData.assignedTo,
+        tags: formData.tags,
       };
 
       let response;
       if (isEditMode) {
-        response = await customerApi.updateCustomer(id, customerData);
-        toast.success('Success', 'Customer updated successfully');
+        response = await subtaskApi.updateSubtask(id, subtaskData);
       } else {
-        response = await customerApi.createCustomer(customerData);
-        toast.success('Success', 'Customer created successfully');
+        response = await subtaskApi.createSubtask(subtaskData);
       }
 
-      if (onSubmit) {
-        onSubmit(response.data);
-      }
-
-      if (isDialogMode) {
-        onClose();
+      if (response.success) {
+        toast.success(
+          isEditMode ? 'Subtask Updated!' : 'Subtask Created!',
+          isEditMode ? 'Subtask has been updated successfully.' : 'Subtask has been created successfully.'
+        );
+        
+        if (onSubmit) {
+          onSubmit(response.data);
+        }
+        
+        handleClose();
       } else {
-        navigate('/customers');
+        toast.error('Error', response.message || 'Failed to save subtask');
       }
     } catch (error) {
-      console.error('Error saving customer:', error);
-      const errorMessage = handleApiError(error);
-      toast.error('Error', errorMessage);
+      console.error('Error saving subtask:', error);
+      handleApiError(error, toast);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
-    // Reset form data when closing
     setFormData({
-      name: '',
+      title: '',
       description: '',
-      customer: '',
+      task: taskId || '',
       priority: 'normal',
       dueDate: '',
-      assignedTeam: [],
+      assignedTo: [],
       status: 'planning',
+      sequence: 1,
+      tags: [],
     });
     setErrors({});
     
     if (isDialogMode) {
       onClose();
     } else {
-      navigate('/customers');
+      navigate('/subtasks');
     }
   };
-
-  // No loading state needed - data loads quickly and doesn't block the dialog
 
   const formContent = (
     <>
@@ -250,28 +241,28 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
         className="space-y-4"
       >
         <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
-          <Building2 className="h-5 w-5 text-primary" />
+          <List className="h-5 w-5 text-primary" />
           <span>Basic Information</span>
         </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Customer Name */}
+          {/* Subtask Title */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
-              Customer Name <span className="text-red-500 ml-1">*</span>
+              Subtask Title <span className="text-red-500 ml-1">*</span>
             </label>
             <Input
-              value={formData.name}
-              onChange={(e) => handleInputChange('name', e.target.value)}
-              placeholder="Enter customer name"
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              placeholder="Enter subtask title"
               className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                errors.name
+                errors.title
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
                   : 'border-gray-200 focus:border-primary focus:ring-primary/20'
               }`}
             />
             <AnimatePresence>
-              {errors.name && (
+              {errors.title && (
                 <motion.p 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -279,31 +270,31 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
                   className="text-sm text-red-500 flex items-center"
                 >
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.name}
+                  {errors.title}
                 </motion.p>
               )}
             </AnimatePresence>
           </div>
 
-          {/* Customer User */}
+          {/* Task */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
-              Customer User <span className="text-red-500 ml-1">*</span>
+              Task <span className="text-red-500 ml-1">*</span>
             </label>
             <Combobox
-              options={customers}
-              value={formData.customer}
-              onChange={(value) => handleInputChange('customer', value)}
-              placeholder="Select customer user"
+              options={tasks}
+              value={formData.task}
+              onChange={(value) => handleInputChange('task', value)}
+              placeholder="Select task"
               className={`h-12 rounded-xl border-2 transition-all duration-200 ${
-                errors.customer
+                errors.task
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
                   : 'border-gray-200 focus:border-primary focus:ring-primary/20'
               }`}
               allowCustom={false}
             />
             <AnimatePresence>
-              {errors.customer && (
+              {errors.task && (
                 <motion.p 
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
@@ -311,7 +302,7 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
                   className="text-sm text-red-500 flex items-center"
                 >
                   <AlertCircle className="h-4 w-4 mr-1" />
-                  {errors.customer}
+                  {errors.task}
                 </motion.p>
               )}
             </AnimatePresence>
@@ -326,7 +317,7 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
           <Textarea
             value={formData.description}
             onChange={(e) => handleInputChange('description', e.target.value)}
-            placeholder="Enter customer description"
+            placeholder="Enter subtask description"
             rows={3}
             className={`rounded-xl border-2 transition-all duration-200 ${
               errors.description
@@ -362,7 +353,7 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
           <span>Additional Information</span>
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Priority */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
@@ -395,6 +386,21 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
               value={formData.status}
               onChange={(value) => handleInputChange('status', value)}
               placeholder="Select status"
+              className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+            />
+          </div>
+
+          {/* Sequence */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Sequence
+            </label>
+            <Input
+              type="number"
+              value={formData.sequence}
+              onChange={(e) => handleInputChange('sequence', parseInt(e.target.value) || 1)}
+              placeholder="1"
+              min="1"
               className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
             />
           </div>
@@ -445,22 +451,49 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
         
         <div className="space-y-2">
           <label className="text-sm font-semibold text-gray-700 flex items-center">
-            Assigned Team
+            Assigned To
           </label>
           <MultiSelect
             options={teamMembers}
-            value={formData.assignedTeam}
-            onChange={(value) => handleInputChange('assignedTeam', value)}
+            value={formData.assignedTo}
+            onChange={(value) => handleInputChange('assignedTo', value)}
             placeholder="Select team members"
-            maxSelected={10}
+            maxSelected={3}
             className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
           />
           <p className="text-xs text-gray-500">
-            Select employees and PMs to work on this customer's tasks
+            Select team members to work on this subtask
           </p>
         </div>
       </motion.div>
 
+      {/* Tags */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="space-y-4"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <Tag className="h-5 w-5 text-primary" />
+          <span>Organization</span>
+        </h3>
+        
+        <div className="space-y-2">
+          <label className="text-sm font-semibold text-gray-700 flex items-center">
+            Tags
+          </label>
+          <Input
+            value={formData.tags.join(', ')}
+            onChange={(e) => handleInputChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
+            placeholder="Enter tags separated by commas"
+            className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
+          />
+          <p className="text-xs text-gray-500">
+            Add tags to categorize and organize this subtask
+          </p>
+        </div>
+      </motion.div>
 
       {/* Auto-populated Fields Info */}
       <motion.div 
@@ -476,7 +509,7 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
         <div className="text-sm text-gray-600 space-y-1">
           <p>• Created By: Current PM</p>
           <p>• Created On: {new Date().toLocaleDateString()}</p>
-          <p>• Customer ID: Auto-generated</p>
+          <p>• Subtask ID: Auto-generated</p>
         </div>
       </motion.div>
 
@@ -509,80 +542,36 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
           ) : (
             <div className="flex items-center space-x-2">
               <Save className="h-4 w-4" />
-              <span>Create Customer</span>
+              <span>Create Subtask</span>
             </div>
           )}
         </Button>
       </motion.div>
-
     </>
   );
 
-  // If this is a dialog mode, render as dialog
-  if (isDialogMode) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={onClose}>
-          {/* Header with gradient background */}
-          <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
-            <DialogHeader className="space-y-2">
-              <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
-                <Building2 className="h-6 w-6" />
-                <span>Create New Customer</span>
-              </DialogTitle>
-              <DialogDescription className="text-primary-foreground/80">
-                Fill in the customer details below. Fields marked with * are required.
-              </DialogDescription>
-            </DialogHeader>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {formContent}
-          </form>
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // If this is edit mode, render as full page
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <PMNavbar />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <Button
-              variant="ghost"
-              onClick={() => navigate('/customers')}
-              className="mb-4 p-0 h-auto text-slate-600 hover:text-slate-900"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Customers
-            </Button>
-            
-            <div className="flex items-center space-x-3">
-              <Building2 className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">
-                  {isEditMode ? 'Edit Customer' : 'Create New Customer'}
-                </h1>
-                <p className="text-slate-600 mt-1">
-                  {isEditMode ? 'Update customer information and settings' : 'Create a new customer record to manage tasks and track progress'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-            {formContent}
-          </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={onClose}>
+        {/* Header with gradient background */}
+        <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+              <List className="h-6 w-6" />
+              <span>Create New Subtask</span>
+            </DialogTitle>
+            <DialogDescription className="text-primary-foreground/80">
+              Fill in the subtask details below. Fields marked with * are required.
+            </DialogDescription>
+          </DialogHeader>
         </div>
-      </div>
-    </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {formContent}
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default CustomerForm;
+export default SubtaskForm;

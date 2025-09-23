@@ -259,13 +259,13 @@ const EmployeeActivity = () => {
                         </span>
                       </div>
 
-                      {/* Project and Milestone Information - Inline layout */}
+                      {/* Customer and Task Information - Inline layout */}
                       <div className="flex items-center space-x-4">
-                        {activity.project && (
+                        {activity.customer && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
                             <span className="text-xs font-semibold text-primary">
-                              {typeof activity.project === 'string' ? activity.project : activity.project.name}
+                              {typeof activity.customer === 'string' ? activity.customer : activity.customer.name}
                             </span>
                           </div>
                         )}
