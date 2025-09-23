@@ -33,7 +33,7 @@ const EmployeeNavbar = () => {
 
   const navigationItems = [
     { name: 'Home', icon: Home, href: '/employee-dashboard', key: 'dashboard' },
-    { name: 'Customers', icon: Building2, href: '/employee-customers', key: 'customers' },
+    { name: 'Projects', icon: Building2, href: '/employee-customers', key: 'customers' },
     { name: 'Activity', icon: Activity, href: '/employee-activity', key: 'activity' },
     { name: 'Files', icon: FileText, href: '/employee-files', key: 'files' },
   ];

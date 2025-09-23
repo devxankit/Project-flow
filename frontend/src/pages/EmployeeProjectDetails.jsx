@@ -319,7 +319,7 @@ const EmployeeProjectDetails = () => {
           <div 
             key={task._id} 
             className="bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow duration-200"
-            onClick={() => navigate(`/employee-task/${task._id}`)}
+            onClick={() => navigate(`/employee-task/${task._id}?customerId=${customer._id}`)}
           >
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base md:text-lg font-semibold text-gray-900">{task.title}</h3>

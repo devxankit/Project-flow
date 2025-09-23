@@ -5,7 +5,7 @@ import useScrollToTop from '../hooks/useScrollToTop';
 import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { customerApi } from '../utils/api';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -13,8 +13,6 @@ const CustomerDashboard = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
-  const [customerList, setCustomerList] = useState([]);
-  const [tasks, setTasks] = useState([]);
   
   // Scroll to top when component mounts
   useScrollToTop();
@@ -24,9 +22,9 @@ const CustomerDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/customer/dashboard');
-        if (response.data.success) {
-          setDashboardData(response.data.data);
+        const response = await customerApi.getCustomerDashboard();
+        if (response.success) {
+          setDashboardData(response.data);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -116,8 +114,8 @@ const CustomerDashboard = () => {
   }
 
   // Extract data from API response
-  const { statistics, recentCustomers } = dashboardData;
-  const customers = recentCustomers || [];
+  const { stats, customers, recentTasks } = dashboardData;
+  const statistics = stats || {};
   
 
   return (
@@ -132,9 +130,9 @@ const CustomerDashboard = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-900">
-                  Welcome, {user?.fullName || 'Customer'}!
+                  Welcome back, {user?.fullName || 'there'}!
                 </h1>
-                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project overview</p>
+                <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project workspace overview</p>
               </div>
             </div>
           </div>
@@ -146,10 +144,10 @@ const CustomerDashboard = () => {
                 <div className="p-2 md:p-3 bg-primary/10 rounded-xl md:rounded-lg">
                   <FolderKanban className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
-                <span className="text-xs md:text-sm text-gray-500">Active</span>
+                <span className="text-xs md:text-sm text-gray-500">Active Projects</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.customers?.active || 0}</p>
-              <p className="text-xs md:text-sm text-gray-600">Customers</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.active || 0}</p>
+              <p className="text-xs md:text-sm text-gray-600">Projects</p>
             </div>
 
             <div className="w-full bg-white rounded-2xl md:rounded-lg p-4 md:p-6 shadow-sm border border-gray-100">
@@ -157,9 +155,9 @@ const CustomerDashboard = () => {
                 <div className="p-2 md:p-3 bg-green-100 rounded-xl md:rounded-lg">
                   <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
                 </div>
-                <span className="text-xs md:text-sm text-gray-500">Done</span>
+                <span className="text-xs md:text-sm text-gray-500">Completed</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.tasks.completed}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.completed || 0}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -168,9 +166,9 @@ const CustomerDashboard = () => {
                 <div className="p-2 md:p-3 bg-yellow-100 rounded-xl md:rounded-lg">
                   <Clock className="h-5 w-5 md:h-6 md:w-6 text-yellow-600" />
                 </div>
-                <span className="text-xs md:text-sm text-gray-500">Due Soon</span>
+                <span className="text-xs md:text-sm text-gray-500">In Progress</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.tasks.dueSoon || 0}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.planning || 0}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
 
@@ -179,9 +177,9 @@ const CustomerDashboard = () => {
                 <div className="p-2 md:p-3 bg-red-100 rounded-xl md:rounded-lg">
                   <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
                 </div>
-                <span className="text-xs md:text-sm text-gray-500">Overdue</span>
+                <span className="text-xs md:text-sm text-gray-500">On Hold</span>
               </div>
-              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.tasks.overdue || 0}</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-900">{statistics.onHold || 0}</p>
               <p className="text-xs md:text-sm text-gray-600">Tasks</p>
             </div>
           </div>
@@ -191,20 +189,20 @@ const CustomerDashboard = () => {
              {/* Progress Overview - Enhanced Design */}
              <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
                <div className="flex items-center justify-between mb-6">
-                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">Overall Progress</h2>
+                 <h2 className="text-lg md:text-xl font-semibold text-gray-900">My Project Progress</h2>
                  <TrendingUp className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                </div>
                
                {/* Overall Progress Bar - Average of Task and Subtask Progress */}
                <div className="mb-6">
                  <div className="flex justify-between text-sm mb-2">
-                   <span className="text-gray-600">Overall Progress</span>
-                   <span className="text-gray-900 font-medium">{statistics.overallProgress}%</span>
+                   <span className="text-gray-600">Project Progress</span>
+                   <span className="text-gray-900 font-medium">{Math.round(statistics.avgProgress || 0)}%</span>
                  </div>
                  <div className="w-full bg-gray-200 rounded-full h-3">
                    <div 
                      className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
-                     style={{ width: `${statistics.overallProgress}%` }}
+                     style={{ width: `${Math.round(statistics.avgProgress || 0)}%` }}
                    ></div>
                  </div>
                </div>
@@ -213,21 +211,21 @@ const CustomerDashboard = () => {
                  {/* Total Tasks - Simple display without bar */}
                  <div>
                    <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                     <span className="text-gray-600">Total Tasks</span>
-                     <span className="text-gray-900 font-medium">{statistics.tasks.total}</span>
+                     <span className="text-gray-600">My Tasks</span>
+                     <span className="text-gray-900 font-medium">{statistics.total || 0}</span>
                    </div>
                  </div>
                  
                  {/* Completed Tasks - Shows ratio and percentage */}
                  <div>
                    <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                     <span className="text-gray-600">Completed Tasks</span>
-                     <span className="text-gray-900 font-medium">{statistics.tasks.completed}/{statistics.tasks.total} ({statistics.tasks.total > 0 ? Math.round((statistics.tasks.completed / statistics.tasks.total) * 100) : 0}%)</span>
+                     <span className="text-gray-600">Completed</span>
+                     <span className="text-gray-900 font-medium">{statistics.completed || 0}/{statistics.total || 0} ({statistics.total > 0 ? Math.round(((statistics.completed || 0) / statistics.total) * 100) : 0}%)</span>
                    </div>
                    <div className="w-full bg-gray-200 rounded-full h-2 md:h-3">
                      <div 
                        className="bg-gradient-to-r from-primary to-primary-dark h-2 md:h-3 rounded-full transition-all duration-500" 
-                       style={{width: `${statistics.tasks.total > 0 ? (statistics.tasks.completed / statistics.tasks.total) * 100 : 0}%`}}
+                       style={{width: `${statistics.total > 0 ? ((statistics.completed || 0) / statistics.total) * 100 : 0}%`}}
                      ></div>
                    </div>
                  </div>
@@ -235,8 +233,8 @@ const CustomerDashboard = () => {
                  {/* Total Subtasks - Simple display without bar */}
                  <div>
                    <div className="flex justify-between text-sm md:text-base mb-2 md:mb-3">
-                     <span className="text-gray-600">Total Subtasks</span>
-                     <span className="text-gray-900 font-medium">{statistics.subtasks?.total || 0}</span>
+                     <span className="text-gray-600">My Subtasks</span>
+                     <span className="text-gray-900 font-medium">0</span>
                    </div>
                  </div>
                  
@@ -260,7 +258,7 @@ const CustomerDashboard = () => {
             <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100 mb-6 md:mb-0">
               {/* Section Header with Better Visual Hierarchy */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg md:text-xl font-bold text-gray-900">Customer Summary</h2>
+                <h2 className="text-lg md:text-xl font-bold text-gray-900">My Projects</h2>
               </div>
               
               {/* Responsive Cards Grid - Better Spacing and Alignment */}
@@ -273,8 +271,8 @@ const CustomerDashboard = () => {
                         <FolderKanban className="h-6 w-6 text-teal-700" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-1">Total Customers</p>
-                        <p className="text-2xl font-bold text-gray-900">{statistics.customers?.total || 0}</p>
+                        <p className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-1">Total Projects</p>
+                        <p className="text-2xl font-bold text-gray-900">{statistics.total || 0}</p>
                       </div>
                     </div>
                   </div>
@@ -289,7 +287,7 @@ const CustomerDashboard = () => {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-green-700 uppercase tracking-wide mb-1">Completed</p>
-                        <p className="text-2xl font-bold text-gray-900">{statistics.customers?.completed || 0}</p>
+                        <p className="text-2xl font-bold text-gray-900">{statistics.completed || 0}</p>
                       </div>
                     </div>
                   </div>
@@ -300,11 +298,11 @@ const CustomerDashboard = () => {
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <p className="text-xl font-bold text-primary">{statistics.customers?.active || 0}</p>
-                    <p className="text-sm text-gray-600">Active Customers</p>
+                    <p className="text-xl font-bold text-primary">{statistics.active || 0}</p>
+                    <p className="text-sm text-gray-600">Active Projects</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-yellow-600">{statistics.customers?.planning || 0}</p>
+                    <p className="text-xl font-bold text-yellow-600">{statistics.planning || 0}</p>
                     <p className="text-sm text-gray-600">In Planning</p>
                   </div>
                 </div>
@@ -315,8 +313,8 @@ const CustomerDashboard = () => {
           {/* Customers Section */}
           <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">Your Customers</h2>
-              <span className="text-sm text-gray-500">{statistics.customers?.total || 0} customers</span>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">My Projects</h2>
+              <span className="text-sm text-gray-500">{statistics.total || 0} projects</span>
             </div>
 
             {/* Responsive Customer Cards */}
@@ -330,7 +328,7 @@ const CustomerDashboard = () => {
                 return (
                 <div 
                   key={customer._id} 
-                  onClick={() => navigate(`/customer-details/${customer._id}`)}
+                  onClick={() => navigate(`/customer-project-details/${customer._id}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -342,7 +340,7 @@ const CustomerDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
                         <h3 className="text-base font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
-                          {typeof customer.name === 'string' ? customer.name : 'Unnamed Customer'}
+                          {typeof customer.name === 'string' ? customer.name : 'Unnamed Project'}
                         </h3>
                         </div>
                         <div className="flex items-center space-x-1.5 mb-2">

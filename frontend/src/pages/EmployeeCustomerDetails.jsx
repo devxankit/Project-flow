@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { customerApi, taskApi, handleApiError } from '../utils/api';
+import api, { handleApiError } from '../utils/api';
 
 const EmployeeCustomerDetails = () => {
   const { id } = useParams();
@@ -32,6 +32,7 @@ const EmployeeCustomerDetails = () => {
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [mySubtasksByTask, setMySubtasksByTask] = useState({});
 
   // Scroll to top when component mounts
   useScrollToTop();
@@ -41,20 +42,30 @@ const EmployeeCustomerDetails = () => {
     const fetchCustomerDetails = async () => {
       try {
         setLoading(true);
-        const [customerResponse, tasksResponse] = await Promise.all([
-          customerApi.getCustomerById(id),
-          customerApi.getCustomerTasks(id)
-        ]);
+        const response = await api.employee.getCustomerDetails(id);
         
-        if (customerResponse.success) {
-          setCustomer(customerResponse.data);
-          setTasks(tasksResponse.data || []);
+        if (response.data && response.data.success) {
+          const { customer, tasks } = response.data.data;
+          setCustomer(customer);
+          setTasks(tasks || []);
+
+          // Load my subtasks per task for this customer
+          const allMy = await api.employee.getSubtasks({ customerId: id, limit: 100 });
+          if (allMy.data && allMy.data.success) {
+            const grouped = {};
+            (allMy.data.data?.subtasks || []).forEach(st => {
+              const tId = st.task?._id || st.task;
+              if (!grouped[tId]) grouped[tId] = [];
+              grouped[tId].push(st);
+            });
+            setMySubtasksByTask(grouped);
+          }
         } else {
-          toast.error('Error', 'Customer not found or access denied');
+          toast.error('Error', 'Project not found or access denied');
           navigate('/employee-customers');
         }
       } catch (error) {
-        console.error('Error fetching customer details:', error);
+        console.error('Error fetching project details:', error);
         handleApiError(error, toast);
         navigate('/employee-customers');
       } finally {
@@ -124,7 +135,7 @@ const EmployeeCustomerDetails = () => {
         <div className="flex items-center justify-center h-64">
           <div className="flex items-center space-x-2">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-gray-600">Loading customer details...</span>
+            <span className="text-gray-600">Loading project details...</span>
           </div>
         </div>
       </div>
@@ -138,13 +149,13 @@ const EmployeeCustomerDetails = () => {
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Customer not found</h3>
-            <p className="text-gray-600 mb-6">The customer you're looking for doesn't exist or you don't have access.</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Project not found</h3>
+            <p className="text-gray-600 mb-6">The project you're looking for doesn't exist or you don't have access.</p>
             <button
               onClick={() => navigate('/employee-customers')}
               className="bg-primary text-white px-6 py-3 rounded-xl hover:bg-primary-dark transition-colors"
             >
-              Back to Customers
+              Back to Projects
             </button>
           </div>
         </div>
@@ -164,7 +175,7 @@ const EmployeeCustomerDetails = () => {
       <EmployeeNavbar />
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
-        <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
+        <div className="px-4 md:max-w-4xl md:mx-auto md:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-6 md:mb-8">
             <button
@@ -172,7 +183,7 @@ const EmployeeCustomerDetails = () => {
               className="mb-4 text-primary hover:text-primary-dark transition-colors flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
-              <span>Back to Customers</span>
+              <span>Back to Projects</span>
             </button>
             
             <div className="flex flex-col md:flex-row md:items-start md:justify-between">
@@ -220,18 +231,27 @@ const EmployeeCustomerDetails = () => {
             </div>
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress Card (matches old layout styling) */}
           <div className="mb-6 md:mb-8">
-            <div className="bg-white rounded-2xl md:rounded-lg p-6 shadow-sm border border-gray-100">
+            <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-3xl p-6 border border-primary/20">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Overall Progress</h3>
-                <span className="text-2xl font-bold text-primary">
-                  {Math.round(customer.progress || 0)}%
-                </span>
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-primary/20 rounded-2xl">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">Project Progress</h3>
+                    <p className="text-sm text-gray-600">Overall completion status</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-primary">{Math.round(customer.progress || 0)}%</div>
+                  <div className="text-xs text-gray-500">Complete</div>
+                </div>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
-                  className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-300"
+                  className="bg-gradient-to-r from-primary to-primary-dark h-3 rounded-full transition-all duration-500"
                   style={{ width: `${Math.round(customer.progress || 0)}%` }}
                 ></div>
               </div>
@@ -264,31 +284,48 @@ const EmployeeCustomerDetails = () => {
           <div className="bg-white rounded-2xl md:rounded-lg shadow-sm border border-gray-100">
             {activeTab === 'overview' && (
               <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Overview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-primary mb-2">{tasks.length}</div>
-                    <div className="text-sm text-gray-600">Total Tasks</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600 mb-2">
-                      {tasks.filter(t => t.status === 'completed').length}
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Overview</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="p-2 bg-primary/10 rounded-xl">
+                        <CheckSquare className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        {(() => {
+                          const totalMySubtasks = Object.values(mySubtasksByTask).reduce((acc, arr) => acc + arr.length, 0);
+                          const completedMySubtasks = Object.values(mySubtasksByTask).reduce((acc, arr) => acc + arr.filter(s => s.status === 'completed').length, 0);
+                          return (
+                            <>
+                              <div className="text-2xl font-bold text-gray-900">{totalMySubtasks}</div>
+                              <div className="text-xs text-gray-500">My Subtasks</div>
+                              <div className="text-xs text-gray-600 mt-1">{completedMySubtasks} completed</div>
+                            </>
+                          );
+                        })()}
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">Completed Tasks</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-orange-600 mb-2">
-                      {tasks.filter(t => t.status === 'in-progress').length}
+
+                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                    <div className="flex items-center space-x-3 mb-3">
+                      <div className="p-2 bg-blue-100 rounded-xl">
+                        <Users className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <div className="text-2xl font-bold text-gray-900">{customer.assignedTeam?.length || 0}</div>
+                        <div className="text-xs text-gray-500">Team Members</div>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">In Progress</div>
+                    <div className="text-xs text-gray-600">Active contributors</div>
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === 'tasks' && (
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Tasks</h3>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">Tasks</h3>
 
                 {tasks.length > 0 ? (
                   <div className="space-y-4">
@@ -313,6 +350,51 @@ const EmployeeCustomerDetails = () => {
                         {task.description && (
                           <p className="text-gray-600 text-sm mb-3">{task.description}</p>
                         )}
+
+                      {/* My Subtasks for this task */}
+                      <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-semibold text-gray-800">My Subtasks</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/employee-task/${task._id}?customerId=${customer._id}`);
+                            }}
+                            className="text-xs text-primary hover:text-primary-dark"
+                          >
+                            View all
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {(mySubtasksByTask[task._id] || []).slice(0, 3).map(st => (
+                            <div
+                              key={st._id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/employee-subtask/${st._id}?taskId=${task._id}&customerId=${customer._id}`);
+                              }}
+                              className="flex items-center justify-between p-2 bg-white rounded-md border border-gray-200 hover:border-primary/30 hover:shadow-sm transition cursor-pointer"
+                            >
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{st.title}</div>
+                                <div className="text-xs text-gray-500">Due: {formatDate(st.dueDate)}</div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(st.status)}`}>
+                                  {st.status}
+                                </span>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getPriorityColor(st.priority)}`}>
+                                  {st.priority}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                          {(!mySubtasksByTask[task._id] || mySubtasksByTask[task._id].length === 0) && (
+                            <div className="text-xs text-gray-500">No subtasks assigned to you for this task.</div>
+                          )}
+                        </div>
+                      </div>
                         
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-4 text-sm text-gray-500">

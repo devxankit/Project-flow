@@ -5,7 +5,7 @@ import useScrollToTop from '../hooks/useScrollToTop';
 import { Building2, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Eye, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { customerApi, handleApiError } from '../utils/api';
+import api, { handleApiError } from '../utils/api';
 
 const EmployeeCustomers = () => {
   const navigate = useNavigate();
@@ -25,16 +25,16 @@ const EmployeeCustomers = () => {
     const fetchCustomers = async () => {
       try {
         setLoading(true);
-        const response = await customerApi.getCustomers();
+        const response = await api.employee.getCustomers();
         
-        if (response.success) {
+        if (response.data && response.data.success) {
           // Backend returns { data: { customers: [...], pagination: {...} } }
-          setCustomers(response.data?.customers || []);
+          setCustomers(response.data.data?.customers || []);
         } else {
-          toast.error('Error', 'Failed to load customers');
+          toast.error('Error', 'Failed to load projects');
         }
       } catch (error) {
-        console.error('Error fetching customers:', error);
+        console.error('Error fetching projects:', error);
         handleApiError(error, toast);
       } finally {
         setLoading(false);
@@ -90,7 +90,7 @@ const EmployeeCustomers = () => {
           <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <span className="ml-2 text-gray-600">Loading customers...</span>
+              <span className="ml-2 text-gray-600">Loading projects...</span>
             </div>
           </div>
         </main>
@@ -110,16 +110,16 @@ const EmployeeCustomers = () => {
             <div className="mb-4 md:mb-6">
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">
-                  Assigned Customers
+                  My Projects
                 </h1>
                 <p className="text-sm md:text-base text-gray-600 mt-1">
-                  View and manage your assigned customer relationships
+                  View and manage your assigned projects
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Customer Cards Grid */}
+          {/* Project Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {customers.length > 0 ? (
               customers.map((customer) => {
@@ -216,9 +216,9 @@ const EmployeeCustomers = () => {
             ) : (
               <div className="col-span-full text-center py-12">
                 <Building2 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No customers assigned</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No projects assigned</h3>
                 <p className="text-gray-600 mb-6">
-                  You haven't been assigned to any customers yet. Contact your project manager for assignments.
+                  You haven't been assigned to any projects yet. Contact your project manager for assignments.
                 </p>
               </div>
             )}

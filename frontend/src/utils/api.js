@@ -374,6 +374,30 @@ export const customerApi = {
       
       return handleApiResponse(response);
     });
+  },
+
+  // Get customer dashboard data
+  getCustomerDashboard: async () => {
+    return throttleRequest('customer-dashboard', async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/dashboard`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  // Get customer project details with tasks and subtasks
+  getCustomerProjectDetails: async (customerId) => {
+    return throttleRequest(`customer-project-details-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}/project-details`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
   }
 };
 
@@ -686,6 +710,22 @@ const api = {
     getFiles: async (params = {}) => {
       const queryString = new URLSearchParams(params).toString();
       return api.get(`/employee/files${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get subtasks assigned to the employee
+    getSubtasks: async (params = {}) => {
+      const queryString = new URLSearchParams(params).toString();
+      return api.get(`/employee/subtasks${queryString ? `?${queryString}` : ''}`);
+    },
+
+    // Get single subtask assigned to the employee
+    getSubtask: async (subtaskId) => {
+      return api.get(`/employee/subtasks/${subtaskId}`);
+    },
+
+    // Update subtask status
+    updateSubtaskStatus: async (subtaskId, status) => {
+      return api.put(`/employee/subtasks/${subtaskId}/status`, { status });
     }
   },
 
@@ -880,8 +920,8 @@ export const commentApi = {
   },
 
   // Add comment to task (for Employee)
-  addEmployeeTaskComment: async (taskId, comment) => {
-    return api.post(`/employee/tasks/${taskId}/comments`, { comment });
+  addEmployeeTaskComment: async (taskId, message) => {
+    return api.post(`/employee/tasks/${taskId}/comments`, { message });
   },
 
   // Delete comment from task (for Employee)
@@ -890,8 +930,8 @@ export const commentApi = {
   },
 
   // Add comment to subtask (for Employee)
-  addEmployeeSubtaskComment: async (subtaskId, comment) => {
-    return api.post(`/employee/subtasks/${subtaskId}/comments`, { comment });
+  addEmployeeSubtaskComment: async (subtaskId, message) => {
+    return api.post(`/employee/subtasks/${subtaskId}/comments`, { message });
   },
 
   // Delete comment from subtask (for Employee)

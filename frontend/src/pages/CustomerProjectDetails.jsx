@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { customerApi, taskApi, subtaskApi } from '../utils/api';
 import { 
   Dialog, 
   DialogContent, 
@@ -38,7 +38,6 @@ import {
 import { Button } from '../components/magicui/button';
 import ThreeDotMenu from '../components/ThreeDotMenu';
 import CopyConfirmDialog from '../components/CopyConfirmDialog';
-import { taskApi, subtaskApi } from '../utils/api';
 
 const CustomerProjectDetails = () => {
   const { id } = useParams();
@@ -79,9 +78,9 @@ const CustomerProjectDetails = () => {
   const loadCustomer = async () => {
     try {
       setLoadingStates(prev => ({ ...prev, customer: true }));
-      const response = await api.customer.getCustomerDetails(id);
-      if (response.data.success) {
-        setCustomerData(response.data.data);
+      const response = await customerApi.getCustomerProjectDetails(id);
+      if (response.success) {
+        setCustomerData(response.data);
         setLoading(false);
       } else {
         toast.error('Error', 'Customer not found');
@@ -98,44 +97,13 @@ const CustomerProjectDetails = () => {
   };
 
   const loadTasks = async () => {
-    try {
-      setLoadingStates(prev => ({ ...prev, tasks: true }));
-      const response = await api.task.getTasksByCustomer(id);
-      if (response.data.success) {
-        setCustomerData(prev => ({
-          ...prev,
-          tasks: response.data.data.tasks || []
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading tasks:', error);
-    } finally {
-      setLoadingStates(prev => ({ ...prev, tasks: false }));
-    }
+    // Tasks are now loaded with customer data in loadCustomer
+    // This function is kept for compatibility but doesn't need to do anything
   };
 
   const loadSubtasks = async () => {
-    try {
-      setLoadingStates(prev => ({ ...prev, subtasks: true }));
-      // Load subtasks for all tasks
-      if (customerData?.tasks) {
-        const allSubtasks = [];
-        for (const task of customerData.tasks) {
-          const response = await api.subtask.getSubtasksByTask(task._id);
-          if (response.data.success && response.data.data) {
-            allSubtasks.push(...response.data.data.subtasks);
-          }
-        }
-        setCustomerData(prev => ({
-          ...prev,
-          subtasks: allSubtasks
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading subtasks:', error);
-    } finally {
-      setLoadingStates(prev => ({ ...prev, subtasks: false }));
-    }
+    // Subtasks are now loaded with customer data in loadCustomer
+    // This function is kept for compatibility but doesn't need to do anything
   };
 
   // Handle task submission
@@ -158,7 +126,7 @@ const CustomerProjectDetails = () => {
 
     try {
       setIsDeleting(true);
-      await api.customer.deleteCustomer(customerData.customer._id);
+      await customerApi.deleteCustomer(customerData.customer._id);
       toast.success('Success', 'Customer deleted successfully');
       navigate('/customer-dashboard');
     } catch (error) {
@@ -448,7 +416,7 @@ const CustomerProjectDetails = () => {
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Customer Progress</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Project Progress</h3>
                 <p className="text-sm text-gray-600">Overall completion status</p>
               </div>
             </div>
@@ -475,7 +443,7 @@ const CustomerProjectDetails = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
-                <div className="text-xs text-gray-500">Total Tasks</div>
+                <div className="text-xs text-gray-500">My Tasks</div>
               </div>
             </div>
             <div className="text-xs text-gray-600">
@@ -508,7 +476,7 @@ const CustomerProjectDetails = () => {
                 </div>
                 <div>
                   <div className="text-lg font-semibold text-gray-900">Timeline</div>
-                  <div className="text-sm text-gray-600">Customer deadline</div>
+                  <div className="text-sm text-gray-600">Project deadline</div>
                 </div>
               </div>
               <div className="text-right">
@@ -531,7 +499,7 @@ const CustomerProjectDetails = () => {
           <div className="p-2 bg-primary/20 rounded-xl">
             <FileText className="h-5 w-5 text-primary" />
           </div>
-          <h3 className="text-lg font-bold text-gray-900">Customer Information</h3>
+          <h3 className="text-lg font-bold text-gray-900">Project Information</h3>
         </div>
 
         {/* Client Section */}
@@ -547,8 +515,8 @@ const CustomerProjectDetails = () => {
             </div>
           </div>
           <div>
-            <p className="text-sm font-semibold text-primary/80 uppercase tracking-wide mb-1">Client</p>
-            <p className="text-lg font-bold text-gray-900">{customer.customer?.fullName || 'No client assigned'}</p>
+            <p className="text-sm font-semibold text-primary/80 uppercase tracking-wide mb-1">Project Owner</p>
+            <p className="text-lg font-bold text-gray-900">{customer.customer?.fullName || 'You'}</p>
           </div>
         </div>
 
@@ -606,12 +574,12 @@ const CustomerProjectDetails = () => {
         <div className="text-center py-8">
           <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
-          <p className="text-gray-600 mb-4">Request your first task to get started</p>
+          <p className="text-gray-600 mb-4">Your tasks will appear here when they are assigned</p>
           <button 
             onClick={() => setIsTaskFormOpen(true)}
             className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium"
           >
-            Add Task
+            Request Task
           </button>
         </div>
       ) : (
@@ -877,7 +845,7 @@ const CustomerProjectDetails = () => {
                     className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
                   >
                     <Plus className="h-5 w-5" />
-                    <span className="font-semibold text-sm">Add Task</span>
+                    <span className="font-semibold text-sm">Request Task</span>
                   </button>
                 </div>
                 
@@ -888,7 +856,7 @@ const CustomerProjectDetails = () => {
                     className="flex-1 bg-white border-2 border-primary text-primary py-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
                   >
                     <Edit className="h-4 w-4" />
-                    <span className="font-semibold text-sm">Edit Customer</span>
+                    <span className="font-semibold text-sm">Edit Project</span>
                   </button>
                   <button 
                     onClick={handleDeleteCustomer}
@@ -900,7 +868,7 @@ const CustomerProjectDetails = () => {
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
-                    <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                    <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Project'}</span>
                   </button>
                 </div>
               </div>
@@ -964,8 +932,8 @@ const CustomerProjectDetails = () => {
               <div className="pt-6 border-t border-gray-100">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Ready to request more tasks?</h3>
-                    <p className="text-sm text-gray-600">Request new tasks to keep the customer work moving forward</p>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Need more tasks?</h3>
+                    <p className="text-sm text-gray-600">Request new tasks to keep your project moving forward</p>
                   </div>
                   <div className="flex items-center space-x-3">
                     <button 
@@ -973,7 +941,7 @@ const CustomerProjectDetails = () => {
                       className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
                     >
                       <Plus className="h-5 w-5" />
-                      <span className="font-semibold">Add Task</span>
+                      <span className="font-semibold">Request Task</span>
                     </button>
                   </div>
                 </div>
@@ -981,8 +949,8 @@ const CustomerProjectDetails = () => {
                 {/* Customer Management Actions */}
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Customer Management</h4>
-                    <p className="text-xs text-gray-600">Edit customer details or remove the customer</p>
+                    <h4 className="text-sm font-semibold text-gray-900 mb-1">Project Management</h4>
+                    <p className="text-xs text-gray-600">Manage your project details and settings</p>
                   </div>
                   <div className="flex items-center space-x-3">
                     <button 
@@ -990,7 +958,7 @@ const CustomerProjectDetails = () => {
                       className="bg-white border-2 border-primary text-primary px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
                     >
                       <Edit className="h-4 w-4" />
-                      <span className="font-semibold text-sm">Edit Customer</span>
+                      <span className="font-semibold text-sm">Edit Project</span>
                     </button>
                     <button 
                       onClick={handleDeleteCustomer}
@@ -1002,7 +970,7 @@ const CustomerProjectDetails = () => {
                       ) : (
                         <Trash2 className="h-4 w-4" />
                       )}
-                      <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Customer'}</span>
+                      <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Project'}</span>
                     </button>
                   </div>
                 </div>
@@ -1083,7 +1051,7 @@ const CustomerProjectDetails = () => {
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-gray-900">
-                  Delete Customer
+                  Delete Project
                 </DialogTitle>
                 <DialogDescription className="text-sm text-gray-500 mt-1">
                   This action cannot be undone.
@@ -1094,9 +1062,9 @@ const CustomerProjectDetails = () => {
           
           <div className="py-4">
             <p className="text-sm text-gray-700">
-              Are you sure you want to delete the customer{' '}
+              Are you sure you want to delete the project{' '}
               <span className="font-semibold text-gray-900">"{customer?.name}"</span>?
-              This will permanently remove the customer and all its associated data including tasks, subtasks, and files.
+              This will permanently remove the project and all its associated data including tasks, subtasks, and files.
             </p>
           </div>
 
@@ -1123,7 +1091,7 @@ const CustomerProjectDetails = () => {
               ) : (
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Customer
+                  Delete Project
                 </>
               )}
             </Button>

@@ -21,6 +21,7 @@ import PMSubtaskDetail from './pages/PMSubtaskDetail';
 // Note: PMMilestoneDetail removed - replaced with PMTaskDetail
 // Customer Module imports
 import CustomerDashboard from './pages/CustomerDashboard';
+import CustomerProjectDetails from './pages/CustomerProjectDetails';
 import CustomerActivity from './pages/CustomerActivity';
 import CustomerTaskDetail from './pages/CustomerTaskDetail';
 import CustomerSubtaskDetail from './pages/CustomerSubtaskDetail';
@@ -132,6 +133,11 @@ function App() {
               <Route path="/customer-details/:id" element={
                 <ProtectedRoute allowedRoles={['customer']}>
                   <CustomerDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/customer-project-details/:id" element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <CustomerProjectDetails />
                 </ProtectedRoute>
               } />
               <Route path="/customer-activity" element={

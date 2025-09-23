@@ -14,7 +14,7 @@ import { useToast } from '../contexts/ToastContext';
 import PMNavbar from './PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 
-const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
+const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   useScrollToTop();
@@ -25,7 +25,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
   const urlParams = useParams();
   const id = isDialogMode ? null : urlParams.id;
   
-  const isEditMode = Boolean(id) && !isDialogMode;
+  const isEditMode = (mode === 'edit') || (Boolean(id) && !isDialogMode);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -183,6 +183,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
           dueDate: task.dueDate || '',
           assignedTo: task.assignedTo?.map(user => user._id) || [],
           status: task.status || 'pending',
+          attachments: []
         });
       }
     } catch (error) {
@@ -299,9 +300,8 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
           isEditMode ? 'Task has been updated successfully.' : 'Task has been created successfully.'
         );
         
-        if (onSubmit) {
-          onSubmit(response.data);
-        }
+        if (onSubmit) onSubmit(response.data);
+        if (typeof onSuccess === 'function') onSuccess(response.data);
         
         handleClose();
       } else {
@@ -328,11 +328,9 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
     });
     setErrors({});
     
-    if (isDialogMode) {
-      onClose();
-    } else {
-      navigate('/tasks');
-    }
+    if (typeof onClose === 'function') return onClose();
+    if (isDialogMode) return onClose && onClose();
+    navigate('/tasks');
   };
 
   const formContent = (
@@ -691,27 +689,36 @@ const TaskForm = ({ isOpen, onClose, onSubmit, customerId }) => {
     </>
   );
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={onClose}>
-        {/* Header with gradient background */}
-        <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
-          <DialogHeader className="space-y-2">
-            <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
-              <CheckSquare className="h-6 w-6" />
-              <span>Create New Task</span>
-            </DialogTitle>
-            <DialogDescription className="text-primary-foreground/80">
-              Fill in the task details below. Fields marked with * are required.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
+  if (isDialogMode) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-2xl max-h-[95vh] overflow-y-auto p-0" onClose={onClose}>
+          {/* Header with gradient background */}
+          <div className="bg-gradient-to-r from-primary to-primary-dark p-6 text-white">
+            <DialogHeader className="space-y-2">
+              <DialogTitle className="text-2xl font-bold flex items-center space-x-2">
+                <CheckSquare className="h-6 w-6" />
+                <span>{isEditMode ? 'Edit Task' : 'Create New Task'}</span>
+              </DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">
+                {isEditMode ? 'Update the task details below.' : 'Fill in the task details below. Fields marked with * are required.'}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {formContent}
-        </form>
-      </DialogContent>
-    </Dialog>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {formContent}
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Embedded mode (inside an existing Dialog)
+  return (
+    <form onSubmit={handleSubmit} className="p-1 space-y-6">
+      {formContent}
+    </form>
   );
 };
 

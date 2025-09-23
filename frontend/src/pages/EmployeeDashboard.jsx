@@ -19,7 +19,7 @@ const EmployeeDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [customers, setCustomers] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  const [subtasks, setSubtasks] = useState([]);
 
   const [filter, setFilter] = useState('all');
 
@@ -33,7 +33,7 @@ const EmployeeDashboard = () => {
         if (response.data && response.data.success) {
           setDashboardData(response.data.data);
           setCustomers(response.data.data?.assignedCustomers || []);
-          setTasks(response.data.data?.recentTasks || []);
+          setSubtasks(response.data.data?.recentSubtasks || []);
         } else {
           console.error('Dashboard API Error:', response.data);
           toast.error('Error', 'Failed to load dashboard data');
@@ -70,35 +70,35 @@ const EmployeeDashboard = () => {
   };
 
   // Filter tasks based on selected filter
-  const filteredTasks = (() => {
-    if (!tasks || tasks.length === 0) return [];
+  const filteredSubtasks = (() => {
+    if (!subtasks || subtasks.length === 0) return [];
     
     switch (filter) {
       case 'due-soon':
-        return tasks.filter(task => {
+        return subtasks.filter(st => {
           const now = new Date();
-          const dueDate = new Date(task.dueDate);
+          const dueDate = new Date(st.dueDate);
           const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays <= 3 && diffDays >= 0 && task.status !== 'completed';
+          return diffDays <= 3 && diffDays >= 0 && st.status !== 'completed';
         });
       case 'overdue':
-        return tasks.filter(task => {
+        return subtasks.filter(st => {
           const now = new Date();
-          const dueDate = new Date(task.dueDate);
+          const dueDate = new Date(st.dueDate);
           const diffDays = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays < 0 && task.status !== 'completed';
+          return diffDays < 0 && st.status !== 'completed';
         });
       case 'done':
-        return tasks.filter(task => task.status === 'completed');
+        return subtasks.filter(st => st.status === 'completed');
       case 'high-priority':
-        return tasks.filter(task => (task.priority === 'high' || task.priority === 'urgent') && task.status !== 'completed');
+        return subtasks.filter(st => (st.priority === 'high' || st.priority === 'urgent') && st.status !== 'completed');
       default:
-        return tasks;
+        return subtasks;
     }
   })();
 
   // Calculate stats from dashboard data
-  const stats = dashboardData?.stats || {
+  const stats = dashboardData?.subtaskStats || {
     total: 0,
     completed: 0,
     inProgress: 0,
@@ -393,16 +393,16 @@ const EmployeeDashboard = () => {
           {/* Tasks Section */}
           <div className="bg-white rounded-2xl md:rounded-lg p-5 md:p-6 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg md:text-xl font-semibold text-gray-900">My Tasks</h2>
-              <span className="text-sm text-gray-500">{filteredTasks.length} tasks</span>
+              <h2 className="text-lg md:text-xl font-semibold text-gray-900">My Subtasks</h2>
+              <span className="text-sm text-gray-500">{filteredSubtasks.length} subtasks</span>
             </div>
 
             {/* Responsive Task Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {filteredTasks.map((task) => (
+              {filteredSubtasks.map((st) => (
                 <div 
-                  key={task._id} 
-                  onClick={() => navigate(`/employee-task/${task._id}`)}
+                  key={st._id} 
+                  onClick={() => navigate(`/employee-subtask/${st._id}?taskId=${st.task?._id || st.task}&customerId=${st.customer?._id || st.customer}`)}
                   className="group bg-gradient-to-br from-gray-50 to-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-300 cursor-pointer transform hover:-translate-y-0.5 active:scale-[0.98]"
                 >
                   {/* Header Section */}
@@ -414,15 +414,15 @@ const EmployeeDashboard = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-1">
                           <h3 className="text-lg font-bold text-gray-900 leading-tight group-hover:text-primary transition-colors duration-300">
-                            {task.title}
+                            {st.title}
                           </h3>
                         </div>
                         <div className="flex items-center space-x-1.5 mb-2">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                            {task.priority}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(st.priority)}`}>
+                            {st.priority}
                           </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                            {task.status}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(st.status)}`}>
+                            {st.status}
                           </span>
                         </div>
                       </div>
@@ -431,15 +431,18 @@ const EmployeeDashboard = () => {
 
                   {/* Description */}
                   <p className="text-sm text-gray-600 leading-relaxed mb-3 line-clamp-2">
-                    {task.description}
+                    {st.description}
                   </p>
 
-                  {/* Customer */}
+                  {/* Customer & Task */}
                   <div className="mb-3 p-2 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg">
                     <div className="flex items-center justify-between text-xs">
                       <div className="flex items-center space-x-1 text-gray-600">
                         <Building2 className="h-3 w-3" />
-                        <span className="text-primary font-semibold">{task.customer?.name || 'Unknown Customer'}</span>
+                        <span className="text-primary font-semibold">{st.customer?.name || 'Unknown Customer'}</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-gray-600">
+                        <span className="text-primary font-semibold">{st.task?.title || 'Task'}</span>
                       </div>
                     </div>
                   </div>
@@ -449,12 +452,12 @@ const EmployeeDashboard = () => {
                     <div className="flex items-center space-x-3">
                       <div className="flex items-center space-x-1 text-gray-500">
                         <User className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">{task.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
+                        <span className="text-xs font-medium">{st.assignedTo?.[0]?.fullName || 'Unassigned'}</span>
                       </div>
                       <div className="flex items-center space-x-1 text-gray-500">
                         <Calendar className="h-3.5 w-3.5" />
                         <span className="text-xs font-medium">
-                          {new Date(task.dueDate).toLocaleDateString('en-US', { 
+                          {new Date(st.dueDate).toLocaleDateString('en-US', { 
                             month: 'short', 
                             day: 'numeric'
                           })}
@@ -465,7 +468,7 @@ const EmployeeDashboard = () => {
                       <div className="text-xs font-semibold text-gray-700">
                         {(() => {
                           const now = new Date();
-                          const dueDate = new Date(task.dueDate);
+                          const dueDate = new Date(st.dueDate);
                           const diffTime = dueDate.getTime() - now.getTime();
                           const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                           
@@ -487,13 +490,13 @@ const EmployeeDashboard = () => {
             </div>
 
             {/* Empty State */}
-            {filteredTasks.length === 0 && (
+            {filteredSubtasks.length === 0 && (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckSquare className="h-8 w-8 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-                <p className="text-gray-600 mb-4">Try adjusting your filter to see more tasks</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No subtasks found</h3>
+                <p className="text-gray-600 mb-4">Try adjusting your filter to see more subtasks</p>
               </div>
             )}
           </div>

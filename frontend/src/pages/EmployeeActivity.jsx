@@ -218,10 +218,10 @@ const EmployeeActivity = () => {
 
           {/* Enhanced Activity Feed */}
           <div className="space-y-4">
-            {filteredActivities.map((activity, index) => {
+            {filteredActivities.map((activity) => {
               const IconComponent = getActivityIcon(activity.type);
               return (
-                <div key={activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
+                <div key={activity._id || activity.id} className="group bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md hover:border-primary/20 transition-all duration-200">
                   <div className="flex items-start space-x-3">
                     {/* Activity Icon - Smaller and more compact */}
                     <div className={`p-2 rounded-lg ${getActivityTypeColor(activity.type)} flex-shrink-0`}>
@@ -241,7 +241,7 @@ const EmployeeActivity = () => {
                           </p>
                         </div>
                         <span className="text-xs font-medium text-gray-500 ml-2 flex-shrink-0">
-                          {formatTimestamp(activity.timestamp)}
+                          {formatTimestamp(activity.timestamp || activity.createdAt)}
                         </span>
                       </div>
 
@@ -264,15 +264,13 @@ const EmployeeActivity = () => {
                         {activity.customer && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                            <span className="text-xs font-semibold text-primary">
-                              {typeof activity.customer === 'string' ? activity.customer : activity.customer.name}
-                            </span>
+                            <span className="text-xs font-semibold text-primary">{typeof activity.customer === 'string' ? activity.customer : (activity.customer?.name || 'Customer')}</span>
                           </div>
                         )}
-                        {activity.target && activity.target.title && (
+                        {activity.target && (activity.target.title || activity.target.name) && (
                           <div className="flex items-center space-x-1.5">
                             <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                            <span className="text-xs font-medium text-orange-600">{activity.target.title}</span>
+                            <span className="text-xs font-medium text-orange-600">{activity.target.title || activity.target.name}</span>
                           </div>
                         )}
                       </div>

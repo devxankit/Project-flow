@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { taskApi, subtaskApi, commentApi, handleApiError } from '../utils/api';
+import api from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -239,20 +240,29 @@ const EmployeeTaskDetail = () => {
     }
   };
 
-  const handleStatusChange = (newStatus) => {
-    // In a real app, this would update the task status via API
-    console.log('Status changed to:', newStatus);
-    // For demo purposes, we'll just show an alert
-    alert(`Task status updated to: ${newStatus}`);
+  const handleStatusChange = async (newStatus) => {
+    if (!id) return;
+    try {
+      const response = await api.employee.updateTaskStatus(id, newStatus);
+      if (response.data && response.data.success) {
+        toast.success('Success', 'Task status updated');
+        await loadTask();
+      } else {
+        toast.error('Error', response.data?.message || 'Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Error', 'Failed to update status');
+    }
   };
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
     
     try {
-      const response = await commentApi.addTaskComment(id, newComment.trim());
+      const response = await commentApi.addEmployeeTaskComment(id, newComment.trim());
       
-      if (response.data.success) {
+        if (response.data.success) {
         toast.success('Success', 'Comment added successfully');
         setNewComment('');
         // Reload task to show new comment
@@ -269,7 +279,7 @@ const EmployeeTaskDetail = () => {
   const handleDeleteComment = async (commentId) => {
     if (window.confirm('Are you sure you want to delete this comment?')) {
       try {
-        const response = await commentApi.deleteTaskComment(id, commentId);
+        const response = await commentApi.deleteEmployeeTaskComment(id, commentId);
         
         if (response.data.success) {
           toast.success('Success', 'Comment deleted successfully');
