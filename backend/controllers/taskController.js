@@ -605,6 +605,138 @@ const getTaskStats = async (req, res) => {
   }
 };
 
+// Add comment to task
+const addTaskComment = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { comment } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Find the task and populate customer details
+    const task = await Task.findById(taskId).populate('customer', 'projectManager assignedTeam');
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Check permissions based on user role
+    let hasPermission = false;
+    
+    if (userRole === 'pm') {
+      // PM can comment on tasks they manage
+      hasPermission = task.customer.projectManager.toString() === userId;
+    } else if (userRole === 'employee') {
+      // Employee can comment on tasks they're assigned to or in customer's team
+      hasPermission = task.assignedTo.includes(userId) || 
+                     task.customer.assignedTeam.includes(userId);
+    } else if (userRole === 'customer') {
+      // Customer can comment on their own tasks
+      hasPermission = task.customer.customer.toString() === userId;
+    }
+
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this task'
+      });
+    }
+
+    // Add comment to task
+    const newComment = {
+      user: userId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    task.comments.push(newComment);
+    await task.save();
+
+    // Populate the comment with user details
+    await task.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: task.comments[task.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from task
+const deleteTaskComment = async (req, res) => {
+  try {
+    const { taskId, commentId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Find the task
+    const task = await Task.findById(taskId).populate('customer', 'projectManager assignedTeam');
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    // Find the comment
+    const comment = task.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Check permissions - user can delete their own comment or PM can delete any comment
+    const isCommentOwner = comment.user.toString() === userId;
+    const isPM = userRole === 'pm' && task.customer.projectManager.toString() === userId;
+
+    if (!isCommentOwner && !isPM) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to delete this comment'
+      });
+    }
+
+    // Remove the comment
+    task.comments.pull(commentId);
+    await task.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting task comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createTask,
   getTasksByCustomer,
@@ -613,5 +745,7 @@ module.exports = {
   deleteTask,
   getTeamMembersForTask,
   getAllTasks,
-  getTaskStats
+  getTaskStats,
+  addTaskComment,
+  deleteTaskComment
 };

@@ -10,7 +10,9 @@ const {
   deleteTask,
   getTeamMembersForTask,
   getAllTasks,
-  getTaskStats
+  getTaskStats,
+  addTaskComment,
+  deleteTaskComment
 } = require('../controllers/taskController');
 
 const router = express.Router();
@@ -76,6 +78,21 @@ router.get('/stats', getTaskStats);
 // @access  Private
 router.get('/customer/:customerId', getTasksByCustomer);
 
+// @route   GET /api/tasks/team/:customerId
+// @desc    Get team members for task assignment
+// @access  Private
+router.get('/team/:customerId', getTeamMembersForTask);
+
+// @route   POST /api/tasks/:taskId/comments
+// @desc    Add comment to task
+// @access  Private
+router.post('/:taskId/comments', addTaskComment);
+
+// @route   DELETE /api/tasks/:taskId/comments/:commentId
+// @desc    Delete comment from task
+// @access  Private
+router.delete('/:taskId/comments/:commentId', deleteTaskComment);
+
 // @route   GET /api/tasks/:taskId/customer/:customerId
 // @desc    Get single task
 // @access  Private
@@ -90,10 +107,5 @@ router.put('/:taskId/customer/:customerId', authorize('pm'), upload.array('attac
 // @desc    Delete task
 // @access  Private (PM only)
 router.delete('/:taskId/customer/:customerId', authorize('pm'), deleteTask);
-
-// @route   GET /api/tasks/team/:customerId
-// @desc    Get team members for task assignment
-// @access  Private
-router.get('/team/:customerId', getTeamMembersForTask);
 
 module.exports = router;

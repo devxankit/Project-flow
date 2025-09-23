@@ -555,11 +555,149 @@ const getSubtaskStats = async (req, res) => {
   }
 };
 
+// Add comment to subtask
+const addSubtaskComment = async (req, res) => {
+  try {
+    const { subtaskId } = req.params;
+    const { comment } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    if (!comment || !comment.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Comment is required'
+      });
+    }
+
+    // Find the subtask and populate task and customer details
+    const subtask = await Subtask.findById(subtaskId)
+      .populate('task', 'customer assignedTo')
+      .populate('customer', 'projectManager assignedTeam customer');
+    
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    // Check permissions based on user role
+    let hasPermission = false;
+    
+    if (userRole === 'pm') {
+      // PM can comment on subtasks they manage
+      hasPermission = subtask.customer.projectManager.toString() === userId;
+    } else if (userRole === 'employee') {
+      // Employee can comment on subtasks they're assigned to or in customer's team
+      hasPermission = subtask.assignedTo.includes(userId) || 
+                     subtask.customer.assignedTeam.includes(userId) ||
+                     subtask.task.assignedTo.includes(userId);
+    } else if (userRole === 'customer') {
+      // Customer can comment on their own subtasks
+      hasPermission = subtask.customer.customer.toString() === userId;
+    }
+
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to this subtask'
+      });
+    }
+
+    // Add comment to subtask
+    const newComment = {
+      user: userId,
+      message: comment.trim(),
+      timestamp: new Date()
+    };
+
+    subtask.comments.push(newComment);
+    await subtask.save();
+
+    // Populate the comment with user details
+    await subtask.populate('comments.user', 'fullName email');
+
+    res.json({
+      success: true,
+      message: 'Comment added successfully',
+      data: subtask.comments[subtask.comments.length - 1]
+    });
+
+  } catch (error) {
+    console.error('Error adding subtask comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
+// Delete comment from subtask
+const deleteSubtaskComment = async (req, res) => {
+  try {
+    const { subtaskId, commentId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Find the subtask
+    const subtask = await Subtask.findById(subtaskId)
+      .populate('customer', 'projectManager assignedTeam');
+    
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    // Find the comment
+    const comment = subtask.comments.id(commentId);
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    // Check permissions - user can delete their own comment or PM can delete any comment
+    const isCommentOwner = comment.user.toString() === userId;
+    const isPM = userRole === 'pm' && subtask.customer.projectManager.toString() === userId;
+
+    if (!isCommentOwner && !isPM) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied to delete this comment'
+      });
+    }
+
+    // Remove the comment
+    subtask.comments.pull(commentId);
+    await subtask.save();
+
+    res.json({
+      success: true,
+      message: 'Comment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting subtask comment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSubtask,
   getSubtasksByTask,
   getSubtask,
   updateSubtask,
   deleteSubtask,
-  getSubtaskStats
+  getSubtaskStats,
+  addSubtaskComment,
+  deleteSubtaskComment
 };

@@ -7,7 +7,9 @@ const {
   getSubtask,
   updateSubtask,
   deleteSubtask,
-  getSubtaskStats
+  getSubtaskStats,
+  addSubtaskComment,
+  deleteSubtaskComment
 } = require('../controllers/subtaskController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { upload } = require('../middlewares/enhancedFileUpload');
@@ -98,5 +100,15 @@ router.delete('/:subtaskId/customer/:customerId',
   authorize('pm'),
   deleteSubtask
 );
+
+// @route   POST /api/subtasks/:subtaskId/comments
+// @desc    Add comment to subtask
+// @access  Private
+router.post('/:subtaskId/comments', addSubtaskComment);
+
+// @route   DELETE /api/subtasks/:subtaskId/comments/:commentId
+// @desc    Delete comment from subtask
+// @access  Private
+router.delete('/:subtaskId/comments/:commentId', deleteSubtaskComment);
 
 module.exports = router;
