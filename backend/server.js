@@ -31,7 +31,7 @@ app.use(helmet({
   contentSecurityPolicy: false
 }));
 
-// CORS configuration - Simple and robust approach
+// CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -42,30 +42,23 @@ const allowedOrigins = [
 
 console.log('🚀 Server starting with CORS origins:', allowedOrigins);
 
-// Simple CORS middleware that works reliably
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  console.log('📡 Request from origin:', origin);
-  
-  // Allow requests from allowed origins or no origin (mobile apps, Postman, etc.)
-  if (!origin || allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
-    console.log('✅ CORS allowed for origin:', origin || 'no-origin');
-  } else {
+// Use standard cors middleware for reliability
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow non-browser clients
+    const isAllowed = allowedOrigins.includes(origin);
+    if (isAllowed) return callback(null, true);
     console.log('❌ CORS blocked origin:', origin);
-  }
-  
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
+    return callback(new Error('Not allowed by CORS'));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 204
+}));
+
+// Explicitly handle preflight requests
+app.options('*', cors());
 
 // Rate limiting - More lenient for development
 const limiter = rateLimit({

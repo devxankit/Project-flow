@@ -24,7 +24,10 @@
     "test:files": "node scripts/fileSystemTest.js",
     "test:final-files": "node scripts/finalFileSystemTest.js",
     "migrate": "node scripts/migrateToCustomerStructure.js",
-    "setup-files": "node scripts/setupFileSystem.js"
+    "setup-files": "node scripts/setupFileSystem.js",
+    "seed-demo": "node scripts/seedDemoData.js",
+    "fix-task-descriptions": "node scripts/fixTaskDescriptions.js",
+    "fix-subtask-descriptions": "node scripts/fixSubtaskDescriptions.js"
   },
   "keywords": [
     "project",

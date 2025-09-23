@@ -23,7 +23,7 @@ services:
       - key: JWT_REFRESH_EXPIRE
         value: 30d
       - key: FRONTEND_URL
-        value: https://your-frontend-domain.vercel.app
+        value: https://project-flow-vert.vercel.app
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

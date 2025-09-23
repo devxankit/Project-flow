@@ -291,9 +291,16 @@ const getSubtask = async (req, res) => {
       });
     }
 
+    // Include customer object explicitly
+    const customer = permissionCheck.customer
+      ? { _id: permissionCheck.customer._id, name: permissionCheck.customer.name, progress: permissionCheck.customer.progress }
+      : (subtask.customer && subtask.customer._id
+          ? { _id: subtask.customer._id, name: subtask.customer.name }
+          : { _id: customerId });
+
     res.json({
       success: true,
-      data: { subtask }
+      data: { subtask, customer }
     });
 
   } catch (error) {

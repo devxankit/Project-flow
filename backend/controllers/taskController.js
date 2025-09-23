@@ -239,9 +239,17 @@ const getTask = async (req, res) => {
       });
     }
 
+    // Include customer object in response for frontend convenience
+    // Prefer the customer object from the permission check to avoid extra queries
+    const customer = permissionCheck.customer
+      ? { _id: permissionCheck.customer._id, name: permissionCheck.customer.name, progress: permissionCheck.customer.progress }
+      : (task.customer && task.customer._id
+          ? { _id: task.customer._id, name: task.customer.name }
+          : { _id: customerId });
+
     res.json({
       success: true,
-      data: { task }
+      data: { task, customer }
     });
 
   } catch (error) {
