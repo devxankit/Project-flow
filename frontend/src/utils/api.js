@@ -398,6 +398,30 @@ export const customerApi = {
       
       return handleApiResponse(response);
     });
+  },
+
+  // Get customer activity
+  getCustomerActivity: async () => {
+    return throttleRequest('customer-activity', async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/activity`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  // Get customer files
+  getCustomerFiles: async () => {
+    return throttleRequest('customer-files', async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/files`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
   }
 };
 
@@ -853,6 +877,17 @@ export const subtaskApi = {
     }
   },
 
+  // Update subtask status (for assigned employees)
+  updateSubtaskStatus: async (subtaskId, customerId, status) => {
+    const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}/status`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ status })
+    });
+    
+    return handleApiResponse(response);
+  },
+
   // Copy subtask
   copySubtask: async (subtaskId, taskId, customerId) => {
     const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/copy`, {
@@ -960,6 +995,40 @@ export const commentApi = {
   }
 };
 
+// Task Request API functions
+export const taskRequestApi = {
+  // Create a new task request
+  createTaskRequest: async (taskRequestData) => {
+    return api.post('/task-requests', taskRequestData);
+  },
+
+  // Get all task requests for current customer user
+  getCustomerTaskRequests: async () => {
+    return api.get('/task-requests/customer');
+  },
+
+  // Get task requests for a specific customer
+  getCustomerTaskRequestsById: async (customerId) => {
+    return api.get(`/task-requests/customer/${customerId}`);
+  },
+
+  // Get all task requests (for PM)
+  getAllTaskRequests: async (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/task-requests${queryString ? `?${queryString}` : ''}`);
+  },
+
+  // Update task request status (for PM)
+  updateTaskRequestStatus: async (requestId, status, response = '') => {
+    return api.put(`/task-requests/${requestId}/status`, { status, response });
+  },
+
+  // Delete task request
+  deleteTaskRequest: async (requestId) => {
+    return api.delete(`/task-requests/${requestId}`);
+  }
+};
+
 // Activity API functions
 export const activityApi = {
   // Get activities for current user based on their role
@@ -989,6 +1058,17 @@ export const activityApi = {
   createActivity: async (activityData) => {
     return api.post('/activities', activityData);
   }
+};
+
+// Export updateSubtaskStatus as a standalone function
+export const updateSubtaskStatus = async (subtaskId, customerId, status) => {
+  const response = await fetch(`${API_BASE_URL}/subtasks/${subtaskId}/customer/${customerId}/status`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ status })
+  });
+  
+  return handleApiResponse(response);
 };
 
 export default api;

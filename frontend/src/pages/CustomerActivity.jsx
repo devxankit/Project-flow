@@ -4,7 +4,7 @@ import useScrollToTop from '../hooks/useScrollToTop';
 import { Activity, Filter, Calendar, User, CheckCircle, MessageSquare, BarChart3, Building2, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { customerApi } from '../utils/api';
 
 const CustomerActivity = () => {
   const [filter, setFilter] = useState('all');
@@ -21,9 +21,9 @@ const CustomerActivity = () => {
     const fetchActivityData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/customer/activity');
-        if (response.data.success) {
-          setAllActivities(response.data.data.activities);
+        const response = await customerApi.getCustomerActivity();
+        if (response.success) {
+          setAllActivities(response.data.activities);
         }
       } catch (error) {
         console.error('Error fetching activity data:', error);

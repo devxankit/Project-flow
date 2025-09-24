@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { customerApi } from '../utils/api';
 
 const CustomerFiles = () => {
   const [filter, setFilter] = useState('all');
@@ -38,9 +38,9 @@ const CustomerFiles = () => {
     const fetchFilesData = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/customer/files');
-        if (response.data.success) {
-          setFiles(response.data.data.files || []);
+        const response = await customerApi.getCustomerFiles();
+        if (response.success) {
+          setFiles(response.data.files || []);
         }
       } catch (error) {
         console.error('Error fetching files data:', error);

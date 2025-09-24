@@ -22,6 +22,13 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
   // Determine if this is edit mode (page) or create mode (dialog)
   const isEditMode = !!id;
   const isDialogMode = !isEditMode;
+  
+  console.log('🔍 CustomerForm mode detection:', {
+    id,
+    isEditMode,
+    isDialogMode,
+    isOpen
+  });
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -180,7 +187,15 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    console.log('🔍 Form submission debug:', {
+      isEditMode,
+      id,
+      formData,
+      isDialogMode
+    });
+    
     if (!validateForm()) {
+      console.log('❌ Form validation failed');
       return;
     }
 
@@ -191,12 +206,18 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
         dueDate: new Date(formData.dueDate).toISOString(),
       };
 
+      console.log('📤 Sending customer data:', customerData);
+
       let response;
       if (isEditMode) {
+        console.log('🔄 Updating customer with ID:', id);
         response = await customerApi.updateCustomer(id, customerData);
+        console.log('✅ Update response:', response);
         toast.success('Success', 'Customer updated successfully');
       } else {
+        console.log('➕ Creating new customer');
         response = await customerApi.createCustomer(customerData);
+        console.log('✅ Create response:', response);
         toast.success('Success', 'Customer created successfully');
       }
 
@@ -504,12 +525,12 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
           {isSubmitting ? (
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>Creating...</span>
+              <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Save className="h-4 w-4" />
-              <span>Create Customer</span>
+              <span>{isEditMode ? 'Update Customer' : 'Create Customer'}</span>
             </div>
           )}
         </Button>
@@ -576,9 +597,9 @@ const CustomerForm = ({ isOpen, onClose, onSubmit }) => {
           </div>
 
           {/* Form */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
             {formContent}
-          </div>
+          </form>
         </div>
       </div>
     </div>

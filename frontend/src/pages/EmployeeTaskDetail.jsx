@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import EmployeeNavbar from '../components/Employee-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { taskApi, subtaskApi, commentApi, handleApiError } from '../utils/api';
+import { taskApi, subtaskApi, commentApi, handleApiError, updateSubtaskStatus } from '../utils/api';
 import api from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -240,19 +240,37 @@ const EmployeeTaskDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus) => {
-    if (!id) return;
+  // Task status is automatically calculated based on subtask completions
+  // Employees cannot manually update task status
+
+  const handleSubtaskStatusChange = async (subtaskId, newStatus) => {
+    if (!subtaskId || !customerId) return;
     try {
-      const response = await api.employee.updateTaskStatus(id, newStatus);
-      if (response.data && response.data.success) {
-        toast.success('Success', 'Task status updated');
-        await loadTask();
+      const response = await updateSubtaskStatus(subtaskId, customerId, newStatus);
+      if (response.success) {
+        toast.success('Success', 'Subtask status updated successfully');
+        // Update the local state immediately for live changes
+        setSubtasks(prevSubtasks => 
+          prevSubtasks.map(subtask => 
+            subtask._id === subtaskId 
+              ? {
+                  ...subtask,
+                  status: newStatus,
+                  completedAt: newStatus === 'completed' ? new Date() : null,
+                  completedBy: newStatus === 'completed' ? user?._id : null
+                }
+              : subtask
+          )
+        );
+        // Also reload to get the latest data from server
+        await loadSubtasks();
+        await loadTask(); // Reload task to get updated status
       } else {
-        toast.error('Error', response.data?.message || 'Failed to update status');
+        toast.error('Error', response.message || 'Failed to update subtask status');
       }
     } catch (error) {
-      console.error('Error updating status:', error);
-      toast.error('Error', 'Failed to update status');
+      console.error('Error updating subtask status:', error);
+      toast.error('Error', error.message || 'Failed to update subtask status');
     }
   };
 
@@ -303,12 +321,7 @@ const EmployeeTaskDetail = () => {
     });
   };
 
-  const statusOptions = [
-    { value: 'pending', label: 'Pending', color: 'bg-yellow-100 text-yellow-800' },
-    { value: 'in-progress', label: 'In Progress', color: 'bg-blue-100 text-blue-800' },
-    { value: 'completed', label: 'Completed', color: 'bg-green-100 text-green-800' },
-    { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-800' }
-  ];
+  // Status options removed - task status is automatically calculated
 
   if (isLoading) {
     return (
@@ -507,25 +520,7 @@ const EmployeeTaskDetail = () => {
               </div>
             </div>
 
-            {/* Status Update Section */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Update Status</h3>
-              <div className="flex flex-wrap gap-2">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handleStatusChange(option.value)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      task.status === option.value
-                        ? `${option.color} border-2 border-current`
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {/* Task status is automatically calculated based on subtask completions */}
           </div>
 
           {/* Subtasks Section */}
@@ -565,58 +560,116 @@ const EmployeeTaskDetail = () => {
                   <p className="text-gray-600">Subtasks will appear here when they are created for this task</p>
                 </div>
               ) : (
-                subtasks.map((subtask) => (
-                  <div 
-                    key={subtask._id} 
-                    onClick={() => navigate(`/employee-subtask/${subtask._id}?taskId=${id}&customerId=${customerId}`)}
-                    className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 cursor-pointer border border-gray-200 hover:border-primary/20"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
-                          {subtask.title}
-                        </h4>
-                        {subtask.description && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                            {subtask.description}
-                          </p>
-                        )}
-                        <div className="flex items-center space-x-4 mt-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            subtask.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            subtask.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {subtask.status === 'completed' ? 'Completed' :
-                             subtask.status === 'in-progress' ? 'In Progress' :
-                             'Pending'}
-                          </span>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            subtask.priority === 'high' ? 'bg-red-100 text-red-800' :
-                            subtask.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                            subtask.priority === 'low' ? 'bg-green-100 text-green-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {subtask.priority === 'urgent' ? 'Urgent' :
-                             subtask.priority === 'high' ? 'High' :
-                             subtask.priority === 'low' ? 'Low' :
-                             'Normal'}
-                          </span>
-                          {subtask.assignedTo && subtask.assignedTo.length > 0 && (
-                            <span className="text-xs text-gray-500">
-                              Assigned to: {subtask.assignedTo[0].fullName}
+                subtasks.map((subtask) => {
+                  const isAssignedToMe = subtask.assignedTo && subtask.assignedTo._id === user?._id;
+                  const statusOptions = [
+                    { 
+                      value: 'pending', 
+                      label: 'Pending', 
+                      icon: '⏳',
+                      activeClass: 'bg-amber-50 text-amber-700 border-amber-200 shadow-amber-100',
+                      inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                    },
+                    { 
+                      value: 'in-progress', 
+                      label: 'In Progress', 
+                      icon: '🔄',
+                      activeClass: 'bg-primary/10 text-primary border-primary/20 shadow-primary/20',
+                      inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-primary/10 hover:text-primary hover:border-primary/20'
+                    },
+                    { 
+                      value: 'completed', 
+                      label: 'Completed', 
+                      icon: '✅',
+                      activeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100',
+                      inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                    },
+                    { 
+                      value: 'cancelled', 
+                      label: 'Cancelled', 
+                      icon: '❌',
+                      activeClass: 'bg-red-50 text-red-700 border-red-200 shadow-red-100',
+                      inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200'
+                    }
+                  ];
+
+                  return (
+                    <div 
+                      key={subtask._id} 
+                      className="group bg-gray-50 rounded-xl p-4 hover:bg-gray-100 transition-colors duration-200 border border-gray-200 hover:border-primary/20"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 group-hover:text-primary transition-colors">
+                            {subtask.title}
+                          </h4>
+                          {subtask.description && (
+                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                              {subtask.description}
+                            </p>
+                          )}
+                          <div className="flex items-center space-x-4 mt-2">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              subtask.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              subtask.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              subtask.status === 'on_hold' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {subtask.status === 'completed' ? 'Completed' :
+                               subtask.status === 'in_progress' ? 'In Progress' :
+                               subtask.status === 'on_hold' ? 'On Hold' :
+                               'Pending'}
                             </span>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              subtask.priority === 'high' ? 'bg-red-100 text-red-800' :
+                              subtask.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                              subtask.priority === 'low' ? 'bg-green-100 text-green-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {subtask.priority === 'urgent' ? 'Urgent' :
+                               subtask.priority === 'high' ? 'High' :
+                               subtask.priority === 'low' ? 'Low' :
+                               'Normal'}
+                            </span>
+                            {subtask.assignedTo && (
+                              <span className="text-xs text-gray-500">
+                                Assigned to: {subtask.assignedTo.fullName}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-500 mb-2">
+                            Due: {new Date(subtask.dueDate).toLocaleDateString()}
+                          </p>
+                          {isAssignedToMe && (
+                            <div className="flex flex-wrap gap-2">
+                              {statusOptions.map((option) => (
+                                <button
+                                  key={option.value}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSubtaskStatusChange(subtask._id, option.value);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border-2 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 ${
+                                    subtask.status === option.value
+                                      ? option.activeClass
+                                      : option.inactiveClass
+                                  }`}
+                                >
+                                  <span className="flex items-center gap-1.5">
+                                    <span className="text-sm">{option.icon}</span>
+                                    <span>{option.label}</span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-gray-500">
-                          Due: {new Date(subtask.dueDate).toLocaleDateString()}
-                        </p>
-                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -649,7 +702,7 @@ const EmployeeTaskDetail = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <a 
-                        href={attachment.url} 
+                        href={`/api/files/task/${taskId}/customer/${customerId}/attachment/${attachment._id}/download`}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -657,7 +710,7 @@ const EmployeeTaskDetail = () => {
                         <Eye className="h-4 w-4" />
                       </a>
                       <a 
-                        href={attachment.url} 
+                        href={`/api/files/task/${taskId}/customer/${customerId}/attachment/${attachment._id}/download`}
                         download={attachment.originalName}
                         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       >

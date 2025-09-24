@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { taskRequestApi, customerApi } from '../utils/api';
 
 const CustomerTaskRequests = () => {
   const navigate = useNavigate();
@@ -42,10 +42,10 @@ const CustomerTaskRequests = () => {
     const fetchTaskRequests = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/task-requests/customer');
-        if (response.data.success) {
-          setTaskRequests(response.data.data);
-          setFilteredRequests(response.data.data);
+        const response = await taskRequestApi.getCustomerTaskRequests();
+        if (response.success) {
+          setTaskRequests(response.data);
+          setFilteredRequests(response.data);
         }
       } catch (error) {
         console.error('Error fetching task requests:', error);
@@ -62,9 +62,9 @@ const CustomerTaskRequests = () => {
   useEffect(() => {
     const fetchCustomers = async () => {
       try {
-        const response = await api.get('/customers');
-        if (response.data.success) {
-          setCustomers(response.data.data.customers || []);
+        const response = await customerApi.getCustomers();
+        if (response.success) {
+          setCustomers(response.data || []);
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
@@ -155,12 +155,13 @@ const CustomerTaskRequests = () => {
   const handleCancelRequest = async (requestId) => {
     if (window.confirm('Are you sure you want to cancel this task request?')) {
       try {
-        const response = await api.delete(`/task-requests/customer/${requestId}`);
-        if (response.data.success) {
+        const response = await taskRequestApi.deleteTaskRequest(requestId);
+        if (response.success) {
           toast.success('Success', 'Task request cancelled successfully');
           // Refresh the list
           const updatedRequests = taskRequests.filter(r => r._id !== requestId);
           setTaskRequests(updatedRequests);
+          setFilteredRequests(updatedRequests);
         }
       } catch (error) {
         console.error('Error cancelling task request:', error);
@@ -185,10 +186,10 @@ const CustomerTaskRequests = () => {
   const handleTaskRequestSubmit = async (requestData) => {
     try {
       // Refresh the task requests list
-      const response = await api.get('/task-requests/customer');
-      if (response.data.success) {
-        setTaskRequests(response.data.data);
-        setFilteredRequests(response.data.data);
+      const response = await taskRequestApi.getCustomerTaskRequests();
+      if (response.success) {
+        setTaskRequests(response.data);
+        setFilteredRequests(response.data);
       }
       
       // Close the form
@@ -205,9 +206,9 @@ const CustomerTaskRequests = () => {
   // Fetch tasks for a specific customer
   const fetchTasksForCustomer = async (customerId) => {
     try {
-      const response = await api.get(`/customers/${customerId}/tasks`);
-      if (response.data.success) {
-        setTasks(response.data.data || []);
+      const response = await customerApi.getCustomerTasks(customerId);
+      if (response.success) {
+        setTasks(response.data || []);
         // Close the customer selection dialog and open the task request form
         setIsTaskRequestFormOpen(false);
       } else {

@@ -680,7 +680,7 @@ const PMTaskDetail = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       <a 
-                        href={attachment.url} 
+                        href={`/api/files/task/${taskId}/customer/${customerId}/attachment/${attachment._id}/download`}
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -688,7 +688,7 @@ const PMTaskDetail = () => {
                         <Eye className="h-4 w-4" />
                       </a>
                       <a 
-                        href={attachment.url} 
+                        href={`/api/files/task/${taskId}/customer/${customerId}/attachment/${attachment._id}/download`}
                         download={attachment.originalName}
                         className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                       >

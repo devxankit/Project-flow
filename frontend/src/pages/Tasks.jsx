@@ -310,12 +310,14 @@ const Tasks = () => {
         </div>
       </main>
 
-      {/* Task Form */}
-      <TaskForm
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleTaskSubmit}
-      />
+      {/* Task Form - Only render when open */}
+      {isTaskFormOpen && (
+        <TaskForm
+          isOpen={isTaskFormOpen}
+          onClose={() => setIsTaskFormOpen(false)}
+          onSubmit={handleTaskSubmit}
+        />
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import PMNavbar from '../components/PM-Navbar';
-import TaskForm from '../components/TaskForm';
+import CustomerNavbar from '../components/Customer-Navbar';
+import TaskRequestForm from '../components/TaskRequestForm';
 import useScrollToTop from '../hooks/useScrollToTop';
 import { 
   FolderKanban, 
@@ -19,10 +19,7 @@ import {
   FileText,
   Settings,
   Flag,
-  Loader2,
-  Edit,
-  Trash2,
-  AlertTriangle
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -37,7 +34,7 @@ import {
 } from '../components/magicui/dialog';
 import { Button } from '../components/magicui/button';
 import ThreeDotMenu from '../components/ThreeDotMenu';
-import CopyConfirmDialog from '../components/CopyConfirmDialog';
+// CopyConfirmDialog removed - customers cannot copy tasks/subtasks
 
 const CustomerProjectDetails = () => {
   const { id } = useParams();
@@ -46,11 +43,11 @@ const CustomerProjectDetails = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('overview');
   const [timeLeft, setTimeLeft] = useState('');
-  const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
+  const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customerData, setCustomerData] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // isDeleting removed - customers cannot delete customers
+  // Delete dialog removed - customers cannot delete customers
   const [loadingStates, setLoadingStates] = useState({
     customer: false,
     tasks: false,
@@ -58,12 +55,7 @@ const CustomerProjectDetails = () => {
   });
   
   // Copy dialog states
-  const [copyDialog, setCopyDialog] = useState({
-    isOpen: false,
-    type: null, // 'task' or 'subtask'
-    item: null,
-    isLoading: false
-  });
+  // Copy dialog removed - customers cannot copy tasks/subtasks
 
   // Fetch customer data
   useEffect(() => {
@@ -106,61 +98,30 @@ const CustomerProjectDetails = () => {
     // This function is kept for compatibility but doesn't need to do anything
   };
 
-  // Handle task submission
-  const handleTaskSubmit = (taskData) => {
-    // Refresh customer data and tasks after creating a new task
-    loadCustomer();
-    loadTasks();
-    setIsTaskFormOpen(false);
-  };
+  // Task submission removed - customers cannot create tasks
 
-  // Handle customer deletion confirmation
-  const handleDeleteCustomer = () => {
-    if (!customerData?.customer?._id) return;
-    setShowDeleteDialog(true);
-  };
+  // Customer deletion removed - customers cannot delete customers
 
-  // Confirm customer deletion
-  const confirmDeleteCustomer = async () => {
-    if (!customerData?.customer?._id) return;
-
-    try {
-      setIsDeleting(true);
-      await customerApi.deleteCustomer(customerData.customer._id);
-      toast.success('Success', 'Customer deleted successfully');
-      navigate('/customer-dashboard');
-    } catch (error) {
-      console.error('Error deleting customer:', error);
-      toast.error('Error', 'Failed to delete customer');
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteDialog(false);
-    }
-  };
-
-  // Cancel customer deletion
-  const cancelDeleteCustomer = () => {
-    setShowDeleteDialog(false);
-  };
-
-  // Handle customer edit navigation
-  const handleEditCustomer = () => {
-    navigate(`/customers/edit/${customerData.customer._id}`);
-  };
+  // Customer edit removed - customers cannot edit customers
 
   // Scroll to top when component mounts
   useScrollToTop();
 
+  // Extract customer data early for use in useEffect hooks
+  const customer = customerData?.customer;
+  const tasks = customerData?.tasks || [];
+  const subtasks = customerData?.subtasks || [];
+
   // Countdown logic - moved before conditional returns to follow Rules of Hooks
   useEffect(() => {
-    if (!customerData?.customer?.dueDate) {
+    if (!customer?.dueDate) {
       setTimeLeft('No due date');
       return;
     }
 
     const calculateTimeLeft = () => {
       const now = new Date();
-      const dueDate = new Date(customerData.customer.dueDate);
+      const dueDate = new Date(customer.dueDate);
       const difference = dueDate.getTime() - now.getTime();
 
       if (difference > 0) {
@@ -194,98 +155,17 @@ const CustomerProjectDetails = () => {
     const interval = setInterval(calculateTimeLeft, 60000); // Update every minute
 
     return () => clearInterval(interval);
-  }, [customerData?.customer?.dueDate]);
+  }, [customer?.dueDate]);
 
-  // Copy handlers
-  const handleCopyTask = (task) => {
-    setCopyDialog({
-      isOpen: true,
-      type: 'task',
-      item: task,
-      isLoading: false
-    });
-  };
+  // Copy handlers removed - customers cannot copy tasks/subtasks
 
-  const handleCopySubtask = (subtask) => {
-    setCopyDialog({
-      isOpen: true,
-      type: 'subtask',
-      item: subtask,
-      isLoading: false
-    });
-  };
-
-  const handleConfirmCopy = async () => {
-    if (!copyDialog.item) return;
-
-    setCopyDialog(prev => ({ ...prev, isLoading: true }));
-
-    try {
-      if (copyDialog.type === 'task') {
-        try {
-          const response = await taskApi.copyTask(copyDialog.item._id, id);
-          if (!response.success) {
-            toast.error('Error', response.message || 'Failed to copy task');
-            setCopyDialog({ isOpen: false, type: null, item: null, isLoading: false });
-            return;
-          }
-          toast.success('Success', 'Task copied successfully');
-        } catch (e) {
-          toast.error('Error', 'Failed to copy task');
-          setCopyDialog({ isOpen: false, type: null, item: null, isLoading: false });
-          return;
-        }
-        // Refresh after success
-        try {
-          const customerResponse = await api.get(`/customer/${id}`);
-          if (customerResponse.success) {
-            setCustomerData(customerResponse.data);
-          }
-        } catch (_) {}
-      } else if (copyDialog.type === 'subtask') {
-        const response = await subtaskApi.copySubtask(
-          copyDialog.item._id, 
-          copyDialog.item.task, 
-          id
-        );
-        if (response.success) {
-          toast.success('Success', 'Subtask copied successfully');
-          // Refresh customer data to show new subtask
-          const customerResponse = await api.get(`/customer/${id}`);
-          if (customerResponse.success) {
-            setCustomerData(customerResponse.data);
-          }
-        } else {
-          toast.error('Error', response.message || 'Failed to copy subtask');
-        }
-      }
-    } catch (error) {
-      console.error('Error copying item:', error);
-      toast.error('Error', 'Failed to copy item');
-    } finally {
-      setCopyDialog({
-        isOpen: false,
-        type: null,
-        item: null,
-        isLoading: false
-      });
-    }
-  };
-
-  const handleCloseCopyDialog = () => {
-    setCopyDialog({
-      isOpen: false,
-      type: null,
-      item: null,
-      isLoading: false
-    });
-  };
+  // Copy functionality removed - customers cannot copy tasks/subtasks
   
   // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
-        <PMNavbar />
+        <CustomerNavbar />
         <main className="pt-4 pb-24 md:pt-8 md:pb-8">
           <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
             <div className="flex items-center justify-center py-12">
@@ -303,8 +183,7 @@ const CustomerProjectDetails = () => {
     return null;
   }
 
-  // Extract customer data
-  const { customer, tasks = [], subtasks = [] } = customerData;
+  // Customer data already extracted above
 
   // Get team from customer data
   const team = customer?.assignedTeam || [];
@@ -576,8 +455,8 @@ const CustomerProjectDetails = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks yet</h3>
           <p className="text-gray-600 mb-4">Your tasks will appear here when they are assigned</p>
           <button 
-            onClick={() => setIsTaskFormOpen(true)}
-            className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium"
+            onClick={() => setIsTaskRequestFormOpen(true)}
+            className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-2 rounded-full text-sm font-medium hover:shadow-lg transition-all duration-200 transform hover:scale-105 active:scale-95"
           >
             Request Task
           </button>
@@ -627,7 +506,7 @@ const CustomerProjectDetails = () => {
                     </span>
                     {user?.role === 'pm' && (
                       <ThreeDotMenu
-                        onCopy={() => handleCopyTask(task)}
+                        // Copy functionality removed
                         showCopy={true}
                         itemType="task"
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -706,7 +585,7 @@ const CustomerProjectDetails = () => {
                     </span>
                     {user?.role === 'pm' && (
                       <ThreeDotMenu
-                        onCopy={() => handleCopySubtask(subtask)}
+                        // Copy functionality removed
                         showCopy={true}
                         itemType="subtask"
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -777,7 +656,7 @@ const CustomerProjectDetails = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 md:bg-gray-50">
-      <PMNavbar />
+      <CustomerNavbar />
       
       <main className="pt-4 pb-24 md:pt-8 md:pb-8">
         <div className="px-4 md:max-w-7xl md:mx-auto md:px-6 lg:px-8">
@@ -841,7 +720,7 @@ const CustomerProjectDetails = () => {
                 {/* Primary Actions */}
                 <div className="flex space-x-3">
                   <button 
-                    onClick={() => setIsTaskFormOpen(true)}
+                    onClick={() => setIsTaskRequestFormOpen(true)}
                     className="flex-1 bg-gradient-to-r from-primary to-primary-dark text-white py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
                   >
                     <Plus className="h-5 w-5" />
@@ -849,28 +728,7 @@ const CustomerProjectDetails = () => {
                   </button>
                 </div>
                 
-                {/* Secondary Actions */}
-                <div className="flex space-x-3">
-                  <button 
-                    onClick={handleEditCustomer}
-                    className="flex-1 bg-white border-2 border-primary text-primary py-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="font-semibold text-sm">Edit Project</span>
-                  </button>
-                  <button 
-                    onClick={handleDeleteCustomer}
-                    disabled={isDeleting}
-                    className="flex-1 bg-white border-2 border-red-500 text-red-500 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4" />
-                    )}
-                    <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Project'}</span>
-                  </button>
-                </div>
+                {/* Edit/Delete buttons removed - customers cannot edit/delete customers */}
               </div>
             </div>
           </div>
@@ -937,7 +795,7 @@ const CustomerProjectDetails = () => {
                   </div>
                   <div className="flex items-center space-x-3">
                     <button 
-                      onClick={() => setIsTaskFormOpen(true)}
+                      onClick={() => setIsTaskRequestFormOpen(true)}
                       className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
                     >
                       <Plus className="h-5 w-5" />
@@ -953,25 +811,7 @@ const CustomerProjectDetails = () => {
                     <p className="text-xs text-gray-600">Manage your project details and settings</p>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <button 
-                      onClick={handleEditCustomer}
-                      className="bg-white border-2 border-primary text-primary px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="font-semibold text-sm">Edit Project</span>
-                    </button>
-                    <button 
-                      onClick={handleDeleteCustomer}
-                      disabled={isDeleting}
-                      className="bg-white border-2 border-red-500 text-red-500 px-6 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                      <span className="font-semibold text-sm">{isDeleting ? 'Deleting...' : 'Delete Project'}</span>
-                    </button>
+                    {/* Edit/Delete buttons removed - customers cannot edit/delete customers */}
                   </div>
                 </div>
               </div>
@@ -1033,81 +873,21 @@ const CustomerProjectDetails = () => {
         </div>
       </main>
 
-      {/* Task Form */}
-      <TaskForm
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleTaskSubmit}
-        customerId={customerData?._id}
-      />
+      {/* TaskForm removed - customers cannot create tasks */}
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent className="max-w-md" onClose={cancelDeleteCustomer}>
-          <DialogHeader>
-            <div className="flex items-center space-x-3">
-              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-lg font-semibold text-gray-900">
-                  Delete Project
-                </DialogTitle>
-                <DialogDescription className="text-sm text-gray-500 mt-1">
-                  This action cannot be undone.
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          <div className="py-4">
-            <p className="text-sm text-gray-700">
-              Are you sure you want to delete the project{' '}
-              <span className="font-semibold text-gray-900">"{customer?.name}"</span>?
-              This will permanently remove the project and all its associated data including tasks, subtasks, and files.
-            </p>
-          </div>
+      {/* Delete dialog removed - customers cannot delete customers */}
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={cancelDeleteCustomer}
-              disabled={isDeleting}
-              className="w-full sm:w-auto"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDeleteCustomer}
-              disabled={isDeleting}
-              className="w-full sm:w-auto"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Project
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Copy dialog removed - customers cannot copy tasks/subtasks */}
 
-      {/* Copy Confirmation Dialog */}
-      <CopyConfirmDialog
-        isOpen={copyDialog.isOpen}
-        onClose={handleCloseCopyDialog}
-        onConfirm={handleConfirmCopy}
-        isLoading={copyDialog.isLoading}
-        itemType={copyDialog.type}
-        itemTitle={copyDialog.item?.title}
-      />
+      {/* Task Request Form - Only render when open */}
+      {isTaskRequestFormOpen && (
+        <TaskRequestForm
+          isOpen={isTaskRequestFormOpen}
+          onClose={() => setIsTaskRequestFormOpen(false)}
+          customerId={customer?._id}
+          customerName={customer?.name}
+        />
+      )}
     </div>
   );
 };

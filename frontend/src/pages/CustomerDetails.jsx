@@ -983,13 +983,15 @@ const CustomerDetails = () => {
         </div>
       </main>
 
-      {/* Task Form */}
-      <TaskForm
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleTaskSubmit}
-        customerId={customerData?._id}
-      />
+      {/* Task Form - Only render when open */}
+      {isTaskFormOpen && (
+        <TaskForm
+          isOpen={isTaskFormOpen}
+          onClose={() => setIsTaskFormOpen(false)}
+          onSubmit={handleTaskSubmit}
+          customerId={customerData?._id}
+        />
+      )}
 
       {/* Copy Task Dialog */}
       <CopyConfirmDialog

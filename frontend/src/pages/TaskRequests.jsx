@@ -51,7 +51,7 @@ const TaskRequests = () => {
     const fetchTaskRequests = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/task-requests/pm');
+        const response = await api.get('/task-requests');
         if (response.data.success) {
           setTaskRequests(response.data.data);
         } else {
@@ -158,9 +158,9 @@ const TaskRequests = () => {
   const handleApprove = async (requestId) => {
     try {
       setIsProcessing(true);
-      const response = await api.post(`/task-requests/pm/${requestId}/review`, {
-        action: 'approve',
-        reviewComments: 'Task request approved and task created successfully.'
+      const response = await api.put(`/task-requests/${requestId}/status`, {
+        status: 'approved',
+        response: 'Task request approved and task created successfully.'
       });
       
       if (response.data.success) {
@@ -207,9 +207,9 @@ const TaskRequests = () => {
 
     try {
       setIsProcessing(true);
-      const response = await api.post(`/task-requests/pm/${requestToReject._id}/review`, {
-        action: 'reject',
-        reviewComments: rejectionReason
+      const response = await api.put(`/task-requests/${requestToReject._id}/status`, {
+        status: 'rejected',
+        response: rejectionReason
       });
       
       if (response.data.success) {

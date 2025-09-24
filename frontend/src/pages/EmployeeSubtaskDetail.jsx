@@ -5,7 +5,7 @@ import {
   ArrowLeft, 
   CheckSquare, 
   Calendar, 
-  User, 
+  User,
   Flag, 
   Target, 
   Clock, 
@@ -14,7 +14,6 @@ import {
   Eye, 
   Edit, 
   Trash2,
-  Users,
   Paperclip,
   AlertCircle,
   CheckCircle,
@@ -25,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/magicui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../components/magicui/dialog';
-import { subtaskApi, commentApi, handleApiError } from '../utils/api';
+import { subtaskApi, commentApi, handleApiError, updateSubtaskStatus } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import { useAuth } from '../contexts/AuthContext';
 import EmployeeNavbar from '../components/Employee-Navbar';
@@ -75,6 +74,30 @@ const EmployeeSubtaskDetail = () => {
       navigate('/employee-customers');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSubtaskStatusChange = async (newStatus) => {
+    if (!id || !customerId) return;
+    try {
+      const response = await updateSubtaskStatus(id, customerId, newStatus);
+      if (response.success) {
+        toast.success('Success', 'Subtask status updated successfully');
+        // Update the local state immediately for live changes
+        setSubtask(prevSubtask => ({
+          ...prevSubtask,
+          status: newStatus,
+          completedAt: newStatus === 'completed' ? new Date() : null,
+          completedBy: newStatus === 'completed' ? user?._id : null
+        }));
+        // Also reload to get the latest data from server
+        await loadSubtask();
+      } else {
+        toast.error('Error', response.message || 'Failed to update subtask status');
+      }
+    } catch (error) {
+      console.error('Error updating subtask status:', error);
+      toast.error('Error', error.message || 'Failed to update subtask status');
     }
   };
 
@@ -314,48 +337,6 @@ const EmployeeSubtaskDetail = () => {
               </p>
             </div>
 
-            {/* Attachments */}
-            {subtask.attachments && subtask.attachments.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                  <Paperclip className="h-5 w-5 text-primary" />
-                  <span>Attachments ({subtask.attachments.length})</span>
-                </h3>
-                <div className="space-y-3">
-                  {subtask.attachments.map((attachment, index) => (
-                    <div key={attachment.cloudinaryId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
-                          <p className="text-xs text-gray-500">
-                            {formatFileSize(attachment.size)} • 
-                            Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <a 
-                          href={attachment.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </a>
-                        <a 
-                          href={attachment.url} 
-                          download={attachment.originalName}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <Download className="h-4 w-4" />
-                        </a>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Sidebar */}
@@ -371,6 +352,60 @@ const EmployeeSubtaskDetail = () => {
                     <span>{new Date(subtask.dueDate).toLocaleDateString()}</span>
                   </p>
                 </div>
+                
+                {/* Status Update Section - Only for assigned employees */}
+                {subtask.assignedTo && subtask.assignedTo._id === user?._id && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-600 mb-2 block">Update Status</label>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { 
+                          value: 'pending', 
+                          label: 'Pending', 
+                          icon: '⏳',
+                          activeClass: 'bg-amber-50 text-amber-700 border-amber-200 shadow-amber-100',
+                          inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                        },
+                        { 
+                          value: 'in-progress', 
+                          label: 'In Progress', 
+                          icon: '🔄',
+                          activeClass: 'bg-primary/10 text-primary border-primary/20 shadow-primary/20',
+                          inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-primary/10 hover:text-primary hover:border-primary/20'
+                        },
+                        { 
+                          value: 'completed', 
+                          label: 'Completed', 
+                          icon: '✅',
+                          activeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 shadow-emerald-100',
+                          inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                        },
+                        { 
+                          value: 'cancelled', 
+                          label: 'Cancelled', 
+                          icon: '❌',
+                          activeClass: 'bg-red-50 text-red-700 border-red-200 shadow-red-100',
+                          inactiveClass: 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200'
+                        }
+                      ].map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => handleSubtaskStatusChange(option.value)}
+                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 border-2 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 ${
+                            subtask.status === option.value
+                              ? option.activeClass
+                              : option.inactiveClass
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className="text-base">{option.icon}</span>
+                            <span>{option.label}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 
                 <div>
                   <label className="text-sm font-medium text-gray-600">Created</label>
@@ -392,28 +427,65 @@ const EmployeeSubtaskDetail = () => {
               </div>
             </div>
 
-            {/* Assigned Team */}
+            {/* Attachments */}
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                <Users className="h-5 w-5 text-primary" />
-                <span>Assigned Team</span>
+                <Paperclip className="h-5 w-5 text-primary" />
+                <span>Attachments</span>
+                {subtask.attachments && subtask.attachments.length > 0 && (
+                  <span className="text-sm font-normal text-gray-500">({subtask.attachments.length})</span>
+                )}
               </h3>
-              {subtask.assignedTo && subtask.assignedTo.length > 0 ? (
-                <div className="space-y-3">
-                  {subtask.assignedTo.map((member) => (
-                    <div key={member._id} className="flex items-center space-x-3">
-                      <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-primary/30 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-primary" />
+              {subtask.attachments && subtask.attachments.length > 0 ? (
+                <div className="space-y-2">
+                  {subtask.attachments.map((attachment, index) => (
+                    <div key={attachment.cloudinaryId || index} className="group">
+                      {/* File Info */}
+                      <div className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                        <span className="text-xl flex-shrink-0 mt-0.5">{getFileIcon(attachment.mimetype)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName}>
+                            {attachment.originalName}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {formatFileSize(attachment.size)}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(attachment.uploadedAt).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{member.fullName}</p>
-                        <p className="text-xs text-gray-500">{member.email}</p>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex justify-end space-x-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <a 
+                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                          title="View file"
+                        >
+                          <Eye className="h-3 w-3 inline mr-1" />
+                          View
+                        </a>
+                        <a 
+                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
+                          download={attachment.originalName}
+                          className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                          title="Download file"
+                        >
+                          <Download className="h-3 w-3 inline mr-1" />
+                          Download
+                        </a>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm">No team members assigned</p>
+                <div className="text-center py-6">
+                  <Paperclip className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">No attachments</p>
+                </div>
               )}
             </div>
 

@@ -344,12 +344,14 @@ const Customers = () => {
         </div>
       </main>
 
-      {/* Customer Creation Form */}
-      <CustomerForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleCustomerSubmit}
-      />
+      {/* Customer Creation Form - Only render when open */}
+      {isFormOpen && (
+        <CustomerForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSubmit={handleCustomerSubmit}
+        />
+      )}
     </div>
   );
 };

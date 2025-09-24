@@ -5,7 +5,7 @@ import { Button } from './magicui/button';
 import { Input } from './magicui/input';
 import { Textarea } from './magicui/textarea';
 import { Combobox } from './magicui/combobox';
-import { MultiSelect } from './magicui/multi-select';
+// Removed MultiSelect import - using single assignee
 import { DatePicker } from './magicui/date-picker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, UserPlus, CheckSquare, AlertCircle, Clock, CheckCircle, X, ArrowLeft, Loader2, FileText, Flag, Calendar, Save, List, Upload, Paperclip } from 'lucide-react';
@@ -31,7 +31,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
     customer: customerId || '',
     priority: 'normal',
     dueDate: '',
-    assignedTo: [],
+    assignedTo: '', // Single assignee only
     status: 'pending',
     attachments: []
   });
@@ -82,7 +82,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
         customer: s?.customer?._id || customerId || '',
         priority: s?.priority || 'normal',
         dueDate: s?.dueDate || '',
-        assignedTo: (s?.assignedTo || []).map(u => u._id || u) || [],
+        assignedTo: s?.assignedTo?._id || s?.assignedTo || '',
         status: s?.status || 'pending',
         attachments: []
       });
@@ -181,7 +181,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
           customer: subtask.customer?._id || customerId || '',
           priority: subtask.priority || 'normal',
           dueDate: subtask.dueDate || '',
-          assignedTo: subtask.assignedTo?.map(user => user._id) || [],
+          assignedTo: subtask.assignedTo?._id || subtask.assignedTo || '',
           status: subtask.status || 'pending',
           // Ensure attachments key always exists for UI conditional rendering
           attachments: []
@@ -326,7 +326,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
       customer: customerId || '',
       priority: 'normal',
       dueDate: '',
-      assignedTo: [],
+      assignedTo: '',
       status: 'pending',
       attachments: []
     });
@@ -547,16 +547,15 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
           <label className="text-sm font-semibold text-gray-700 flex items-center">
             Assigned To
           </label>
-          <MultiSelect
+          <Combobox
             options={teamMembers}
             value={formData.assignedTo}
             onChange={(value) => handleInputChange('assignedTo', value)}
-            placeholder="Select team members"
-            maxSelected={3}
+            placeholder="Select team member"
             className="h-12 rounded-xl border-2 border-gray-200 focus:border-primary focus:ring-primary/20 transition-all duration-200"
           />
           <p className="text-xs text-gray-500">
-            Select team members to work on this subtask
+            Select a team member to assign this subtask to
           </p>
         </div>
       </motion.div>

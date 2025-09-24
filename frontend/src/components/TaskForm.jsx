@@ -676,12 +676,12 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
           {isSubmitting ? (
             <div className="flex items-center space-x-2">
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>Creating...</span>
+              <span>{isEditMode ? 'Updating...' : 'Creating...'}</span>
             </div>
           ) : (
             <div className="flex items-center space-x-2">
               <Save className="h-4 w-4" />
-              <span>Create Task</span>
+              <span>{isEditMode ? 'Update Task' : 'Create Task'}</span>
             </div>
           )}
         </Button>
