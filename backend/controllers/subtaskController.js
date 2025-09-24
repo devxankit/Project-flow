@@ -94,17 +94,17 @@ const createSubtask = async (req, res) => {
       });
     }
 
-    // Validate assigned users (if any)
-    if (assignedTo && assignedTo.length > 0) {
-      const assignedUsers = await User.find({ 
-        _id: { $in: assignedTo },
+    // Validate assigned user (if any) - Single assignee only
+    if (assignedTo) {
+      const assignedUser = await User.findOne({ 
+        _id: assignedTo,
         role: { $in: ['employee', 'pm'] }
       });
       
-      if (assignedUsers.length !== assignedTo.length) {
+      if (!assignedUser) {
         return res.status(400).json({
           success: false,
-          message: 'One or more assigned users are invalid or not employees/PMs'
+          message: 'Assigned user is invalid or not an employee/PM'
         });
       }
     }
@@ -138,7 +138,7 @@ const createSubtask = async (req, res) => {
       customer,
       status: status || 'pending',
       priority: priority || 'normal',
-      assignedTo: assignedTo || [],
+      assignedTo: assignedTo || null,
       dueDate,
       sequence: sequenceNumber,
       attachments,
@@ -153,7 +153,7 @@ const createSubtask = async (req, res) => {
         subtaskTitle: subtask.title,
         task: task,
         customer: customer,
-        assignedTo: assignedTo || []
+        assignedTo: assignedTo || null
       });
     } catch (activityError) {
       console.error('Error creating subtask activity:', activityError);
@@ -396,10 +396,10 @@ const updateSubtask = async (req, res) => {
 
       // Check if assignment changed
       if (assignedTo !== undefined) {
-        const oldAssignedIds = subtask.assignedTo.map(id => id.toString());
-        const newAssignedIds = assignedTo.map(id => id.toString());
+        const oldAssignedId = subtask.assignedTo ? subtask.assignedTo.toString() : null;
+        const newAssignedId = assignedTo ? assignedTo.toString() : null;
         
-        if (JSON.stringify(oldAssignedIds.sort()) !== JSON.stringify(newAssignedIds.sort())) {
+        if (oldAssignedId !== newAssignedId) {
           activityType = 'subtask_assigned';
           metadata.assignedTo = assignedTo;
         }
@@ -412,6 +412,15 @@ const updateSubtask = async (req, res) => {
     } catch (activityError) {
       console.error('Error creating subtask update activity:', activityError);
       // Don't fail the subtask update if activity creation fails
+    }
+
+    // Update parent task status based on subtask completions
+    try {
+      const { updateTaskStatusFromSubtasks } = require('./taskController');
+      await updateTaskStatusFromSubtasks(subtask.task);
+    } catch (taskStatusError) {
+      console.error('Error updating task status from subtasks:', taskStatusError);
+      // Don't fail the subtask update if task status update fails
     }
 
     // Create activity for new file uploads if any
@@ -678,7 +687,7 @@ const addSubtaskComment = async (req, res) => {
       hasPermission = subtask.customer.projectManager.toString() === userId;
     } else if (userRole === 'employee') {
       // Employee can comment on subtasks they're assigned to or in customer's team
-      hasPermission = subtask.assignedTo.includes(userId) || 
+      hasPermission = (subtask.assignedTo && subtask.assignedTo.toString() === userId) || 
                      subtask.customer.assignedTeam.includes(userId) ||
                      subtask.task.assignedTo.includes(userId);
     } else if (userRole === 'customer') {
@@ -779,11 +788,117 @@ const deleteSubtaskComment = async (req, res) => {
   }
 };
 
+// Update subtask status (for assigned employees)
+const updateSubtaskStatus = async (req, res) => {
+  try {
+    const { subtaskId, customerId } = req.params;
+    const { status } = req.body;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Validate status
+    const validStatuses = ['pending', 'in-progress', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be one of: ' + validStatuses.join(', ')
+      });
+    }
+
+    // Find the subtask
+    const subtask = await Subtask.findOne({ _id: subtaskId, customer: customerId });
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subtask not found'
+      });
+    }
+
+    // Check permissions
+    let hasPermission = false;
+    
+    if (userRole === 'pm') {
+      // PM can update any subtask
+      hasPermission = true;
+    } else if (userRole === 'employee') {
+      // Employee can only update subtasks assigned to them
+      hasPermission = subtask.assignedTo && subtask.assignedTo.toString() === userId;
+    }
+
+    if (!hasPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to update this subtask'
+      });
+    }
+
+    // Update status
+    const oldStatus = subtask.status;
+    subtask.status = status;
+    
+    // Set completedBy if status is completed
+    if (status === 'completed') {
+      subtask.completedBy = userId;
+      subtask.completedAt = new Date();
+    } else {
+      subtask.completedBy = undefined;
+      subtask.completedAt = undefined;
+    }
+
+    await subtask.save();
+
+    // Create activity log
+    try {
+      await createSubtaskActivity(subtask._id, 'subtask_status_changed', userId, {
+        subtaskTitle: subtask.title,
+        oldStatus,
+        newStatus: status
+      });
+    } catch (activityError) {
+      console.error('Error creating subtask activity:', activityError);
+      // Don't fail the update if activity creation fails
+    }
+
+    // Update parent task status based on subtask completions
+    try {
+      const { updateTaskStatusFromSubtasks } = require('./taskController');
+      await updateTaskStatusFromSubtasks(subtask.task);
+    } catch (taskStatusError) {
+      console.error('Error updating task status from subtasks:', taskStatusError);
+      // Don't fail the subtask update if task status update fails
+    }
+
+    // Populate the updated subtask
+    await subtask.populate([
+      { path: 'assignedTo', select: 'fullName email avatar' },
+      { path: 'createdBy', select: 'fullName email avatar' },
+      { path: 'completedBy', select: 'fullName email avatar' },
+      { path: 'task', select: 'title' },
+      { path: 'customer', select: 'name' }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Subtask status updated successfully',
+      data: subtask
+    });
+
+  } catch (error) {
+    console.error('Error updating subtask status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error updating subtask status',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createSubtask,
   getSubtasksByTask,
   getSubtask,
   updateSubtask,
+  updateSubtaskStatus,
   copySubtask,
   deleteSubtask,
   getSubtaskStats,

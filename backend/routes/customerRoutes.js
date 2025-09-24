@@ -10,7 +10,9 @@ const {
   getUsersForCustomer,
   getCustomerTasks,
   getCustomerDashboard,
-  getCustomerProjectDetails
+  getCustomerProjectDetails,
+  getCustomerActivity,
+  getCustomerFiles
 } = require('../controllers/customerController');
 const { protect, authorize } = require('../middlewares/authMiddleware');
 const { upload } = require('../middlewares/enhancedFileUpload');
@@ -58,6 +60,24 @@ router.get('/users',
   authorize('pm'),
   validateCustomerQuery,
   getUsersForCustomer
+);
+
+// @route   GET /api/customers/activity
+// @desc    Get customer activity
+// @access  Private (Customer only)
+router.get('/activity', 
+  protect,
+  authorize('customer'),
+  getCustomerActivity
+);
+
+// @route   GET /api/customers/files
+// @desc    Get customer files
+// @access  Private (Customer only)
+router.get('/files', 
+  protect,
+  authorize('customer'),
+  getCustomerFiles
 );
 
 // @route   GET /api/customers/:id

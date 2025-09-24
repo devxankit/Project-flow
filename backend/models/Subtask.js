@@ -99,11 +99,11 @@ const subtaskSchema = new mongoose.Schema({
     required: [true, 'Subtask must belong to a customer']
   },
   
-  // Assignment
-  assignedTo: [{
+  // Assignment - Single assignee only
+  assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
-  }],
+  },
   
   // Status and Priority
   status: {

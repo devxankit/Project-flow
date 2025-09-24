@@ -1,103 +1,64 @@
 const express = require('express');
+const router = express.Router();
 const { body } = require('express-validator');
+const { protect, authorize } = require('../middlewares/authMiddleware');
 const {
   createTaskRequest,
   getCustomerTaskRequests,
-  getTaskRequestDetails,
-  updateTaskRequest,
-  cancelTaskRequest,
-  getPMTaskRequests,
-  reviewTaskRequest
+  getCustomerTaskRequestsById,
+  getAllTaskRequests,
+  updateTaskRequestStatus,
+  deleteTaskRequest
 } = require('../controllers/taskRequestController');
-const { protect } = require('../middlewares/authMiddleware');
-const authorize = require('../middlewares/roleMiddleware');
 
-const router = express.Router();
-
-// Validation middleware
-const validateTaskRequest = [
+// Validation rules
+const createTaskRequestValidation = [
   body('title')
     .trim()
-    .isLength({ min: 5, max: 100 })
-    .withMessage('Title must be between 5 and 100 characters'),
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Title must be between 1 and 200 characters'),
   body('description')
     .trim()
-    .isLength({ min: 20, max: 1000 })
-    .withMessage('Description must be between 20 and 1000 characters'),
-  body('project')
-    .isMongoId()
-    .withMessage('Valid project ID is required'),
-  body('milestone')
-    .isMongoId()
-    .withMessage('Valid milestone ID is required'),
-  body('priority')
-    .isIn(['Low', 'Medium', 'High', 'Urgent'])
-    .withMessage('Priority must be Low, Medium, High, or Urgent'),
-  body('dueDate')
-    .isISO8601()
-    .withMessage('Valid due date is required')
-    .custom((value) => {
-      if (new Date(value) <= new Date()) {
-        throw new Error('Due date must be in the future');
-      }
-      return true;
-    }),
-  body('reason')
-    .isIn(['bug-fix', 'feature-request', 'improvement', 'change-request', 'additional-work', 'other'])
-    .withMessage('Valid reason is required')
-];
-
-const validateTaskRequestUpdate = [
-  body('title')
-    .optional()
-    .trim()
-    .isLength({ min: 5, max: 100 })
-    .withMessage('Title must be between 5 and 100 characters'),
-  body('description')
-    .optional()
-    .trim()
-    .isLength({ min: 20, max: 1000 })
-    .withMessage('Description must be between 20 and 1000 characters'),
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Description must be between 1 and 1000 characters'),
   body('priority')
     .optional()
-    .isIn(['Low', 'Medium', 'High', 'Urgent'])
-    .withMessage('Priority must be Low, Medium, High, or Urgent'),
+    .isIn(['low', 'normal', 'high', 'urgent'])
+    .withMessage('Priority must be one of: low, normal, high, urgent'),
   body('dueDate')
     .optional()
     .isISO8601()
-    .withMessage('Valid due date is required')
-    .custom((value) => {
-      if (new Date(value) <= new Date()) {
-        throw new Error('Due date must be in the future');
-      }
-      return true;
-    }),
-  body('reason')
+    .withMessage('Due date must be a valid date'),
+  body('estimatedHours')
     .optional()
-    .isIn(['bug-fix', 'feature-request', 'improvement', 'change-request', 'additional-work', 'other'])
-    .withMessage('Valid reason is required')
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('Estimated hours must be between 1 and 1000'),
+  body('customer')
+    .isMongoId()
+    .withMessage('Customer must be a valid ID'),
+  body('customerName')
+    .trim()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Customer name must be between 1 and 200 characters')
 ];
 
-const validateTaskRequestReview = [
-  body('action')
-    .isIn(['approve', 'reject'])
-    .withMessage('Action must be approve or reject'),
-  body('reviewComments')
+const updateStatusValidation = [
+  body('status')
+    .isIn(['pending', 'approved', 'rejected', 'in-progress', 'completed'])
+    .withMessage('Status must be one of: pending, approved, rejected, in-progress, completed'),
+  body('response')
     .optional()
     .trim()
-    .isLength({ max: 500 })
-    .withMessage('Review comments cannot exceed 500 characters')
+    .isLength({ max: 1000 })
+    .withMessage('Response must be less than 1000 characters')
 ];
 
-// Customer routes
-router.post('/customer', protect, authorize('customer'), validateTaskRequest, createTaskRequest);
+// Routes
+router.post('/', protect, authorize('customer'), createTaskRequestValidation, createTaskRequest);
 router.get('/customer', protect, authorize('customer'), getCustomerTaskRequests);
-router.get('/customer/:id', protect, authorize('customer'), getTaskRequestDetails);
-router.put('/customer/:id', protect, authorize('customer'), validateTaskRequestUpdate, updateTaskRequest);
-router.delete('/customer/:id', protect, authorize('customer'), cancelTaskRequest);
-
-// PM routes
-router.get('/pm', protect, authorize('pm'), getPMTaskRequests);
-router.post('/pm/:id/review', protect, authorize('pm'), validateTaskRequestReview, reviewTaskRequest);
+router.get('/customer/:customerId', protect, authorize('customer'), getCustomerTaskRequestsById);
+router.get('/', protect, authorize('pm'), getAllTaskRequests);
+router.put('/:id/status', protect, authorize('pm'), updateStatusValidation, updateTaskRequestStatus);
+router.delete('/:id', protect, deleteTaskRequest);
 
 module.exports = router;

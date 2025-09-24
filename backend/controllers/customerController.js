@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const Task = require('../models/Task');
 const Subtask = require('../models/Subtask');
 const User = require('../models/User');
+const Activity = require('../models/Activity');
 const { formatFileData, deleteFile } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
 const { createCustomerActivity } = require('./activityController');
@@ -470,10 +471,7 @@ const deleteCustomer = async (req, res) => {
       { $pull: { managedCustomers: id } }
     );
 
-    // Delete the customer
-    await Customer.findByIdAndDelete(id);
-
-    // Create activity log
+    // Create activity log BEFORE deleting the customer
     await createCustomerActivity(
       customer._id,
       'customer_deleted',
@@ -482,6 +480,9 @@ const deleteCustomer = async (req, res) => {
         deletedTasks: tasks.length
       }
     );
+
+    // Delete the customer
+    await Customer.findByIdAndDelete(id);
 
     res.json({
       success: true,
@@ -676,6 +677,32 @@ const getCustomerDashboard = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(10);
 
+    // Add task counts to each customer
+    const customersWithTaskCounts = await Promise.all(
+      customers.map(async (customer) => {
+        const taskCounts = await Task.aggregate([
+          { $match: { customer: customer._id } },
+          {
+            $group: {
+              _id: null,
+              totalTasks: { $sum: 1 },
+              completedTasks: {
+                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
+              }
+            }
+          }
+        ]);
+
+        const counts = taskCounts[0] || { totalTasks: 0, completedTasks: 0 };
+        
+        return {
+          ...customer.toObject(),
+          totalTasks: counts.totalTasks,
+          completedTasks: counts.completedTasks
+        };
+      })
+    );
+
     // Get customer statistics
     const stats = await Customer.aggregate([
       { $match: matchQuery },
@@ -703,6 +730,68 @@ const getCustomerDashboard = async (req, res) => {
       }
     ]);
 
+    // Get task statistics across all customer projects
+    const customerIds = customers.map(c => c._id);
+    const taskStats = await Task.aggregate([
+      { $match: { customer: { $in: customerIds } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          overdue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $lt: ['$dueDate', new Date()] },
+                    { $ne: ['$status', 'completed'] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+          dueSoon: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $gte: ['$dueDate', new Date()] },
+                    { $lte: ['$dueDate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)] },
+                    { $ne: ['$status', 'completed'] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    const taskCounts = taskStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0, overdue: 0, dueSoon: 0 };
+
+    // Get subtask statistics
+    const subtaskStats = await Subtask.aggregate([
+      { $match: { customer: { $in: customerIds } } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          inProgress: { $sum: { $cond: [{ $eq: ['$status', 'in-progress'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }
+        }
+      }
+    ]);
+
+    const subtaskCounts = subtaskStats[0] || { total: 0, completed: 0, inProgress: 0, pending: 0 };
+
     // Get recent tasks for the customer
     let recentTasks = [];
     if (userRole === 'customer') {
@@ -723,11 +812,43 @@ const getCustomerDashboard = async (req, res) => {
       avgProgress: 0
     };
 
+    // Calculate overall progress
+    const totalItems = taskCounts.total + subtaskCounts.total;
+    const completedItems = taskCounts.completed + subtaskCounts.completed;
+    const overallProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+
+    // Structure response to match old format
+    const statistics = {
+      projects: {
+        total: result.total,
+        active: result.active,
+        completed: result.completed,
+        onHold: result.onHold,
+        cancelled: result.cancelled,
+        planning: result.planning
+      },
+      tasks: {
+        total: taskCounts.total,
+        completed: taskCounts.completed,
+        inProgress: taskCounts.inProgress,
+        pending: taskCounts.pending,
+        overdue: taskCounts.overdue,
+        dueSoon: taskCounts.dueSoon
+      },
+      subtasks: {
+        total: subtaskCounts.total,
+        completed: subtaskCounts.completed,
+        inProgress: subtaskCounts.inProgress,
+        pending: subtaskCounts.pending
+      },
+      overallProgress: overallProgress
+    };
+
     res.json({
       success: true,
       data: {
-        customers,
-        stats: result,
+        statistics,
+        recentProjects: customersWithTaskCounts,
         recentTasks
       }
     });
@@ -819,6 +940,118 @@ const getCustomerProjectDetails = async (req, res) => {
   }
 };
 
+// Get customer activity
+const getCustomerActivity = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Only customers can view their own activity
+    if (userRole !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can view their activity'
+      });
+    }
+
+    // Get customer projects
+    const customers = await Customer.find({ customer: userId });
+    const customerIds = customers.map(c => c._id);
+
+    // Get activities related to customer projects
+    const activities = await Activity.find({
+      $or: [
+        { customer: { $in: customerIds } },
+        { 'metadata.customer': { $in: customerIds } }
+      ]
+    })
+    .populate('user', 'fullName email avatar')
+    .populate('customer', 'name')
+    .sort({ createdAt: -1 })
+    .limit(50);
+
+    res.json({
+      success: true,
+      data: {
+        activities
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer activity:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer activity',
+      error: error.message
+    });
+  }
+};
+
+// Get customer files
+const getCustomerFiles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    // Only customers can view their own files
+    if (userRole !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can view their files'
+      });
+    }
+
+    // Get customer projects
+    const customers = await Customer.find({ customer: userId });
+    const customerIds = customers.map(c => c._id);
+
+    // Get tasks for these customers
+    const tasks = await Task.find({ customer: { $in: customerIds } });
+    const taskIds = tasks.map(t => t._id);
+
+    // Get subtasks for these tasks
+    const subtasks = await Subtask.find({ task: { $in: taskIds } });
+    const subtaskIds = subtasks.map(s => s._id);
+
+    // Get files from tasks and subtasks
+    const taskFiles = tasks.flatMap(task => 
+      (task.attachments || []).map(file => ({
+        ...file,
+        entityType: 'task',
+        entityId: task._id,
+        entityTitle: task.title
+      }))
+    );
+
+    const subtaskFiles = subtasks.flatMap(subtask => 
+      (subtask.attachments || []).map(file => ({
+        ...file,
+        entityType: 'subtask',
+        entityId: subtask._id,
+        entityTitle: subtask.title
+      }))
+    );
+
+    const allFiles = [...taskFiles, ...subtaskFiles];
+
+    res.json({
+      success: true,
+      data: {
+        files: allFiles,
+        total: allFiles.length
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching customer files:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching customer files',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createCustomer,
   getCustomers,
@@ -829,5 +1062,7 @@ module.exports = {
   getUsersForCustomer,
   getCustomerTasks,
   getCustomerDashboard,
-  getCustomerProjectDetails
+  getCustomerProjectDetails,
+  getCustomerActivity,
+  getCustomerFiles
 };

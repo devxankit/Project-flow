@@ -822,11 +822,86 @@ const deleteTaskComment = async (req, res) => {
   }
 };
 
+// Calculate task status based on subtask completions
+const calculateTaskStatus = async (taskId) => {
+  try {
+    const Subtask = require('../models/Subtask');
+    
+    // Get all subtasks for this task
+    const subtasks = await Subtask.find({ task: taskId });
+    
+    if (subtasks.length === 0) {
+      return 'pending'; // No subtasks = pending
+    }
+    
+    const completedSubtasks = subtasks.filter(subtask => subtask.status === 'completed').length;
+    const totalSubtasks = subtasks.length;
+    const completionPercentage = (completedSubtasks / totalSubtasks) * 100;
+    
+    // Determine status based on completion percentage
+    if (completionPercentage === 100) {
+      return 'completed';
+    } else if (completionPercentage > 0) {
+      return 'in_progress';
+    } else {
+      return 'pending';
+    }
+  } catch (error) {
+    console.error('Error calculating task status:', error);
+    return 'pending'; // Default to pending on error
+  }
+};
+
+// Update task status based on subtask completions
+const updateTaskStatusFromSubtasks = async (taskId) => {
+  try {
+    const Task = require('../models/Task');
+    
+    const newStatus = await calculateTaskStatus(taskId);
+    
+    // Update the task status
+    const task = await Task.findById(taskId);
+    if (task && task.status !== newStatus) {
+      const oldStatus = task.status;
+      task.status = newStatus;
+      
+      // Set completion details if completed
+      if (newStatus === 'completed' && oldStatus !== 'completed') {
+        task.completedAt = new Date();
+        // Note: completedBy will be set by the last person to complete a subtask
+      } else if (newStatus !== 'completed' && oldStatus === 'completed') {
+        task.completedAt = null;
+        task.completedBy = null;
+      }
+      
+      await task.save();
+      
+      // Create activity log
+      try {
+        const { createTaskActivity } = require('./activityController');
+        await createTaskActivity(taskId, 'task_status_changed', null, {
+          taskTitle: task.title,
+          oldStatus,
+          newStatus,
+          reason: 'Automatically calculated from subtask completions'
+        });
+      } catch (activityError) {
+        console.error('Error creating task activity:', activityError);
+      }
+    }
+    
+    return newStatus;
+  } catch (error) {
+    console.error('Error updating task status from subtasks:', error);
+  }
+};
+
 module.exports = {
   createTask,
   getTasksByCustomer,
   getTask,
   updateTask,
+  updateTaskStatusFromSubtasks,
   copyTask,
   deleteTask,
   getTeamMembersForTask,

@@ -1,8 +1,6 @@
 const TaskRequest = require('../models/TaskRequest');
-const Customer = require('../models/Customer');
-const Task = require('../models/Task');
 const User = require('../models/User');
-const mongoose = require('mongoose');
+const Customer = require('../models/Customer');
 const { validationResult } = require('express-validator');
 
 // Helper function to handle validation errors
@@ -18,75 +16,73 @@ const handleValidationErrors = (req, res) => {
   return null;
 };
 
-// Create a new task request
+// @desc    Create a new task request
+// @route   POST /api/task-requests
+// @access  Private (Customer only)
 const createTaskRequest = async (req, res) => {
   try {
-    // Handle validation errors
     const validationError = handleValidationErrors(req, res);
     if (validationError) return validationError;
 
     const {
       title,
       description,
-      project,
-      milestone,
-      priority,
+      priority = 'normal',
       dueDate,
-      reason
+      estimatedHours,
+      customer,
+      customerName
     } = req.body;
 
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Verify customer has access to the customer record
-    const customerExists = await Customer.findOne({
-      _id: project, // This is actually the customer ID in the new structure
-      customer: customerId
-    });
-
-    if (!customerExists) {
-      return res.status(404).json({
+    // Only customers can create task requests
+    if (userRole !== 'customer') {
+      return res.status(403).json({
         success: false,
-        message: 'Customer not found or access denied'
+        message: 'Only customers can create task requests'
       });
     }
 
-    // Verify task belongs to the customer
-    const taskExists = await Task.findOne({
-      _id: milestone, // This is actually the task ID in the new structure
-      customer: project // This is actually the customer ID
-    });
-
-    if (!taskExists) {
+    // Verify customer exists and user has access
+    const customerRecord = await Customer.findById(customer);
+    if (!customerRecord) {
       return res.status(404).json({
         success: false,
-        message: 'Task not found or does not belong to this customer'
+        message: 'Customer not found'
       });
     }
 
-    // Create task request
+    // Check if customer belongs to the user
+    if (customerRecord.customer.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only create task requests for your own projects'
+      });
+    }
+
     const taskRequest = new TaskRequest({
       title,
       description,
-      project,
-      milestone,
       priority,
-      dueDate: new Date(dueDate),
-      reason,
-      requestedBy: customerId
+      dueDate: dueDate ? new Date(dueDate) : undefined,
+      estimatedHours: estimatedHours ? parseInt(estimatedHours) : undefined,
+      customer,
+      customerName,
+      requestedBy: userId,
+      status: 'pending'
     });
 
     await taskRequest.save();
 
     // Populate the response
-    await taskRequest.populate([
-      { path: 'project', select: 'name' },
-      { path: 'milestone', select: 'title' },
-      { path: 'requestedBy', select: 'fullName email' }
-    ]);
+    await taskRequest.populate('requestedBy', 'fullName email avatar');
+    await taskRequest.populate('customer', 'name');
 
     res.status(201).json({
       success: true,
-      message: 'Task request submitted successfully',
+      message: 'Task request created successfully',
       data: taskRequest
     });
 
@@ -94,34 +90,36 @@ const createTaskRequest = async (req, res) => {
     console.error('Error creating task request:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Failed to create task request',
       error: error.message
     });
   }
 };
 
-// Get task requests for a customer
+// @desc    Get all task requests for current customer user
+// @route   GET /api/task-requests/customer
+// @access  Private (Customer only)
 const getCustomerTaskRequests = async (req, res) => {
   try {
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-    const { status, project } = req.query;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    // Build query
-    const query = { requestedBy: customerId };
-    
-    if (status) {
-      query.status = status;
-    }
-    
-    if (project) {
-      query.project = new mongoose.Types.ObjectId(project);
+    // Only customers can view their own task requests
+    if (userRole !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only customers can view task requests'
+      });
     }
 
-    const taskRequests = await TaskRequest.find(query)
-      .populate('project', 'name')
-      .populate('milestone', 'title')
-      .populate('requestedBy', 'fullName email')
-      .populate('reviewedBy', 'fullName email')
+    // Get all customers belonging to this user
+    const customers = await Customer.find({ customer: userId });
+    const customerIds = customers.map(c => c._id);
+
+    // Get all task requests for these customers
+    const taskRequests = await TaskRequest.find({ customer: { $in: customerIds } })
+      .populate('requestedBy', 'fullName email avatar')
+      .populate('customer', 'name')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -133,177 +131,41 @@ const getCustomerTaskRequests = async (req, res) => {
     console.error('Error fetching customer task requests:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Failed to fetch task requests',
       error: error.message
     });
   }
 };
 
-// Get task request details
-const getTaskRequestDetails = async (req, res) => {
+// @desc    Get task requests for a specific customer
+// @route   GET /api/task-requests/customer/:customerId
+// @access  Private (Customer only)
+const getCustomerTaskRequestsById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
+    const { customerId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
 
-    const taskRequest = await TaskRequest.findOne({
-      _id: id,
-      requestedBy: customerId
-    })
-      .populate('project', 'name description')
-      .populate('milestone', 'title description')
-      .populate('requestedBy', 'fullName email')
-      .populate('reviewedBy', 'fullName email')
-      .populate('createdTask', 'title status');
-
-    if (!taskRequest) {
-      return res.status(404).json({
+    // Only customers can view their own task requests
+    if (userRole !== 'customer') {
+      return res.status(403).json({
         success: false,
-        message: 'Task request not found or access denied'
+        message: 'Only customers can view task requests'
       });
     }
 
-    res.json({
-      success: true,
-      data: taskRequest
-    });
-
-  } catch (error) {
-    console.error('Error fetching task request details:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Update task request (only if status is Pending)
-const updateTaskRequest = async (req, res) => {
-  try {
-    // Handle validation errors
-    const validationError = handleValidationErrors(req, res);
-    if (validationError) return validationError;
-
-    const { id } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-    const { title, description, priority, dueDate, reason } = req.body;
-
-    const taskRequest = await TaskRequest.findOne({
-      _id: id,
-      requestedBy: customerId,
-      status: 'Pending'
-    });
-
-    if (!taskRequest) {
-      return res.status(404).json({
+    // Verify customer belongs to the user
+    const customer = await Customer.findById(customerId);
+    if (!customer || customer.customer.toString() !== userId) {
+      return res.status(403).json({
         success: false,
-        message: 'Task request not found, access denied, or cannot be modified'
+        message: 'Access denied'
       });
     }
 
-    // Update fields
-    if (title) taskRequest.title = title;
-    if (description) taskRequest.description = description;
-    if (priority) taskRequest.priority = priority;
-    if (dueDate) taskRequest.dueDate = new Date(dueDate);
-    if (reason) taskRequest.reason = reason;
-
-    await taskRequest.save();
-
-    // Populate the response
-    await taskRequest.populate([
-      { path: 'project', select: 'name' },
-      { path: 'milestone', select: 'title' },
-      { path: 'requestedBy', select: 'fullName email' }
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Task request updated successfully',
-      data: taskRequest
-    });
-
-  } catch (error) {
-    console.error('Error updating task request:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Cancel task request (only if status is Pending)
-const cancelTaskRequest = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const customerId = new mongoose.Types.ObjectId(req.user.id);
-
-    const taskRequest = await TaskRequest.findOne({
-      _id: id,
-      requestedBy: customerId,
-      status: 'Pending'
-    });
-
-    if (!taskRequest) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task request not found, access denied, or cannot be cancelled'
-      });
-    }
-
-    taskRequest.status = 'Cancelled';
-    await taskRequest.save();
-
-    res.json({
-      success: true,
-      message: 'Task request cancelled successfully',
-      data: taskRequest
-    });
-
-  } catch (error) {
-    console.error('Error cancelling task request:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
-// Get task requests for PM (all requests for their projects)
-const getPMTaskRequests = async (req, res) => {
-  try {
-    const pmId = new mongoose.Types.ObjectId(req.user.id);
-    const { status, project } = req.query;
-
-    // Get customers managed by this PM
-    const customers = await Customer.find({ projectManager: pmId }).select('_id');
-    const customerIds = customers.map(c => c._id);
-
-    if (customerIds.length === 0) {
-      return res.json({
-        success: true,
-        data: []
-      });
-    }
-
-    // Build query
-    const query = { project: { $in: customerIds } };
-    
-    if (status) {
-      query.status = status;
-    }
-    
-    if (project) {
-      query.project = new mongoose.Types.ObjectId(project);
-    }
-
-    const taskRequests = await TaskRequest.find(query)
-      .populate('project', 'name')
-      .populate('milestone', 'title')
-      .populate('requestedBy', 'fullName email')
-      .populate('reviewedBy', 'fullName email')
+    const taskRequests = await TaskRequest.find({ customer: customerId })
+      .populate('requestedBy', 'fullName email avatar')
+      .populate('customer', 'name')
       .sort({ createdAt: -1 });
 
     res.json({
@@ -312,36 +174,93 @@ const getPMTaskRequests = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching PM task requests:', error);
+    console.error('Error fetching customer task requests:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Failed to fetch task requests',
       error: error.message
     });
   }
 };
 
-// Review task request (PM only)
-const reviewTaskRequest = async (req, res) => {
+// @desc    Get all task requests (for PM)
+// @route   GET /api/task-requests
+// @access  Private (PM only)
+const getAllTaskRequests = async (req, res) => {
   try {
-    // Handle validation errors
-    const validationError = handleValidationErrors(req, res);
-    if (validationError) return validationError;
+    const userRole = req.user.role;
 
-    const { id } = req.params;
-    const pmId = new mongoose.Types.ObjectId(req.user.id);
-    const { action, reviewComments } = req.body; // action: 'approve' or 'reject'
-
-    if (!['approve', 'reject'].includes(action)) {
-      return res.status(400).json({
+    // Only PMs can view all task requests
+    if (userRole !== 'pm') {
+      return res.status(403).json({
         success: false,
-        message: 'Invalid action. Must be "approve" or "reject"'
+        message: 'Only project managers can view all task requests'
       });
     }
 
-    const taskRequest = await TaskRequest.findById(id)
-      .populate('project', 'projectManager');
+    const { status, priority, page = 1, limit = 10 } = req.query;
+    const query = {};
 
+    if (status) query.status = status;
+    if (priority) query.priority = priority;
+
+    const skip = (page - 1) * limit;
+
+    const taskRequests = await TaskRequest.find(query)
+      .populate('requestedBy', 'fullName email avatar')
+      .populate('customer', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await TaskRequest.countDocuments(query);
+
+    res.json({
+      success: true,
+      data: taskRequests,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching all task requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch task requests',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update task request status (for PM)
+// @route   PUT /api/task-requests/:id/status
+// @access  Private (PM only)
+const updateTaskRequestStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, response } = req.body;
+    const userRole = req.user.role;
+
+    // Only PMs can update task request status
+    if (userRole !== 'pm') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only project managers can update task request status'
+      });
+    }
+
+    const validStatuses = ['pending', 'approved', 'rejected', 'in-progress', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid status. Must be one of: pending, approved, rejected, in-progress, completed'
+      });
+    }
+
+    const taskRequest = await TaskRequest.findById(id);
     if (!taskRequest) {
       return res.status(404).json({
         success: false,
@@ -349,75 +268,79 @@ const reviewTaskRequest = async (req, res) => {
       });
     }
 
-    // Check if PM has access to this project
-    if (taskRequest.project.projectManager.toString() !== pmId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. You can only review requests for your projects'
-      });
-    }
-
-    // Check if request is still pending
-    if (taskRequest.status !== 'Pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'Task request has already been reviewed'
-      });
-    }
-
-    // Update task request
-    taskRequest.status = action === 'approve' ? 'Approved' : 'Rejected';
-    taskRequest.reviewedBy = pmId;
+    taskRequest.status = status;
+    if (response) taskRequest.response = response;
+    taskRequest.reviewedBy = req.user.id;
     taskRequest.reviewedAt = new Date();
-    taskRequest.reviewComments = reviewComments;
-
-    // If approved, create a task
-    if (action === 'approve') {
-      // Map TaskRequest priority to Task priority
-      const priorityMap = {
-        'Low': 'low',
-        'Medium': 'normal',
-        'High': 'high',
-        'Urgent': 'urgent'
-      };
-
-      const newTask = new Task({
-        title: taskRequest.title,
-        description: taskRequest.description,
-        project: taskRequest.project._id,
-        milestone: taskRequest.milestone,
-        priority: priorityMap[taskRequest.priority] || 'normal',
-        dueDate: taskRequest.dueDate,
-        status: 'pending',
-        createdBy: taskRequest.requestedBy
-      });
-
-      await newTask.save();
-      taskRequest.createdTask = newTask._id;
-    }
 
     await taskRequest.save();
 
-    // Populate the response
-    await taskRequest.populate([
-      { path: 'project', select: 'name' },
-      { path: 'milestone', select: 'title' },
-      { path: 'requestedBy', select: 'fullName email' },
-      { path: 'reviewedBy', select: 'fullName email' },
-      { path: 'createdTask', select: 'title status' }
-    ]);
+    await taskRequest.populate('requestedBy', 'fullName email avatar');
+    await taskRequest.populate('customer', 'name');
+    await taskRequest.populate('reviewedBy', 'fullName email avatar');
 
     res.json({
       success: true,
-      message: `Task request ${action}d successfully`,
+      message: 'Task request status updated successfully',
       data: taskRequest
     });
 
   } catch (error) {
-    console.error('Error reviewing task request:', error);
+    console.error('Error updating task request status:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error',
+      message: 'Failed to update task request status',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Delete task request
+// @route   DELETE /api/task-requests/:id
+// @access  Private (Customer or PM)
+const deleteTaskRequest = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+
+    const taskRequest = await TaskRequest.findById(id);
+    if (!taskRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task request not found'
+      });
+    }
+
+    // Customers can only delete their own pending requests
+    // PMs can delete any request
+    if (userRole === 'customer') {
+      if (taskRequest.requestedBy.toString() !== userId) {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete your own task requests'
+        });
+      }
+      if (taskRequest.status !== 'pending') {
+        return res.status(403).json({
+          success: false,
+          message: 'You can only delete pending task requests'
+        });
+      }
+    }
+
+    await TaskRequest.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Task request deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting task request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete task request',
       error: error.message
     });
   }
@@ -426,9 +349,8 @@ const reviewTaskRequest = async (req, res) => {
 module.exports = {
   createTaskRequest,
   getCustomerTaskRequests,
-  getTaskRequestDetails,
-  updateTaskRequest,
-  cancelTaskRequest,
-  getPMTaskRequests,
-  reviewTaskRequest
+  getCustomerTaskRequestsById,
+  getAllTaskRequests,
+  updateTaskRequestStatus,
+  deleteTaskRequest
 };

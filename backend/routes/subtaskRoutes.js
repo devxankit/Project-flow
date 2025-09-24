@@ -6,6 +6,7 @@ const {
   getSubtasksByTask,
   getSubtask,
   updateSubtask,
+  updateSubtaskStatus,
   copySubtask,
   deleteSubtask,
   getSubtaskStats,
@@ -98,6 +99,11 @@ router.put('/:subtaskId/customer/:customerId',
   validateSubtask,
   updateSubtask
 );
+
+// @route   PATCH /api/subtasks/:subtaskId/customer/:customerId/status
+// @desc    Update subtask status (for assigned employees)
+// @access  Private (Employee assigned to subtask or PM)
+router.patch('/:subtaskId/customer/:customerId/status', updateSubtaskStatus);
 
 // @route   DELETE /api/subtasks/:subtaskId/customer/:customerId
 // @desc    Delete subtask
