@@ -222,6 +222,42 @@ const EmployeeSubtaskDetail = () => {
     return '📎';
   };
 
+  const handleDownload = async (attachment) => {
+    try {
+      // Use the new file ID-based download route
+      const downloadUrl = `/api/files/${attachment._id}`;
+      
+      // Fetch the file with proper headers
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a blob URL and download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = attachment.originalName || attachment.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -458,25 +494,14 @@ const EmployeeSubtaskDetail = () => {
                       
                       {/* Action Buttons */}
                       <div className="flex justify-end space-x-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <a 
-                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                          title="View file"
-                        >
-                          <Eye className="h-3 w-3 inline mr-1" />
-                          View
-                        </a>
-                        <a 
-                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
-                          download={attachment.originalName}
+                        <button 
+                          onClick={() => handleDownload(attachment)}
                           className="px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
                           title="Download file"
                         >
                           <Download className="h-3 w-3 inline mr-1" />
                           Download
-                        </a>
+                        </button>
                       </div>
                     </div>
                   ))}

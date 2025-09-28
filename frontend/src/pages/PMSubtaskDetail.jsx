@@ -202,6 +202,42 @@ const PMSubtaskDetail = () => {
     return '📎';
   };
 
+  const handleDownload = async (attachment) => {
+    try {
+      // Use the new file ID-based download route
+      const downloadUrl = `/api/files/${attachment._id}`;
+      
+      // Fetch the file with proper headers
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a blob URL and download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = attachment.originalName || attachment.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error('Error downloading file:', error);
+    }
+  };
+
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -325,33 +361,26 @@ const PMSubtaskDetail = () => {
                 </h3>
                 <div className="space-y-3">
                   {subtask.attachments.map((attachment, index) => (
-                    <div key={attachment.cloudinaryId || index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <span className="text-2xl">{getFileIcon(attachment.mimetype)}</span>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{attachment.originalName}</p>
+                    <div key={attachment.cloudinaryId || index} className="flex items-start sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
+                      <div className="flex items-start space-x-3 flex-1 min-w-0">
+                        <span className="text-2xl flex-shrink-0">{getFileIcon(attachment.mimetype)}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName}>
+                            {attachment.originalName}
+                          </p>
                           <p className="text-xs text-gray-500">
                             {formatFileSize(attachment.size)} • 
                             Uploaded {new Date(attachment.uploadedAt).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <a 
-                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </a>
-                        <a 
-                          href={`/api/files/subtask/${id}/customer/${customerId}/attachment/${attachment._id}/download`}
-                          download={attachment.originalName}
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <button 
+                          onClick={() => handleDownload(attachment)}
                           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                         >
                           <Download className="h-4 w-4" />
-                        </a>
+                        </button>
                       </div>
                     </div>
                   ))}

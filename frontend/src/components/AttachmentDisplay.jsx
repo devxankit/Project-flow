@@ -23,30 +23,55 @@ const AttachmentDisplay = ({ attachments = [], onDelete, canDelete = false }) =>
 
   const handleDownload = async (attachment) => {
     try {
-      // Determine the correct download URL based on attachment context
-      let downloadUrl;
+      console.log('Starting download for attachment:', attachment);
       
-      if (attachment.taskId && attachment.customerId) {
-        // Task attachment
-        downloadUrl = `/api/files/task/${attachment.taskId}/customer/${attachment.customerId}/attachment/${attachment._id}/download`;
-      } else if (attachment.subtaskId && attachment.customerId) {
-        // Subtask attachment
-        downloadUrl = `/api/files/subtask/${attachment.subtaskId}/customer/${attachment.customerId}/attachment/${attachment._id}/download`;
-      } else {
-        // Fallback - try direct download
-        downloadUrl = `/api/files/download/${attachment._id || attachment.filename}`;
-      }
+      // Use the new file ID-based download route with authorization
+      const downloadUrl = `/api/files/${attachment._id}`;
+      console.log('Download URL:', downloadUrl);
       
-      // Create download link
+      // Create a direct download link with authorization
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = attachment.originalName || attachment.filename;
       link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      
+      // Add authorization header
+      const token = localStorage.getItem('token');
+      if (token) {
+        // Create a fetch request to get the file with proper headers
+        const response = await fetch(downloadUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Download failed: ${response.statusText}`);
+        }
+        
+        // Get the blob and create download
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        link.href = blobUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up
+        window.URL.revokeObjectURL(blobUrl);
+      } else {
+        // Fallback to direct link
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      console.log('Download initiated successfully');
     } catch (error) {
       console.error('Error downloading file:', error);
+      alert('Failed to download file. Please try again.');
     }
   };
 
@@ -73,12 +98,12 @@ const AttachmentDisplay = ({ attachments = [], onDelete, canDelete = false }) =>
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200"
+            className="flex items-start sm:items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 hover:shadow-md transition-shadow duration-200 gap-3"
           >
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              {getFileIcon(attachment.mimetype)}
+            <div className="flex items-start space-x-3 flex-1 min-w-0">
+              <div className="flex-shrink-0">{getFileIcon(attachment.mimetype)}</div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-gray-900 truncate" title={attachment.originalName || attachment.filename}>
                   {attachment.originalName || attachment.filename}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -92,7 +117,7 @@ const AttachmentDisplay = ({ attachments = [], onDelete, canDelete = false }) =>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 flex-shrink-0">
               <Button
                 variant="ghost"
                 size="sm"

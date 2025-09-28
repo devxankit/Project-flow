@@ -219,18 +219,29 @@ export const userApi = {
 };
 
 // Generic API error handler
-export const handleApiError = (error, defaultMessage = 'An error occurred') => {
+export const handleApiError = (error, toast = null, defaultMessage = 'An error occurred') => {
   console.error('API Error:', error);
+  console.log('handleApiError called with toast:', typeof toast);
+  
+  let errorMessage = defaultMessage;
   
   if (error.message) {
-    return error.message;
+    errorMessage = error.message;
+  } else if (typeof error === 'string') {
+    errorMessage = error;
   }
   
-  if (typeof error === 'string') {
-    return error;
+  console.log('Error message to show:', errorMessage);
+  
+  // Show toast notification if toast function is provided
+  if (toast && typeof toast.error === 'function') {
+    console.log('Calling toast.error with:', errorMessage);
+    toast.error('Error', errorMessage);
+  } else {
+    console.log('Toast not available or not a function');
   }
   
-  return defaultMessage;
+  return errorMessage;
 };
 
 // Check if user is authenticated

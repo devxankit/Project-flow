@@ -316,6 +316,7 @@ const Tasks = () => {
           isOpen={isTaskFormOpen}
           onClose={() => setIsTaskFormOpen(false)}
           onSubmit={handleTaskSubmit}
+          customerId={null} // No specific customer for main task page
         />
       )}
     </div>

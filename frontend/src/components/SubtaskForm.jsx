@@ -33,6 +33,7 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
     dueDate: '',
     assignedTo: '', // Single assignee only
     status: 'pending',
+    sequence: 1,
     attachments: []
   });
 
@@ -266,6 +267,10 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
       newErrors.dueDate = 'Due date is required';
     }
 
+    if (!formData.sequence || formData.sequence < 1) {
+      newErrors.sequence = 'Sequence number must be at least 1';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -461,7 +466,39 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
           <span>Additional Information</span>
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Sequence */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Sequence <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="number"
+              min="1"
+              value={formData.sequence}
+              onChange={(e) => handleInputChange('sequence', parseInt(e.target.value) || 1)}
+              placeholder="Enter sequence number"
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.sequence
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.sequence && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.sequence}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Priority */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
@@ -608,30 +645,34 @@ const SubtaskForm = ({ isOpen, onClose, onSubmit, taskId, customerId, subtask })
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <span>Selected Files ({formData.attachments.length})</span>
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-48 overflow-y-auto">
                 {formData.attachments.map((attachment, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                    className="flex items-start sm:items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 gap-3"
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{getFileIcon(attachment.type)}</span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                    <div className="flex items-start space-x-3 flex-1 min-w-0">
+                      <span className="text-2xl flex-shrink-0">{getFileIcon(attachment.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate" title={attachment.name}>
+                          {attachment.name}
+                        </p>
                         <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex-shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </motion.div>
                 ))}
               </div>

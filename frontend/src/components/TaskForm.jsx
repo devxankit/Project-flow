@@ -9,7 +9,7 @@ import { MultiSelect } from './magicui/multi-select';
 import { DatePicker } from './magicui/date-picker';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, UserPlus, CheckSquare, AlertCircle, Clock, CheckCircle, X, ArrowLeft, Loader2, FileText, Flag, Calendar, Save, Upload, Paperclip } from 'lucide-react';
-import { taskApi, customerApi, handleApiError } from '../utils/api';
+import { taskApi, customerApi, userApi, handleApiError } from '../utils/api';
 import { useToast } from '../contexts/ToastContext';
 import PMNavbar from './PM-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
@@ -35,6 +35,7 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
     dueDate: '',
     assignedTo: [],
     status: 'pending',
+    sequence: 1,
     attachments: []
   });
 
@@ -66,6 +67,13 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
     }
   }, [isDialogMode, isEditMode]);
 
+  // Load team members when customerId changes
+  useEffect(() => {
+    if (isDialogMode || isEditMode) {
+      loadTeamMembers();
+    }
+  }, [customerId]);
+
   useEffect(() => {
     // Only load task data if we're in edit mode (not dialog mode) and have both id and customerId
     if (isEditMode && !isDialogMode && id && customerId && id !== customerId) {
@@ -94,9 +102,11 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
     setIsLoadingCustomers(true);
     try {
       const response = await customerApi.getCustomers();
-      if (response.success && response.data) {
+      
+      if ((response.success || response.status === 'success') && response.data) {
         // Backend returns { data: { customers: [...], pagination: {...} } }
         const customersData = response.data?.customers || [];
+        
         const formattedCustomers = (Array.isArray(customersData) ? customersData : []).map(customer => ({
           value: customer._id,
           label: customer.name,
@@ -104,7 +114,10 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
           icon: CheckSquare,
           avatar: customer.avatar
         }));
+        
         setCustomers(formattedCustomers);
+      } else {
+        setCustomers([]);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
@@ -124,22 +137,42 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
       if (customerId) {
         response = await taskApi.getTeamMembersForTask(customerId);
       } else {
-        // Otherwise, get all team members
-        response = await customerApi.getUsersForCustomer('team');
+        // Otherwise, get all team members from the system
+        response = await userApi.getAllUsers();
       }
       
-      if (response.success && response.data) {
-        const teamData = customerId 
-          ? response.data.teamMembers || []  // For specific customer
-          : response.data.teamMembers || []; // For all team members
+      if ((response.success || response.status === 'success') && response.data) {
+        let teamData = [];
         
-        const formattedTeamMembers = (Array.isArray(teamData) ? teamData : []).map(member => ({
+        if (customerId) {
+          // For specific customer
+          teamData = response.data.teamMembers || [];
+        } else {
+          // For all users - check different possible response structures
+          teamData = response.data.users || response.data || [];
+        }
+        
+        // Ensure we have an array
+        if (!Array.isArray(teamData)) {
+          teamData = [];
+        }
+        
+        // Filter for team members only (exclude customers)
+        const teamMembers = teamData.filter(member => {
+          const role = member.role?.toLowerCase();
+          return role === 'team' || role === 'employee' || role === 'pm' || role === 'admin';
+        });
+        
+        const formattedTeamMembers = teamMembers.map(member => ({
           value: member._id,
-          label: member.fullName,
+          label: member.fullName || member.name,
           subtitle: `${member.jobTitle || member.workTitle || 'N/A'} - ${member.department || 'N/A'}`,
           avatar: member.avatar
         }));
+        
         setTeamMembers(formattedTeamMembers);
+      } else {
+        setTeamMembers([]);
       }
     } catch (error) {
       console.error('Error loading team members:', error);
@@ -152,23 +185,18 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
 
   const loadTaskData = async () => {
     try {
-      console.log('loadTaskData called with:', { id, customerId, isEditMode, isDialogMode });
-      
       // If we don't have customerId, we can't load task data
       if (!customerId) {
-        console.warn('Cannot load task data: customerId is required');
         return;
       }
       
       // If we're in dialog mode, we shouldn't load task data
       if (isDialogMode) {
-        console.warn('Cannot load task data: TaskForm is in dialog mode');
         return;
       }
       
       // If id and customerId are the same, this is likely wrong
       if (id === customerId) {
-        console.warn('Cannot load task data: id and customerId are the same');
         return;
       }
       
@@ -265,6 +293,10 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
       newErrors.dueDate = 'Due date is required';
     }
 
+    if (!formData.sequence || formData.sequence < 1) {
+      newErrors.sequence = 'Sequence number must be at least 1';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -309,6 +341,8 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
       }
     } catch (error) {
       console.error('Error saving task:', error);
+      console.log('Toast function available:', typeof toast);
+      console.log('Toast error function available:', typeof toast?.error);
       handleApiError(error, toast);
     } finally {
       setIsSubmitting(false);
@@ -455,7 +489,39 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
           <span>Additional Information</span>
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Sequence */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700 flex items-center">
+              Sequence <span className="text-red-500 ml-1">*</span>
+            </label>
+            <Input
+              type="number"
+              min="1"
+              value={formData.sequence}
+              onChange={(e) => handleInputChange('sequence', parseInt(e.target.value) || 1)}
+              placeholder="Enter sequence number"
+              className={`h-12 rounded-xl border-2 transition-all duration-200 ${
+                errors.sequence
+                  ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
+                  : 'border-gray-200 focus:border-primary focus:ring-primary/20'
+              }`}
+            />
+            <AnimatePresence>
+              {errors.sequence && (
+                <motion.p 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="text-sm text-red-500 flex items-center"
+                >
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.sequence}
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Priority */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-gray-700 flex items-center">
@@ -602,30 +668,34 @@ const TaskForm = ({ isOpen, onClose, onSubmit, onSuccess, customerId, task, mode
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 <span>Selected Files ({formData.attachments.length})</span>
               </h4>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-48 overflow-y-auto">
                 {formData.attachments.map((attachment, index) => (
                   <motion.div
                     key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200"
+                    className="flex items-start sm:items-center justify-between p-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg border border-gray-200 gap-3"
                   >
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{getFileIcon(attachment.type)}</span>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{attachment.name}</p>
+                    <div className="flex items-start space-x-3 flex-1 min-w-0">
+                      <span className="text-2xl flex-shrink-0">{getFileIcon(attachment.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate" title={attachment.name}>
+                          {attachment.name}
+                        </p>
                         <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
                       </div>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAttachment(index)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+                    <div className="flex-shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </motion.div>
                 ))}
               </div>
