@@ -2,6 +2,7 @@ const Customer = require('../models/Customer');
 const Task = require('../models/Task');
 const Subtask = require('../models/Subtask');
 const User = require('../models/User');
+const FileModel = require('../models/File');
 const { formatFileData, validateFileSize } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
 const { createTaskActivity } = require('./activityController');
@@ -98,11 +99,19 @@ const createTask = async (req, res) => {
     let attachments = [];
     
     if (req.files && req.files.length > 0) {
-      attachments = req.files
-        .filter(file => file && file.originalname && file.mimetype) // Only process valid files
-        .filter(file => validateFileSize(file)) // Validate file size by category
-        .map(file => formatFileData(file, req.user.id)) // Use enhanced file formatting
-        .filter(attachment => attachment && attachment.url); // Only include valid attachments
+      // Create File records for each uploaded file
+      for (const file of req.files) {
+        if (file && file.originalname && file.mimetype && validateFileSize(file)) {
+          const fileData = formatFileData(file, req.user.id);
+          fileData.entityType = 'task';
+          fileData.entityId = null; // Will be set after task creation
+          fileData.customerId = customer;
+          
+          const fileRecord = new FileModel(fileData);
+          await fileRecord.save();
+          attachments.push(fileRecord._id);
+        }
+      }
     }
 
     // Create task
@@ -121,6 +130,14 @@ const createTask = async (req, res) => {
 
     await task.save();
 
+    // Update file records with the task ID
+    if (attachments.length > 0) {
+      await FileModel.updateMany(
+        { _id: { $in: attachments } },
+        { entityId: task._id }
+      );
+    }
+
     // Create activity for task creation
     try {
       await createTaskActivity(task._id, 'task_created', req.user.id, {
@@ -137,11 +154,12 @@ const createTask = async (req, res) => {
     if (attachments.length > 0) {
       try {
         const { createFileActivity } = require('./activityController');
-        for (const attachment of attachments) {
+        const fileRecords = await FileModel.find({ _id: { $in: attachments } });
+        for (const fileRecord of fileRecords) {
           await createFileActivity(customer, 'file_uploaded', req.user.id, {
-            filename: attachment.originalName,
-            fileSize: attachment.size,
-            fileType: attachment.mimetype,
+            filename: fileRecord.originalName,
+            fileSize: fileRecord.size,
+            fileType: fileRecord.mimetype,
             taskId: task._id
           });
         }
@@ -166,6 +184,15 @@ const createTask = async (req, res) => {
 
   } catch (error) {
     console.error('Error creating task:', error);
+    
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -230,7 +257,8 @@ const getTask = async (req, res) => {
       .populate('createdBy', 'fullName email avatar')
       .populate('completedBy', 'fullName email avatar')
       .populate('customer', 'name')
-      .populate('comments.user', 'fullName email');
+      .populate('comments.user', 'fullName email')
+      .populate('attachments', 'filename originalName mimetype size uploadedAt uploadedBy');
 
     if (!task) {
       return res.status(404).json({

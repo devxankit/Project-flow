@@ -28,8 +28,8 @@ ensureUploadDirs();
 // Enhanced file type validation with security checks
 const ALLOWED_MIME_TYPES = {
   // Images
-  'image/jpeg': { ext: '.jpg', category: 'image' },
-  'image/jpg': { ext: '.jpg', category: 'image' },
+  'image/jpeg': { ext: ['.jpg', '.jpeg'], category: 'image' },
+  'image/jpg': { ext: ['.jpg', '.jpeg'], category: 'image' },
   'image/png': { ext: '.png', category: 'image' },
   'image/gif': { ext: '.gif', category: 'image' },
   'image/webp': { ext: '.webp', category: 'image' },
@@ -70,10 +70,10 @@ const ALLOWED_MIME_TYPES = {
   'video/3gp': { ext: '.3gp', category: 'video' },
   
   // Audio
-  'audio/mp3': { ext: '.mp3', category: 'audio' },
+  'audio/mp3': { ext: ['.mp3'], category: 'audio' },
   'audio/wav': { ext: '.wav', category: 'audio' },
   'audio/ogg': { ext: '.ogg', category: 'audio' },
-  'audio/mpeg': { ext: '.mp3', category: 'audio' },
+  'audio/mpeg': { ext: ['.mp3'], category: 'audio' },
   'audio/aac': { ext: '.aac', category: 'audio' },
   'audio/flac': { ext: '.flac', category: 'audio' }
 };
@@ -110,9 +110,10 @@ const fileFilter = (req, file, cb) => {
     }
 
     // Verify MIME type matches extension
-    const expectedExt = ALLOWED_MIME_TYPES[file.mimetype].ext;
-    if (fileExtension !== expectedExt) {
-      return cb(new Error(`File extension ${fileExtension} does not match MIME type ${file.mimetype}`), false);
+    const expectedExts = ALLOWED_MIME_TYPES[file.mimetype].ext;
+    const allowedExtensions = Array.isArray(expectedExts) ? expectedExts : [expectedExts];
+    if (!allowedExtensions.includes(fileExtension)) {
+      return cb(new Error(`File extension ${fileExtension} does not match MIME type ${file.mimetype}. Allowed extensions: ${allowedExtensions.join(', ')}`), false);
     }
 
     // Additional security: Check file signature (magic numbers)
@@ -206,7 +207,7 @@ const formatFileData = (file, userId) => {
     originalName: file.originalname,
     mimetype: file.mimetype,
     size: file.size,
-    url: file.path,
+    path: file.path,
     fileType: mimeInfo ? mimeInfo.category : 'other',
     fileExtension: path.extname(file.originalname).toLowerCase(),
     uploadedBy: userId,
@@ -215,6 +216,15 @@ const formatFileData = (file, userId) => {
     isSecure: true,
     validatedAt: new Date()
   };
+};
+
+// Add fileType to req.file for the new file controller
+const addFileType = (req, res, next) => {
+  if (req.file) {
+    const mimeInfo = ALLOWED_MIME_TYPES[req.file.mimetype];
+    req.file.fileType = mimeInfo ? mimeInfo.category : 'other';
+  }
+  next();
 };
 
 // Helper function to validate file size by category
@@ -279,9 +289,14 @@ const serveFile = (filePath, res, originalName) => {
       disposition = 'inline'; // Allow text preview
     }
     
+    // Get actual file size from disk
+    const stats = fs.statSync(filePath);
+    const actualFileSize = stats.size;
+
     // Set security headers
     res.setHeader('Content-Type', contentType);
     res.setHeader('Content-Disposition', `${disposition}; filename="${fileName}"`);
+    res.setHeader('Content-Length', actualFileSize);
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Cache-Control', 'private, max-age=3600');
@@ -384,6 +399,7 @@ module.exports = {
   cleanupOldFiles,
   deleteFile,
   backupFile,
+  addFileType,
   ALLOWED_MIME_TYPES,
   FILE_SIZE_LIMITS,
   DANGEROUS_EXTENSIONS

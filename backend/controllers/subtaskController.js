@@ -3,6 +3,7 @@ const Subtask = require('../models/Subtask');
 const Task = require('../models/Task');
 const Customer = require('../models/Customer');
 const User = require('../models/User');
+const FileModel = require('../models/File');
 const { formatFileData, validateFileSize } = require('../middlewares/enhancedFileUpload');
 const { validationResult } = require('express-validator');
 const { createSubtaskActivity } = require('./activityController');
@@ -113,11 +114,19 @@ const createSubtask = async (req, res) => {
     let attachments = [];
     
     if (req.files && req.files.length > 0) {
-      attachments = req.files
-        .filter(file => file && file.originalname && file.mimetype)
-        .filter(file => validateFileSize(file)) // Validate file size by category
-        .map(file => formatFileData(file, req.user.id)) // Use enhanced file formatting
-        .filter(attachment => attachment && attachment.url);
+      // Create File records for each uploaded file
+      for (const file of req.files) {
+        if (file && file.originalname && file.mimetype && validateFileSize(file)) {
+          const fileData = formatFileData(file, req.user.id);
+          fileData.entityType = 'subtask';
+          fileData.entityId = null; // Will be set after subtask creation
+          fileData.customerId = customer;
+          
+          const fileRecord = new FileModel(fileData);
+          await fileRecord.save();
+          attachments.push(fileRecord._id);
+        }
+      }
     }
 
     // Auto-generate sequence number if not provided
@@ -147,6 +156,14 @@ const createSubtask = async (req, res) => {
 
     await subtask.save();
 
+    // Update file records with the subtask ID
+    if (attachments.length > 0) {
+      await FileModel.updateMany(
+        { _id: { $in: attachments } },
+        { entityId: subtask._id }
+      );
+    }
+
     // Create activity for subtask creation
     try {
       await createSubtaskActivity(subtask._id, 'subtask_created', req.user.id, {
@@ -164,11 +181,12 @@ const createSubtask = async (req, res) => {
     if (attachments.length > 0) {
       try {
         const { createFileActivity } = require('./activityController');
-        for (const attachment of attachments) {
+        const fileRecords = await FileModel.find({ _id: { $in: attachments } });
+        for (const fileRecord of fileRecords) {
           await createFileActivity(customer, 'file_uploaded', req.user.id, {
-            filename: attachment.originalName,
-            fileSize: attachment.size,
-            fileType: attachment.mimetype,
+            filename: fileRecord.originalName,
+            fileSize: fileRecord.size,
+            fileType: fileRecord.mimetype,
             subtaskId: subtask._id
           });
         }
@@ -194,6 +212,15 @@ const createSubtask = async (req, res) => {
 
   } catch (error) {
     console.error('Error creating subtask:', error);
+    
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -282,7 +309,8 @@ const getSubtask = async (req, res) => {
       .populate('completedBy', 'fullName email avatar')
       .populate('task', 'title')
       .populate('customer', 'name')
-      .populate('comments.user', 'fullName email');
+      .populate('comments.user', 'fullName email')
+      .populate('attachments', 'filename originalName mimetype size uploadedAt uploadedBy');
 
     if (!subtask) {
       return res.status(404).json({

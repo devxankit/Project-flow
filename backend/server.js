@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 require('dotenv').config();
 
 // Import database connection
@@ -16,7 +17,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const subtaskRoutes = require('./routes/subtaskRoutes');
-const fileRoutes = require('./routes/enhancedFileRoutes');
+const fileRoutes = require('./routes/fileRoutes');
 const taskRequestRoutes = require('./routes/taskRequestRoutes');
 const activityRoutes = require('./routes/activityRoutes');
 
@@ -76,6 +77,9 @@ app.use('/api/', limiter);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Logging middleware
 if (process.env.NODE_ENV === 'development') {

@@ -1,55 +1,6 @@
 const mongoose = require('mongoose');
 
-// File attachment schema for subtasks
-const attachmentSchema = new mongoose.Schema({
-  filename: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  originalName: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  mimetype: {
-    type: String,
-    required: true
-  },
-  size: {
-    type: Number,
-    required: true,
-    min: [0, 'File size cannot be negative']
-  },
-  url: {
-    type: String,
-    required: true
-  },
-  fileType: {
-    type: String,
-    required: true,
-    enum: {
-      values: ['image', 'video', 'document', 'other'],
-      message: 'File type must be image, video, document, or other'
-    }
-  },
-  uploadedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  uploadedAt: {
-    type: Date,
-    default: Date.now
-  },
-  description: {
-    type: String,
-    trim: true,
-    maxlength: [500, 'Description cannot exceed 500 characters']
-  }
-}, {
-  timestamps: true
-});
+// File attachments are now referenced via ObjectId to File model
 
 // Comment schema for subtasks
 const commentSchema = new mongoose.Schema({
@@ -146,7 +97,10 @@ const subtaskSchema = new mongoose.Schema({
   },
   
   // Content
-  attachments: [attachmentSchema],
+  attachments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'File'
+  }],
   comments: [commentSchema],
   
   // System fields
