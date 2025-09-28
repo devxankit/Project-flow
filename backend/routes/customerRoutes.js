@@ -101,6 +101,7 @@ router.put('/:id',
 // @desc    Get all tasks for a customer
 // @access  Private
 router.get('/:id/tasks', 
+  protect,
   validateCustomerId,
   getCustomerTasks
 );

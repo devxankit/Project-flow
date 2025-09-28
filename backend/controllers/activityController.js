@@ -416,10 +416,6 @@ const createCustomerActivity = async (customerId, type, actorId, metadata = {}) 
       title = 'Customer Cancelled';
       description = `Customer "${customer.name}" has been cancelled`;
       break;
-    case 'customer_deleted':
-      title = 'Customer Deleted';
-      description = `Customer "${customer.name}" has been deleted`;
-      break;
     default:
       title = 'Customer Activity';
       description = `Activity on customer "${customer.name}"`;

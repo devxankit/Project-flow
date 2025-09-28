@@ -965,7 +965,7 @@ const getCustomerActivity = async (req, res) => {
         { 'metadata.customer': { $in: customerIds } }
       ]
     })
-    .populate('user', 'fullName email avatar')
+    .populate('actor', 'fullName email avatar')
     .populate('customer', 'name')
     .sort({ createdAt: -1 })
     .limit(50);
