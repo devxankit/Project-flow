@@ -422,6 +422,81 @@ export const customerApi = {
       
       return handleApiResponse(response);
     });
+  },
+
+  // Task Request API functions
+  createTaskRequest: async (requestData) => {
+    return throttleRequest('create-task-request', async () => {
+      const response = await fetch(`${API_BASE_URL}/task-requests/customer`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  getCustomerTaskRequests: async () => {
+    return throttleRequest('customer-task-requests', async () => {
+      const response = await fetch(`${API_BASE_URL}/task-requests/customer`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  getTaskRequestDetails: async (requestId) => {
+    return throttleRequest(`task-request-${requestId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/task-requests/customer/${requestId}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  updateTaskRequest: async (requestId, requestData) => {
+    return throttleRequest(`update-task-request-${requestId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/task-requests/customer/${requestId}`, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  deleteTaskRequest: async (requestId) => {
+    return throttleRequest(`delete-task-request-${requestId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/task-requests/customer/${requestId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
+  },
+
+  getCustomerTasks: async (customerId) => {
+    return throttleRequest(`customer-tasks-${customerId}`, async () => {
+      const response = await fetch(`${API_BASE_URL}/customers/${customerId}/tasks`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      return handleApiResponse(response);
+    });
   }
 };
 

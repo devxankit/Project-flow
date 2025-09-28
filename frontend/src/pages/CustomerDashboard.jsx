@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomerNavbar from '../components/Customer-Navbar';
 import useScrollToTop from '../hooks/useScrollToTop';
-import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Loader2, Plus } from 'lucide-react';
+import { FolderKanban, CheckSquare, Clock, TrendingUp, Users, Calendar, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { customerApi, taskRequestApi } from '../utils/api';
-import TaskRequestForm from '../components/TaskRequestForm';
+import { customerApi } from '../utils/api';
 
 const CustomerDashboard = () => {
   const navigate = useNavigate();
@@ -14,7 +13,6 @@ const CustomerDashboard = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
-  const [isTaskRequestFormOpen, setIsTaskRequestFormOpen] = useState(false);
   
   // Scroll to top when component mounts
   useScrollToTop();
@@ -136,15 +134,6 @@ const CustomerDashboard = () => {
                     Welcome back, {user?.fullName || 'there'}!
                   </h1>
                   <p className="text-sm md:text-base text-gray-600 mt-1">Here's your project workspace overview</p>
-                </div>
-                <div className="mt-4 md:mt-0">
-                  <button
-                    onClick={() => setIsTaskRequestFormOpen(true)}
-                    className="bg-gradient-to-r from-primary to-primary-dark text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95 flex items-center space-x-2"
-                  >
-                    <Plus className="h-5 w-5" />
-                    <span className="font-semibold">Request Task</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -451,15 +440,6 @@ const CustomerDashboard = () => {
         </div>
       </main>
 
-      {/* Task Request Form - Only render when open */}
-      {isTaskRequestFormOpen && (
-        <TaskRequestForm
-          isOpen={isTaskRequestFormOpen}
-          onClose={() => setIsTaskRequestFormOpen(false)}
-          customerId={user?._id}
-          customerName={user?.fullName}
-        />
-      )}
     </div>
   );
 };

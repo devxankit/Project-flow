@@ -22,7 +22,7 @@ import {
   BarChart3
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
-import api from '../utils/api';
+import { customerApi } from '../utils/api';
 
 const CustomerTaskRequestDetail = () => {
   const { id } = useParams();
@@ -38,9 +38,9 @@ const CustomerTaskRequestDetail = () => {
     const fetchTaskRequest = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/task-requests/customer/${id}`);
-        if (response.data.success) {
-          setTaskRequest(response.data.data);
+        const response = await customerApi.getTaskRequestDetails(id);
+        if (response.success) {
+          setTaskRequest(response.data);
         } else {
           toast.error('Error', 'Task request not found');
           navigate('/customer-task-requests');
@@ -131,8 +131,8 @@ const CustomerTaskRequestDetail = () => {
     if (window.confirm('Are you sure you want to delete this task request? This action cannot be undone.')) {
       try {
         setIsDeleting(true);
-        const response = await api.delete(`/task-requests/customer/${id}`);
-        if (response.data.success) {
+        const response = await customerApi.deleteTaskRequest(id);
+        if (response.success) {
           toast.success('Success', 'Task request deleted successfully');
           navigate('/customer-task-requests');
         } else {

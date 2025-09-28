@@ -51,7 +51,7 @@ const TaskRequests = () => {
     const fetchTaskRequests = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/task-requests');
+        const response = await api.get('/task-requests/pm');
         if (response.data.success) {
           setTaskRequests(response.data.data);
         } else {
@@ -158,15 +158,15 @@ const TaskRequests = () => {
   const handleApprove = async (requestId) => {
     try {
       setIsProcessing(true);
-      const response = await api.put(`/task-requests/${requestId}/status`, {
-        status: 'approved',
-        response: 'Task request approved and task created successfully.'
+      const response = await api.post(`/task-requests/pm/${requestId}/review`, {
+        action: 'approve',
+        reviewComments: 'Task request approved and subtask created successfully.'
       });
       
       if (response.data.success) {
         toast.success(
           'Request Approved!',
-          `Task request has been approved and a new task has been created.`
+          `Task request has been approved and a new subtask has been created.`
         );
         
         // Update the local state
@@ -207,9 +207,9 @@ const TaskRequests = () => {
 
     try {
       setIsProcessing(true);
-      const response = await api.put(`/task-requests/${requestToReject._id}/status`, {
-        status: 'rejected',
-        response: rejectionReason
+      const response = await api.post(`/task-requests/pm/${requestToReject._id}/review`, {
+        action: 'reject',
+        reviewComments: rejectionReason
       });
       
       if (response.data.success) {

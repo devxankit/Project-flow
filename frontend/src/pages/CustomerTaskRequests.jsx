@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { taskRequestApi, customerApi } from '../utils/api';
+import { customerApi } from '../utils/api';
 
 const CustomerTaskRequests = () => {
   const navigate = useNavigate();
@@ -42,7 +42,7 @@ const CustomerTaskRequests = () => {
     const fetchTaskRequests = async () => {
       try {
         setLoading(true);
-        const response = await taskRequestApi.getCustomerTaskRequests();
+        const response = await customerApi.getCustomerTaskRequests();
         if (response.success) {
           setTaskRequests(response.data);
           setFilteredRequests(response.data);
@@ -64,7 +64,7 @@ const CustomerTaskRequests = () => {
       try {
         const response = await customerApi.getCustomers();
         if (response.success) {
-          setCustomers(response.data || []);
+          setCustomers(response.data.customers || []);
         }
       } catch (error) {
         console.error('Error fetching customers:', error);
@@ -155,13 +155,12 @@ const CustomerTaskRequests = () => {
   const handleCancelRequest = async (requestId) => {
     if (window.confirm('Are you sure you want to cancel this task request?')) {
       try {
-        const response = await taskRequestApi.deleteTaskRequest(requestId);
+        const response = await customerApi.deleteTaskRequest(requestId);
         if (response.success) {
           toast.success('Success', 'Task request cancelled successfully');
           // Refresh the list
           const updatedRequests = taskRequests.filter(r => r._id !== requestId);
           setTaskRequests(updatedRequests);
-          setFilteredRequests(updatedRequests);
         }
       } catch (error) {
         console.error('Error cancelling task request:', error);
@@ -186,7 +185,7 @@ const CustomerTaskRequests = () => {
   const handleTaskRequestSubmit = async (requestData) => {
     try {
       // Refresh the task requests list
-      const response = await taskRequestApi.getCustomerTaskRequests();
+      const response = await customerApi.getCustomerTaskRequests();
       if (response.success) {
         setTaskRequests(response.data);
         setFilteredRequests(response.data);
@@ -206,12 +205,16 @@ const CustomerTaskRequests = () => {
   // Fetch tasks for a specific customer
   const fetchTasksForCustomer = async (customerId) => {
     try {
+      console.log('Fetching tasks for customer:', customerId);
       const response = await customerApi.getCustomerTasks(customerId);
+      console.log('Tasks response:', response);
       if (response.success) {
+        console.log('Tasks data:', response.data);
         setTasks(response.data || []);
         // Close the customer selection dialog and open the task request form
         setIsTaskRequestFormOpen(false);
       } else {
+        console.error('Failed to load tasks:', response.message);
         toast.error('Error', 'Failed to load tasks for this customer');
       }
     } catch (error) {
@@ -442,13 +445,13 @@ const CustomerTaskRequests = () => {
         </div>
       </main>
 
-      {/* Task Request Form */}
+      {/* Customer Selection Modal */}
       {isTaskRequestFormOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Select Customer</h2>
+                <h2 className="text-xl font-semibold text-gray-900">Select Project</h2>
                 <button
                   onClick={handleCloseForm}
                   className="text-gray-400 hover:text-gray-600 transition-colors"

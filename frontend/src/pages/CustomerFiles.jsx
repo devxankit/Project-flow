@@ -122,10 +122,12 @@ const CustomerFiles = () => {
     const fileName = file.name || file.originalName || '';
     const customerName = file.customer || file.customerName || '';
     const taskName = file.task || file.taskTitle || '';
+    const subtaskName = file.subtask || file.subtaskTitle || '';
     
     const matchesSearch = fileName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         taskName.toLowerCase().includes(searchTerm.toLowerCase());
+                         taskName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         subtaskName.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filter === 'all') return matchesSearch;
     return matchesSearch && (file.type || file.mimetype) === filter;
@@ -282,6 +284,12 @@ const CustomerFiles = () => {
                     <CheckSquare className="h-3 w-3" />
                     <span>{file.task || file.taskTitle || 'Unknown Task'}</span>
                   </div>
+                  {file.subtask && (
+                    <div className="flex items-center space-x-2 text-xs text-gray-500">
+                      <FileText className="h-3 w-3" />
+                      <span>{file.subtask || file.subtaskTitle || 'Unknown Subtask'}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}

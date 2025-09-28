@@ -31,7 +31,7 @@ const CustomerNavbar = () => {
   }, []);
 
   const navigationItems = [
-    { name: 'My Customers', icon: Building2, href: '/customer-dashboard', key: 'dashboard' },
+    { name: 'My Project', icon: Building2, href: '/customer-dashboard', key: 'dashboard' },
     { name: 'Requests', icon: CheckSquare, href: '/customer-task-requests', key: 'task-requests' },
     { name: 'Activity', icon: Activity, href: '/customer-activity', key: 'activity' },
     { name: 'Files', icon: FileText, href: '/customer-files', key: 'files' },
